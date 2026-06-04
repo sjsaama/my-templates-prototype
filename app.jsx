@@ -155,6 +155,9 @@ function App() {
                   {showAmdDetail && <div className="ed-amd-hint">AMD: mappings use <span className="ed-mono">Page &gt; Field</span> format. Push behavior column shows append/prepend/replace and static text.</div>}
                 </div>
                 <button className="btn-outline btn-outline--req" onClick={() => setSectionRequestOpen(true)}>
+                  {pendingCount > 0 && (
+                    <span className="btn-outline-badge" aria-label={pendingCount + " pending requests"}>{pendingCount}</span>
+                  )}
                   <span className="btn-outline-main">Request New Section</span>
                   {pendingCount > 0
                     ? <span className="btn-outline-sub btn-outline-sub--coral">{pendingCount} Pending Request{pendingCount === 1 ? "" : "s"}</span>
