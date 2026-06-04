@@ -125,10 +125,10 @@ function App() {
     flash("Connections & static text saved");
   };
 
-  const densPad = { compact: 14, regular: 20, comfy: 28 }[t.density];
+  const densityVars = window.densityStyle(t.density, t.accent);
 
   return (
-    <div className="app" style={{ "--accent": t.accent, "--row-pad": densPad + "px" }}>
+    <div className="app" style={densityVars}>
       <window.Sidebar />
       <window.TemplateList
         groups={groups}
