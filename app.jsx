@@ -126,9 +126,19 @@ function App() {
   };
 
   const densityVars = window.densityStyle(t.density, t.accent);
+  const isLocalDev =
+    typeof location !== 'undefined' &&
+    (location.hostname === 'localhost' ||
+      location.hostname === '127.0.0.1' ||
+      location.protocol === 'file:');
 
   return (
     <div className="app" style={densityVars}>
+      {isLocalDev && (
+        <div className="dev-ribbon" role="status">
+          Local preview — use <strong>Tweaks</strong> (bottom-right) → Row density &amp; Accent. Hard-refresh if styles look stale (⌘⇧R).
+        </div>
+      )}
       <window.Sidebar />
       <window.TemplateList
         groups={groups}

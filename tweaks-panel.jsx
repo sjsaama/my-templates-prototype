@@ -234,6 +234,11 @@ function TweaksPanel({ title = 'Tweaks', children }) {
     };
     window.addEventListener('message', onMsg);
     window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    const host = location.hostname;
+    const isLocal =
+      host === 'localhost' || host === '127.0.0.1' || location.protocol === 'file:';
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('dev') === '1' || (isLocal && qs.get('prod') !== '1')) setOpen(true);
     return () => window.removeEventListener('message', onMsg);
   }, []);
 
