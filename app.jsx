@@ -125,10 +125,20 @@ function App() {
     flash("Connections & static text saved");
   };
 
-  const densPad = { compact: 14, regular: 20, comfy: 28 }[t.density];
+  const densityVars = window.densityStyle(t.density, t.accent);
+  const isLocalDev =
+    typeof location !== 'undefined' &&
+    (location.hostname === 'localhost' ||
+      location.hostname === '127.0.0.1' ||
+      location.protocol === 'file:');
 
   return (
-    <div className="app" style={{ "--accent": t.accent, "--row-pad": densPad + "px" }}>
+    <div className="app" style={densityVars}>
+      {isLocalDev && (
+        <div className="dev-ribbon" role="status">
+          Local preview — use <strong>Tweaks</strong> (bottom-right) → Row density &amp; Accent. Hard-refresh if styles look stale (⌘⇧R).
+        </div>
+      )}
       <window.Sidebar />
       <window.TemplateList
         groups={groups}
@@ -155,6 +165,9 @@ function App() {
                   {showAmdDetail && <div className="ed-amd-hint">AMD: mappings use <span className="ed-mono">Page &gt; Field</span> format. Push behavior column shows append/prepend/replace and static text.</div>}
                 </div>
                 <button className="btn-outline btn-outline--req" onClick={() => setSectionRequestOpen(true)}>
+                  {pendingCount > 0 && (
+                    <span className="btn-outline-badge" aria-label={pendingCount + " pending requests"}>{pendingCount}</span>
+                  )}
                   <span className="btn-outline-main">Request New Section</span>
                   {pendingCount > 0
                     ? <span className="btn-outline-sub btn-outline-sub--coral">{pendingCount} Pending Request{pendingCount === 1 ? "" : "s"}</span>
