@@ -1,12 +1,49 @@
 // app.jsx — root: wires templates, sections, modal, tweaks
 const { useState: useStateA } = React;
 
+// Reorder sections — enforces same-parent constraint for subsections.
+function reorderSections(sections, dragId, targetId, pos) {
+  if (dragId === targetId) return sections;
+
+  function getParentRef(list, id, parent) {
+    for (const s of list) {
+      if (s.id === id) return parent;
+      if (s.children) {
+        const found = getParentRef(s.children, id, s);
+        if (found !== undefined) return found;
+      }
+    }
+    return undefined;
+  }
+
+  const dragParent = getParentRef(sections, dragId, null);
+  const targetParent = getParentRef(sections, targetId, null);
+
+  // Only allow reorder within the same parent scope
+  if ((dragParent && dragParent.id) !== (targetParent && targetParent.id)) return sections;
+
+  const srcList = dragParent ? [...dragParent.children] : [...sections];
+  const dragIdx = srcList.findIndex(s => s.id === dragId);
+  if (dragIdx === -1) return sections;
+  const [item] = srcList.splice(dragIdx, 1);
+
+  let targetIdx = srcList.findIndex(s => s.id === targetId);
+  if (pos === 'after') targetIdx = targetIdx + 1;
+  srcList.splice(Math.max(0, targetIdx), 0, item);
+
+  if (!dragParent) return srcList;
+  return mapSectionTree(sections, dragParent.id, p => ({ ...p, children: srcList }));
+}
+
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "accent": "#747AF7",
   "density": "regular",
   "showAdvancedInline": true,
-  "monoMapping": true
+  "monoMapping": true,
+  "ehr": "AMD"
 }/*EDITMODE-END*/;
+
+const EHR_OPTIONS = ["AMD", "AthenaOne", "Athena", "eCW", "Charm", "DrChrono"];
 
 function mapSectionTree(list, id, fn) {
   return list.map((s) => {
@@ -48,13 +85,13 @@ function App() {
     window.INITIAL_PENDING_REQUESTS.map((r) => ({ ...r }))
   );
   const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
-  const [modalId, setModalId] = useStateA(null);
   const [disableTarget, setDisableTarget] = useStateA(null);
   const [toast, setToast] = useStateA("");
   const [navCollapsed, setNavCollapsed] = useStateA(false);
+  const [resetConfirm, setResetConfirm] = useStateA(false);
 
   const tpl = activeTpl ? templates.find((x) => x.id === activeTpl) : null;
-  const showAmdDetail = tpl && tpl.ehrSystem === "AMD";
+  const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
   const pendingCount = pendingRequests.length;
   const groups = window.groupsFor(templates);
   const sections = activeTpl
@@ -79,18 +116,17 @@ function App() {
       if (impact.macros > 0 || impact.summarizers > 0) setDisableTarget({ id, section: sec, impact });
       else applyToggle(id, false);
     },
-    onConfig: (id, v) => setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, config: v }))),
     onExpand: (id) => setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, expanded: !s.expanded }))),
     onToggleDetails: (id) =>
       setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, detailsExpanded: !s.detailsExpanded }))),
-    onOpenModal: (id) => setModalId(id),
-    onEntity: (id, entityId, value) =>
-      setSections((arr) => mapSectionTree(arr, id, (s) => ({
-        ...s,
-        entities: s.entities.map((e) => (e.id === entityId ? { ...e, value } : e)),
-      }))),
-    onDefaultNegative: (id, value) =>
-      setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, defaultNegative: value }))),
+    onReorder: (dragId, targetId, pos) =>
+      setSections((arr) => reorderSections(arr, dragId, targetId, pos)),
+    onRemap: (id, ehr, scribeIt) =>
+      setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, ehr, scribeIt: scribeIt !== undefined ? scribeIt : s.scribeIt }))),
+    onSetMappingMode: (id, mode) =>
+      setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, mappingMode: mode }))),
+    onUpdate: (id, fields) =>
+      setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, ...fields }))),
   };
 
   const selectTpl = (id) => {
@@ -98,8 +134,6 @@ function App() {
     if (!sectionsByTpl[id]) setSectionsByTpl((m) => ({ ...m, [id]: window.makeSections() }));
     setActiveTpl(id);
   };
-
-  const modalSection = modalId ? findSection(sections, modalId) : null;
 
   const submitSectionRequest = (data) => {
     setPendingRequests((arr) => [
@@ -113,16 +147,13 @@ function App() {
         ehr: data.ehr,
         isSubsection: data.isSubsection,
         parentName: data.parentName,
+        status: "pending",
+        ops_note: "",
+        seenByDoctor: true,
       },
     ]);
     setSectionRequestOpen(false);
     flash("Section request sent — ops will review");
-  };
-
-  const saveModal = (data) => {
-    setSections((arr) => mapSectionTree(arr, modalId, (s) => ({ ...s, ...data })));
-    setModalId(null);
-    flash("Connections & static text saved");
   };
 
   const densityVars = window.densityStyle(t.density, t.accent);
@@ -160,28 +191,68 @@ function App() {
                   <h2 className="ed-title">{tpl.name}</h2>
                   <div className="ed-meta">
                     {tpl.derivative && <span>{tpl.derivative} · </span>}
-                    Mapped EHR Template: <span className="ed-mono">{tpl.ehr}</span>
+                    EHR Template: <span className="ed-mono">{tpl.ehr}</span>
                   </div>
-                  {showAmdDetail && <div className="ed-amd-hint">AMD: mappings use <span className="ed-mono">Page &gt; Field</span> format. Push behavior column shows append/prepend/replace and static text.</div>}
                 </div>
-                <button className="btn-outline btn-outline--req" onClick={() => setSectionRequestOpen(true)}>
-                  {pendingCount > 0 && (
-                    <span className="btn-outline-badge" aria-label={pendingCount + " pending requests"}>{pendingCount}</span>
+                <button className="btn-outline btn-outline--req" onClick={() => {
+                  setSectionRequestOpen(true);
+                  setPendingRequests(arr => arr.map(r => ({ ...r, seenByDoctor: true })));
+                }}>
+                  {unseenCount > 0 && (
+                    <span className="btn-outline-badge" aria-label={unseenCount + " updates"}>{unseenCount}</span>
                   )}
                   <span className="btn-outline-main">Request New Section</span>
-                  {pendingCount > 0
-                    ? <span className="btn-outline-sub btn-outline-sub--coral">{pendingCount} Pending Request{pendingCount === 1 ? "" : "s"}</span>
+                  {unseenCount > 0
+                    ? <span className="btn-outline-sub btn-outline-sub--coral">{unseenCount} update{unseenCount === 1 ? "" : "s"}</span>
+                    : pendingCount > 0
+                    ? <span className="btn-outline-sub">{pendingCount} request{pendingCount === 1 ? "" : "s"}</span>
                     : <span className="btn-outline-sub">Add a section to any template</span>}
                 </button>
               </header>
-              <window.SectionTable sections={sections} showAmdDetail={showAmdDetail} {...handlers} />
+              <div className="ed-toolbar">
+                <span className="ed-toolbar-hint">
+                  Changes apply to your live template immediately on save
+                </span>
+                <div className="ed-toolbar-actions">
+                  <button className="btn-ghost btn-sm" onClick={() => setResetConfirm(true)}>Reset to default</button>
+                  <button className="btn-teal btn-sm" onClick={() => flash("Changes saved")}>Save changes</button>
+                </div>
+              </div>
+              <window.SectionTable
+                sections={sections}
+                ehr={t.ehr}
+                onToggle={handlers.onToggle}
+                onExpand={handlers.onExpand}
+                onToggleDetails={handlers.onToggleDetails}
+                onReorder={handlers.onReorder}
+                onRemap={handlers.onRemap}
+                onSetMappingMode={handlers.onSetMappingMode}
+                onUpdate={handlers.onUpdate}
+              />
             </>
           )}
         </div>
       </main>
 
-      {modalSection && (
-        <window.ConnectionsModal section={modalSection} onClose={() => setModalId(null)} onSave={saveModal} />
+      {resetConfirm && (
+        <window.ConfirmModal
+          title="Reset to Marvix Default"
+          subtitle={tpl ? tpl.name : ""}
+          confirmLabel="Yes, Reset"
+          danger
+          onClose={() => setResetConfirm(false)}
+          onConfirm={() => {
+            setSections(() => window.makeSections());
+            setResetConfirm(false);
+            flash("Reset to Marvix default");
+          }}
+        >
+          <p className="confirm-lead">All your customizations to this template will be discarded.</p>
+          <ul className="confirm-list confirm-list--warn">
+            <li>Custom EHR mappings will be cleared</li>
+            <li>Section order will be restored to default</li>
+          </ul>
+        </window.ConfirmModal>
       )}
 
       {disableTarget && (
@@ -214,6 +285,10 @@ function App() {
         <TweakRadio label="Row density" value={t.density}
           options={["compact", "regular", "comfy"]}
           onChange={(v) => setTweak("density", v)} />
+        <TweakSection label="EHR" />
+        <TweakSelect label="EHR system" value={t.ehr}
+          options={EHR_OPTIONS}
+          onChange={(v) => setTweak("ehr", v)} />
       </TweaksPanel>
     </div>
   );

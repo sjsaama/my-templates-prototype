@@ -148,9 +148,15 @@ function DisableConfirmModal({ section, impact, onConfirm, onClose }) {
   );
 }
 
+const REQ_STATUS_META = {
+  pending:  { label: "Pending review", cls: "req-status--pending" },
+  approved: { label: "Approved",       cls: "req-status--approved" },
+  rejected: { label: "Not approved",   cls: "req-status--rejected" },
+};
+
 function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSubmit }) {
   const I = window.Icons;
-  const [name, setName] = useStateM("History of Present Illness");
+  const [name, setName] = useStateM("");
   const [desc, setDesc] = useStateM("");
   const [ehr, setEhr] = useStateM("");
   const [isSub, setIsSub] = useStateM(false);
@@ -186,69 +192,87 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
     <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal modal--request" role="dialog" aria-modal="true">
         <div className="modal-head">
-          <h2>Request New Section</h2>
+          <h2>Request a new section</h2>
+          <span className="modal-sub">Ops team will review and add it to your template</span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
         <div className="modal-body">
-          <div className="req-grid">
+
+          <div className="req-row2">
             <div className="req-field">
-              <label>New Section / Subsection Name</label>
-              <input className="req-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="History of Present Illness" />
+              <label>Section name</label>
+              <input className="req-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Allergy History" />
             </div>
             <div className="req-field">
-              <label>Brief Description</label>
-              <textarea className="req-input req-textarea" value={desc} onChange={(e) => setDesc(e.target.value)}
-                placeholder="Describe what you want AI to capture in this new section" rows={4} />
+              <label>Map to EHR field <span className="req-optional">Optional</span></label>
+              <input className="req-input" value={ehr} onChange={(e) => setEhr(e.target.value)}
+                placeholder="Which EHR field?" />
             </div>
           </div>
+
+          <div className="req-field">
+            <label>What should AI capture in this section?</label>
+            <textarea className="req-input req-textarea" value={desc} onChange={(e) => setDesc(e.target.value)}
+              placeholder="e.g. Document all known allergies, reactions, and severity…" rows={3} />
+          </div>
+
           <div className="req-sub-row">
             <label className="req-check">
               <input type="checkbox" checked={isSub} onChange={(e) => setIsSub(e.target.checked)} />
               This is a subsection of
             </label>
             <input className="req-input req-input--inline" value={parentName} onChange={(e) => setParentName(e.target.value)}
-              placeholder="Name of Parent Section" disabled={!isSub} />
+              placeholder="Parent section name" disabled={!isSub} />
           </div>
-          <div className="req-field">
-            <label>Map to EHR Field <span className="req-optional">Optional</span></label>
-            <input className="req-input" value={ehr} onChange={(e) => setEhr(e.target.value)}
-              placeholder="Should this new section push to an EHR field? Which one?" />
-          </div>
+
           <div className="req-apply">
-            <div className="req-apply-title">Apply to Templates</div>
-            {groups.map((g) => (
-              <div className="req-apply-group" key={g.label}>
-                <div className="req-apply-label">{g.label}</div>
-                <div className="req-checks">
-                  {g.templates.map((t) => (
-                    <label className="req-check" key={t.id}>
-                      <input type="checkbox" checked={tplIds.includes(t.id)} onChange={() => toggleTpl(t.id)} />
-                      {t.name}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <button className="btn-teal btn-teal--full" onClick={send}>Send Request</button>
-          {pending.length > 0 && (
-            <div className="req-pending">
-              <div className="req-pending-title">Pending Requests</div>
-              {pending.map((r) => (
-                <div className="req-pending-item" key={r.id}>
-                  <div className="req-pending-head">
-                    <span className="req-pending-name">{r.name}</span>
-                    <span className="req-pending-when">Requested {r.daysAgo} day{r.daysAgo === 1 ? "" : "s"} ago</span>
-                  </div>
-                  <p className="req-pending-desc">{r.description}</p>
-                  <div className="req-pending-tpls">
-                    {r.tplIds.map((id) => {
-                      const t = templates.find((x) => x.id === id);
-                      return t ? <span className="req-pending-tag" key={id}>{t.name}</span> : null;
-                    })}
+            <div className="req-apply-title">Add to templates</div>
+            <div className="req-apply-cols">
+              {groups.map((g) => (
+                <div className="req-apply-group" key={g.label}>
+                  <div className="req-apply-label">{g.label}</div>
+                  <div className="req-checks">
+                    {g.templates.map((t) => (
+                      <label className="req-check" key={t.id}>
+                        <input type="checkbox" checked={tplIds.includes(t.id)} onChange={() => toggleTpl(t.id)} />
+                        {t.name}
+                      </label>
+                    ))}
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="req-foot-row">
+            <button className="btn-ghost" onClick={onClose}>Cancel</button>
+            <button className="btn-teal" onClick={send}>Send request</button>
+          </div>
+
+          {pending.length > 0 && (
+            <div className="req-pending">
+              <div className="req-pending-title">Your requests</div>
+              {pending.map((r) => {
+                const meta = REQ_STATUS_META[r.status] || REQ_STATUS_META.pending;
+                return (
+                  <div className={"req-pending-item" + (r.status === "rejected" ? " req-pending-item--rejected" : "")} key={r.id}>
+                    <div className="req-pending-head">
+                      <span className="req-pending-name">{r.name}</span>
+                      <span className={"req-status-pill " + meta.cls}>{meta.label}</span>
+                    </div>
+                    <p className="req-pending-desc">{r.description}</p>
+                    {r.status === "rejected" && r.ops_note && (
+                      <div className="req-rejected-note">{r.ops_note}</div>
+                    )}
+                    <div className="req-pending-tpls">
+                      {r.tplIds.map((id) => {
+                        const t = templates.find((x) => x.id === id);
+                        return t ? <span className="req-pending-tag" key={id}>{t.name}</span> : null;
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -257,4 +281,4 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
   );
 }
 
-Object.assign(window, { ConnectionsModal, DisableConfirmModal, RequestNewSectionModal });
+Object.assign(window, { ConnectionsModal, ConfirmModal, DisableConfirmModal, RequestNewSectionModal });

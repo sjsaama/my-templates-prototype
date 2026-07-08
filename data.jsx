@@ -67,12 +67,6 @@ const makeSections = () => withDefaultNegatives([
     ],
   },
   {
-    id: "s_ghost_ehr",
-    name: "Vitals",
-    ghost: "ehr",
-    enabled: true,
-  },
-  {
     id: "s_example_parent",
     name: "Example Parent",
     ehr: "Clinical Notes > example_freetext",
@@ -197,12 +191,6 @@ const makeSections = () => withDefaultNegatives([
     defaultNegative: "No known chronic medical conditions. No prior surgeries.",
   },
   {
-    id: "s_ghost_file",
-    name: "Prior Note Summary",
-    ghost: "file",
-    enabled: true,
-  },
-  {
     id: "s_exam",
     name: "Physical Exam",
     ehr: "Clinical Notes > physical_exam",
@@ -276,8 +264,16 @@ const makeSections = () => withDefaultNegatives([
 function withDefaultNegatives(sections) {
   return sections.map((s) => {
     const out = { ...s, detailsExpanded: !!s.detailsExpanded };
-    if (!s.ghost) out.defaultNegative = s.defaultNegative != null ? s.defaultNegative : "";
-    if (s.children) out.children = withDefaultNegatives(s.children);
+    if (!s.ghost) {
+      out.defaultNegative = s.defaultNegative != null ? s.defaultNegative : "";
+      out.styleDetail   = s.styleDetail   || 'Standard';
+      out.styleFormat   = s.styleFormat   || 'Prose';
+      out.stylePrompt   = s.stylePrompt   || '';
+    }
+    if (s.children) {
+      out.mappingMode = s.mappingMode || 'whole';
+      out.children = withDefaultNegatives(s.children);
+    }
     return out;
   });
 }
@@ -313,6 +309,9 @@ const INITIAL_PENDING_REQUESTS = [
     description: "Capture tobacco, alcohol, occupation, and living situation for every visit.",
     tplIds: ["gen1", "gen2", "gen3"],
     daysAgo: 2,
+    status: "approved",
+    ops_note: "",
+    seenByDoctor: false,
   },
   {
     id: "req_seizure",
@@ -320,12 +319,168 @@ const INITIAL_PENDING_REQUESTS = [
     description: "Track seizure count, duration, and post-ictal state for epilepsy follow-ups.",
     tplIds: ["neuro", "follow"],
     daysAgo: 5,
+    status: "rejected",
+    ops_note: "This section already exists as a subsection under Neurology Consultation.",
+    seenByDoctor: false,
+  },
+  {
+    id: "req_family",
+    name: "Family History",
+    description: "Document hereditary conditions and relevant family medical background.",
+    tplIds: ["gen1", "first"],
+    daysAgo: 1,
+    status: "pending",
+    ops_note: "",
+    seenByDoctor: true,
   },
 ];
 
 const CONFIG_OPTIONS = ["Prepend", "Append", "Replace"];
 const MACRO_MODES = ["Y/N Logic", "Free Text", "Lorem Ipsum"];
 const SUMMARIZER_MODES = ["Replace", "Append", "Prepend", "Inform"];
+
+// EHR field lists per system. AMD uses "Page > Field Name", eCW uses "Field > section_code",
+// others use plain snake_case field names.
+const EHR_FIELDS_BY_SYSTEM = {
+  AMD: [
+    { group: "Office Visit", fields: [
+      "Office Visit > Chief Complaint",
+      "Office Visit > History of Present Illness",
+      "Office Visit > Review of Systems",
+      "Office Visit > Physical Exam",
+      "Office Visit > Assessment & Plan",
+      "Office Visit > Past Medical History",
+      "Office Visit > Labs & Imaging",
+      "Office Visit > Medications",
+      "Office Visit > Allergies",
+    ]},
+    { group: "Vitals", fields: [
+      "Vitals > Blood Pressure",
+      "Vitals > Heart Rate",
+      "Vitals > Temperature",
+      "Vitals > Weight",
+      "Vitals > Height",
+      "Vitals > BMI",
+      "Vitals > O2 Saturation",
+    ]},
+    { group: "Administrative", fields: [
+      "Administrative > Visit Reason",
+      "Administrative > Follow-up Instructions",
+      "Administrative > Diagnosis Codes",
+      "Administrative > Referring Provider",
+      "Administrative > Patient Instructions",
+      "Administrative > Billing Notes",
+    ]},
+  ],
+  eCW: [
+    { group: "Progress Notes", fields: [
+      "Progress Notes > chief_complaint",
+      "Progress Notes > hpi",
+      "Progress Notes > ros",
+      "Progress Notes > physical_exam",
+      "Progress Notes > assessment_plan",
+      "Progress Notes > pmh",
+      "Progress Notes > medications",
+      "Progress Notes > allergies",
+    ]},
+    { group: "Labs", fields: [
+      "Labs > lab_results",
+      "Labs > imaging",
+      "Labs > pathology",
+    ]},
+    { group: "Vitals", fields: [
+      "Vitals > bp",
+      "Vitals > hr",
+      "Vitals > temp",
+      "Vitals > weight",
+      "Vitals > height",
+      "Vitals > bmi",
+      "Vitals > o2_sat",
+    ]},
+    { group: "Administrative", fields: [
+      "Administrative > visit_reason",
+      "Administrative > follow_up",
+      "Administrative > diagnosis_codes",
+      "Administrative > patient_instructions",
+    ]},
+  ],
+  Charm: [
+    { group: "Clinical Notes", fields: [
+      "Chief Complaint",
+      "History of Present Illness",
+      "Review of Systems",
+      "Physical Examination",
+      "Assessment Notes",
+      "Treatment Notes",
+      "Past Medical History",
+      "Labs & Diagnostics",
+      "Medications",
+      "Allergies",
+    ]},
+    { group: "Vitals", fields: [
+      "Blood Pressure",
+      "Heart Rate",
+      "Temperature",
+      "Weight",
+      "Height",
+      "BMI",
+      "O2 Saturation",
+    ]},
+    { group: "Administrative", fields: [
+      "Visit Reason",
+      "Follow-up Appointment",
+      "Diagnosis Codes",
+      "Referring Provider",
+      "Patient Instructions",
+      "Billing Notes",
+    ]},
+  ],
+  default: [
+    { group: "Clinical Notes", fields: [
+      "chief_complaint",
+      "history_of_present_illness",
+      "review_of_systems",
+      "physical_exam",
+      "assessment_plan",
+      "past_medical_history",
+      "labs_imaging",
+      "medications",
+      "allergies",
+    ]},
+    { group: "Vitals", fields: [
+      "blood_pressure",
+      "heart_rate",
+      "temperature",
+      "weight",
+      "height",
+      "bmi",
+      "o2_saturation",
+    ]},
+    { group: "Administrative", fields: [
+      "visit_reason",
+      "follow_up_instructions",
+      "diagnosis_codes",
+      "referring_provider",
+      "patient_instructions",
+      "billing_notes",
+    ]},
+  ],
+};
+
+// Keep EHR_FIELDS as alias for backward compatibility (AMD default).
+const EHR_FIELDS = EHR_FIELDS_BY_SYSTEM.AMD;
+
+// Character limits for AMD EHR fields. Keyed by the AMD "Page > Field Name" string.
+const AMD_CHAR_LIMITS = {
+  "Office Visit > History of Present Illness": 2000,
+  "Office Visit > Review of Systems": 1500,
+  "Office Visit > Physical Exam": 3000,
+  "Office Visit > Assessment & Plan": 4000,
+  "Office Visit > Chief Complaint": 500,
+  "Office Visit > Past Medical History": 2000,
+  "Administrative > Patient Instructions": 1000,
+  "Administrative > Follow-up Instructions": 1000,
+};
 
 Object.assign(window, {
   TEMPLATES,
@@ -337,4 +492,7 @@ Object.assign(window, {
   CONFIG_OPTIONS,
   MACRO_MODES,
   SUMMARIZER_MODES,
+  EHR_FIELDS,
+  EHR_FIELDS_BY_SYSTEM,
+  AMD_CHAR_LIMITS,
 });

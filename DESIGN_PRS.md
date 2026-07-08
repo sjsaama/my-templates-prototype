@@ -2,12 +2,14 @@
 
 Merge in order. Each branch stacks on the previous.
 
-| PR | Branch | Scope |
-|----|--------|--------|
-| 1 | `design/01-foundation` | Spacing tokens, density → CSS vars, table gutter alignment, uniform tree indent |
-| 2 | `design/02-table-hierarchy` | Sticky table header, editor header alignment, list active state |
-| 3 | `design/03-modals-a11y` | Modal body scroll + sticky footer, focus-visible, reduced-motion |
-| 4 | `design/04-responsive` | Narrow viewport: default collapsed list, table min-width (optional, not started) |
+
+| PR  | Branch                      | Scope                                                                            |
+| --- | --------------------------- | -------------------------------------------------------------------------------- |
+| 1   | `design/01-foundation`      | Spacing tokens, density → CSS vars, table gutter alignment, uniform tree indent  |
+| 2   | `design/02-table-hierarchy` | Sticky table header, editor header alignment, list active state                  |
+| 3   | `design/03-modals-a11y`     | Modal body scroll + sticky footer, focus-visible, reduced-motion                 |
+| 4   | `design/04-responsive`      | Narrow viewport: default collapsed list, table min-width (optional, not started) |
+
 
 Branches are **stacked**: each PR targets the previous branch until merged to `main`.
 
