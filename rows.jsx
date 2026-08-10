@@ -411,7 +411,8 @@ function SectionRow({
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
   const ehrRowCat = ((window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {}).cat;
-  const hasOutputSettings = ehrRowCat === 1 || ehrRowCat === 2;
+  const ehrRowMeta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
+  const hasOutputSettings = (ehrRowCat === 1 || ehrRowCat === 2) && ehrRowMeta.fieldSource !== "auto" && ehrRowMeta.canRemap !== false;
   const promptOpen = !!s.promptOpen;
 
   // Dual-mapping demo override — applies to "Assessment & Plan" only
@@ -518,7 +519,7 @@ function SectionRow({
         <div className="row-mapping">
           {(() => {
             const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
-            if (cat && cat.cat === 3) return (
+            if (cat && (cat.cat === 3 || cat.fieldSource === "auto")) return (
               <span className="mapping-auto-label" title={cat.autoMsg}>{cat.autoMsg}</span>
             );
             if (cat && cat.cat === 4) return (

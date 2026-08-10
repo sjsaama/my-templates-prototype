@@ -19,7 +19,7 @@ const TEMPLATES = [
   { id: "veradigm1", name: "Progress Note", derivative: "Clinical Note", ehr: "Veradigm_Progress", ehrSystem: "Veradigm", group: "Clinical Notes" },
   { id: "centricity1", name: "Office Visit", derivative: "Clinical Note", ehr: "Centricity_OV", ehrSystem: "Centricity", group: "Clinical Notes" },
   { id: "cerner1", name: "Office Visit", derivative: "Clinical Note", ehr: "Cerner_OV", ehrSystem: "Cerner", group: "Clinical Notes" },
-  { id: "nereg1", name: "Progress Note", derivative: "Clinical Note", ehr: "Nereg_Progress", ehrSystem: "Nereg", group: "Clinical Notes" },
+  { id: "nereg1", name: "Progress Note", derivative: "Clinical Note", ehr: "Nereg_Progress", ehrSystem: "Nereg", group: "Clinical Notes", connectedEhrTemplateId: "nereg_t1", connectedEhrTemplateName: "Progress Note" },
   { id: "modmed1", name: "Progress Note", derivative: "Clinical Note", ehr: "ModMed_OV", ehrSystem: "ModMed", group: "Clinical Notes" },
 ];
 
@@ -560,8 +560,9 @@ const EHR_CATEGORY = {
   Charm:      { cat: 2, label: "CharmHealth",             fieldSource: "fetch", canReFetch: false },
   DrChrono:   { cat: 2, label: "DrChrono",                fieldSource: "fetch" },
   Centricity: { cat: 1, label: "Centricity (Athena Flow)", fieldSource: "fixed" },
+  // Cat 2 Nereg: connect EHR template like other Cat 2, but mapping is locked/auto from key_name.
+  Nereg:      { cat: 2, label: "Nereg",                   fieldSource: "auto",  canRemap: false, autoMsg: "Auto-mapped from section names", requiresEhrTemplateConnection: true },
   Cerner:     { cat: 3, label: "Cerner",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
-  Nereg:      { cat: 3, label: "Nereg",                   fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
   ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
   // Cat 4 reserved for confirmed no-push EHRs — none assigned yet.
 };
@@ -588,6 +589,10 @@ const EHR_TEMPLATES_BY_SYSTEM = {
   Centricity: [
     { id: "cen_t1", name: "Office Visit" },
     { id: "cen_t2", name: "Follow-up" },
+  ],
+  Nereg: [
+    { id: "nereg_t1", name: "Progress Note" },
+    { id: "nereg_t2", name: "Office Visit" },
   ],
 };
 

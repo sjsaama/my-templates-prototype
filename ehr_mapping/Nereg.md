@@ -1,13 +1,17 @@
 # EHR Mapping — Nereg
 
 ## Category
-**Category 3 — No field mapping.** Marvix auto-constructs the field mapping from section names. No manual YAML needed.
+**Category 2 — Flexible field list (doctor's template), with locked auto-mapping.**
+
+Nereg connects to a note template in the doctor's EHR (Cat 2), but doctors **cannot** change section→field mapping. Marvix auto-maps each section's `key_name` to the matching Nereg field at push time. Ops/product must keep `key_name`s aligned with the connected template — that is how mapping is “fixed,” not via a doctor picker.
+
+> **Not Category 3:** Cerner/ModMed push one PDF with no field routing. Nereg writes structured fields into a connected EHR template.
 
 ---
 
 ## How note push works
 
-Nereg automatically maps each Marvix section to an EHR field using the section's `key_name` as the `ehr_field_name`. Ops does not need to enter any YAML — the mapping is built dynamically at push time from the template's section structure.
+Nereg automatically maps each Marvix section to an EHR field using the section's `key_name` as the `ehr_field_name`. Ops does not need to enter Extra Fields YAML — the mapping is built dynamically at push time from the template's section structure.
 
 `Assessment and Plan` sections are split into individual diagnosis entries automatically.
 
@@ -21,7 +25,19 @@ None required. Fields are auto-constructed from the template's `key_name` values
 
 ## Relevant `config` keys
 
-Not applicable — config is hardcoded in the push logic (`separator: \n`, `retain_headings: true`, `push_subsections: true`, `skip_empty_subsections: true`). Manual config overrides are not used.
+Not applicable — config is hardcoded in the push logic (`separator: \n`, `retain_headings: true`, `push_subsections: true`, `skip_empty_subsections: true`). Manual config overrides are not used. Output settings (sliders) are hidden in My Templates.
+
+---
+
+## My Templates behavior
+
+| Behavior | Detail |
+|---|---|
+| Connect EHR template | Required — like other Cat 2 EHRs |
+| Doctor field picker | **No** — mapping is locked |
+| Remap on push error | **No** — Contact support only |
+| Mapping column label | “Auto-mapped from section names” |
+| Rename section | Warn — renaming may break auto-mapping via `key_name` |
 
 ---
 

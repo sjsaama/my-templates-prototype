@@ -250,11 +250,10 @@ function App() {
       userCreated: true,
     };
     setTemplates(arr => [...arr, newTpl]);
-    // Cat 2 (fetch-based EHRs) starts blank — a generic default section may not correspond to
-    // anything in the doctor's real EHR template. Cat 1/3/4 start from Marvix's defaults.
+    // Fetch-based Cat 2 starts blank. Nereg (locked auto-map) and Cat 1/3/4 start from Marvix defaults.
     const baseSections = data.copyFromId && sectionsByTpl[data.copyFromId]
       ? JSON.parse(JSON.stringify(sectionsByTpl[data.copyFromId]))
-      : (ehrCat.cat === 2 ? [] : window.makeSections());
+      : (ehrCat.cat === 2 && ehrCat.fieldSource !== "auto" ? [] : window.makeSections());
     setSectionsByTpl(m => ({ ...m, [newId]: baseSections }));
     setActiveTpl(newId);
     setCreateTemplateOpen(false);
@@ -377,7 +376,7 @@ function App() {
                     {pushIssues.map(issue => (
                       <div key={issue.id} className="push-issues-item">
                         <span className="push-issues-section">• {issue.section}</span>
-                        {(issue.type === "mapping_broken" || issue.selfServe) && (
+                        {(issue.type === "mapping_broken" || issue.selfServe) && ehrCat.canRemap !== false && ehrCat.fieldSource !== "auto" && ehrCat.cat !== 3 && ehrCat.cat !== 4 && (
                           <button className="push-issues-remap" onClick={() => setRemapTarget(issue.section)}>Remap</button>
                         )}
                         {!issue.selfServe && (

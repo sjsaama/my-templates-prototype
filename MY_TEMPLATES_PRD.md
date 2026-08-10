@@ -54,12 +54,13 @@ If a push fails because the EHR field mapping is wrong, the doctor can pick a di
 | Cat 1 — AthenaOne, ECW, Veradigm, Centricity (AthenaFlow) | Open mapping picker, select from hardcoded field list. No API call. Field names shown with human-readable labels. |
 | Cat 2 — AMD, DrChrono | Open mapping picker, select from the field list fetched at template creation. |
 | Cat 2 — CharmHealth | Open mapping picker, select from existing field list. Cannot re-fetch — automation blocked until CharmHealth templates API is available (confirm with KJ). If EHR template changed, doctor uses "Contact support" in picker. |
+| Cat 2 — Nereg | **No remap.** Mapping is auto from section `key_name` into the connected EHR template. Remap button / field picker not shown — fix mapping via `key_name` alignment (ops/product), not doctor pick. |
 | Cat 3 — ModMed (PDF), Cerner (PDF) | No mapping to remap. Remap button not shown. |
 | Cat 4 | No push capability. Remap button not shown. *(No EHRs assigned yet.)* |
 
 ### Adjust section output settings
 
-Per-section settings opened via the sliders (⊟) button on each section row. Only shown for Cat 1 and Cat 2 EHRs — hidden for Cat 3 (auto-push, no field config) and Cat 4 (no push).
+Per-section settings opened via the sliders (⊟) button on each section row. Only shown for Cat 1 and remappable Cat 2 EHRs — hidden for Cat 3 (auto-push, no field config), Cat 4 (no push), and **Nereg** (Cat 2 locked auto-map).
 
 > **Note:** "How subsections combine" (include headings, skip empty) and subsection spacing (single/double line) are template-level settings that live in the **Settings Portal**, not My Templates. They are out of scope here.
 
@@ -142,8 +143,8 @@ These decisions were made during prototype review and should be treated as locke
 
 - **Macro / summarizer icons:** Labeled `M` (macros) and `S` (summarizers). Not symbols. Active state shown with a dot indicator when at least one item is connected.
 - **Prompt button:** Inline on each row — labeled "Prompt". Shows a `!` indicator if no prompt has been written yet.
-- **Output settings button (sliders):** Only shown for Cat 1 and Cat 2 EHRs. Hidden for Cat 3 and Cat 4 — there is nothing to configure.
-- **Remap button on push error strip:** Only shown for Cat 1 / Cat 2 EHRs (where remap is possible). Cat 3 / Cat 4 error strips show "Contact support" only.
+- **Output settings button (sliders):** Only shown for Cat 1 and remappable Cat 2 EHRs. Hidden for Cat 3, Cat 4, and **Nereg** (Cat 2 locked auto-map).
+- **Remap button on push error strip:** Only shown for Cat 1 / Cat 2 EHRs where remap is allowed. **Not** shown for Nereg (locked), Cat 3, or Cat 4.
 
 ### Mapping picker
 
@@ -172,7 +173,7 @@ Field names are hardcoded — no API call needed to populate the dropdown. What 
 
 ### Cat 2 — Flexible field list
 
-EHRs: AMD, DrChrono, CharmHealth
+EHRs: AMD, DrChrono, CharmHealth, **Nereg**
 
 Fields come from the doctor's EHR note template. The field list is populated at template creation time when the doctor selects their EHR note template — **there is no separate "Fetch fields" step** in the template editor. If fields need to be refreshed after the initial setup, the flows below apply.
 
@@ -181,12 +182,13 @@ Fields come from the doctor's EHR note template. The field list is populated at 
 | AMD | `Page Name > Field Name` | Push mode (prepend/append/replace) and character limit shown in output settings. Doctor can remap freely from the field list. |
 | DrChrono | Snake_case field names | ICD/CPT fields handled separately — not in mapping table. Doctor can remap. |
 | CharmHealth | `entry_chart_section` value if set, otherwise field name | Field list cannot be re-fetched. Doctor can remap from the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh. |
+| Nereg | Auto from section `key_name` | **Locked mapping.** Connect to EHR template like other Cat 2 EHRs, but **do not** give doctors a field picker or remap control. Mapping column shows “Auto-mapped from section names.” Fix broken mapping by aligning `key_name`s with the connected template (ops/product). Output settings hidden (hardcoded in push). |
 
-> **Design decision:** EHR field fetching is not part of the creation flow. After a Cat 2 template is created, the doctor opens it in the editor and fetches fields there — a "Fetch fields from [EHR]" action inside the template editor, not a creation step. The creation flow is identical for all EHR categories. CharmHealth cannot re-fetch — the editor shows an amber notice explaining this, with a "Contact support" button.
+> **Design decision:** For AMD / DrChrono / CharmHealth, connecting the EHR note template is the creation-flow Connect EHR step (when self-serve Connect is in scope). The field list used for mapping comes from that connected template — there is **no separate “Fetch fields” button** in the editor after creation. Remap in the editor uses the stored list. CharmHealth cannot re-fetch — the mapping picker shows an amber notice with “Contact support.” **Nereg exception:** Connect EHR template only — no field list / picker; locked auto-map from `key_name`.
 
 ### Cat 3 — Auto push
 
-EHRs: Cerner, ModMed, Nereg
+EHRs: Cerner, ModMed
 
 Note is pushed automatically — no mapping rows shown, no doctor action needed after onboarding. The output settings panel (sliders button) is hidden for Cat 3 — there are no field-level settings to configure.
 
@@ -194,7 +196,6 @@ Note is pushed automatically — no mapping rows shown, no doctor action needed 
 |---|---|---|
 | Cerner | Whole note as PDF via FHIR | "Whole note pushed as PDF" |
 | ModMed | Whole note as PDF | "Whole note pushed as PDF" |
-| Nereg | Section content matched by `key_name` | "Auto-mapped from section names" |
 
 ### Cat 4 — No push
 
@@ -295,7 +296,7 @@ The section-level inline strip is the primary action surface — the banner is a
 | Wrong `ehr_field_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Doctor remaps from fixed list, or ops updates field name |
 | Push failure | Infra | ✅ Yes | — | Ops |
 
-### Cat 2 — AMD, DrChrono, CharmHealth
+### Cat 2 — AMD, DrChrono, CharmHealth, Nereg
 
 **AMD**
 
@@ -327,20 +328,20 @@ The section-level inline strip is the primary action surface — the banner is a
 | Account locked | EHR | ✅ Yes | — | Ops unlocks |
 | SOAP mode failures | Any | ❌ Undetectable | Nothing — no per-field errors returned | Ops investigates |
 
-### Cat 3 — Cerner, Nereg, ModMed
+**Nereg (locked auto-mapping)**
+
+| Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
+|---|---|---|---|---|
+| Wrong `key_name` / section rename | Ops mapping / doctor rename | ❌ Silent wrong field | Nothing (warn on rename in editor) | Ops updates `key_name` / section name to match Nereg field |
+| Auth failure | Infra | ✅ Yes | — | Ops |
+
+### Cat 3 — Cerner, ModMed
 
 **Cerner**
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
 | Token refresh failure / push rejection | Infra / auth | ✅ Yes | — | Ops |
-
-**Nereg**
-
-| Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
-|---|---|---|---|---|
-| Wrong `key_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Ops updates `key_name` in YAML |
-| Auth failure | Infra | ✅ Yes | — | Ops |
 
 **ModMed**
 
@@ -447,7 +448,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 ---
 
-#### Cat 2 — AMD, DrChrono, CharmHealth
+#### Cat 2 — AMD, DrChrono, CharmHealth, Nereg
 
 **What the doctor does:**
 1. Click "+ Create template"
@@ -466,23 +467,26 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 **AMD-specific:** Push mode (Prepend / Append / Replace) and character limit are shown in the output settings per section. AMD is the only EHR where these are configurable by the doctor.
 
+**Nereg exception (locked auto-mapping):**
+3. **Required Connect EHR** — pick a Nereg note template (no field fetch / no picker).
+4. Sections use Marvix defaults (or copied sections); mapping is automatic from `key_name`.
+5. In the editor: mapping column shows “Auto-mapped from section names”; no Remap; no output settings sliders. Rename warning if section name diverges from auto-map key.
+
 ---
 
-#### Cat 3 — Cerner, ModMed, Nereg
+#### Cat 3 — Cerner, ModMed
 
 **What the doctor does:**
 1. Click "+ Create template"
 2. Enter name, description, document type. Optionally copy sections.
 3. Step 2 (Connect EHR) is skipped — a notice explains that this EHR uses automatic push and no field mapping is needed. Doctor clicks through to Review.
 4. Template is created with the default Marvix section set (or copied sections).
-5. In the editor, mapping column shows the auto-push label for every section ("Auto-mapped from section names" or "Whole note pushed as PDF" depending on the EHR). No mapping action needed.
+5. In the editor, mapping column shows the auto-push label for every section ("Whole note pushed as PDF"). No mapping action needed.
 
 **What's different from ops-managed templates:**
 - Doctor can edit per-section prompts
 - Doctor can add or delete sections
 - Output settings panel (sliders) is hidden — nothing to configure for auto-push
-
-**Key constraint:** Section names matter for Nereg — the auto-mapping is keyed on section `key_name`. If the doctor renames a section, it may break the push mapping. This should be surfaced as a warning when a doctor renames a section in a Cat 3 template. *(Not yet implemented in prototype.)*
 
 ---
 

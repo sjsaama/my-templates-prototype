@@ -19,13 +19,14 @@ Field names defined by the EHR's API/spec. Dropdown hardcoded in portal. No depe
 | Centricity (Athena Flow) | [Centricity.md](Centricity.md) | `ehr_field_name` (from fixed list) |
 
 ## Category 2 — Flexible field list (doctor's template)
-Fields come from the doctor's EHR template. Portal needs a "fetch template" step before dropdown can be populated.
+Fields come from the doctor's EHR template. Portal needs a "fetch template" / Connect EHR step. Most Cat 2 EHRs expose a doctor field picker; **Nereg is the exception** — connected template + auto `key_name` mapping, doctor cannot remap.
 
-| EHR | File | YAML keys needed |
-|---|---|---|
-| AMD | [AMD.md](AMD.md) | `ehr_field_id`, `ehr_field_name`, `ordinal` |
-| DrChrono | [DrChrono.md](DrChrono.md) | `ehr_field_id`, `ehr_field_name` |
-| CharmHealth | [CharmHealth.md](CharmHealth.md) | `ehr_field_id` |
+| EHR | File | YAML keys needed | Doctor mapping |
+|---|---|---|---|
+| AMD | [AMD.md](AMD.md) | `ehr_field_id`, `ehr_field_name`, `ordinal` | Remap from fetched list |
+| DrChrono | [DrChrono.md](DrChrono.md) | `ehr_field_id`, `ehr_field_name` | Remap from fetched list |
+| CharmHealth | [CharmHealth.md](CharmHealth.md) | `ehr_field_id` | Remap from existing list (no re-fetch) |
+| Nereg | [Nereg.md](Nereg.md) | None — auto from section `key_name` | **Locked** — no picker / no remap; fix via `key_name` + connected template |
 
 ## Category 3 — Auto push, no field mapping
 Note pushed automatically. No mapping rows or dropdown. Ops may define section names in YAML but no template fetch is needed.
@@ -34,7 +35,6 @@ Note pushed automatically. No mapping rows or dropdown. Ops may define section n
 |---|---|---|
 | Cerner | [Cerner.md](Cerner.md) | Whole note as PDF via FHIR `DocumentReference` |
 | ModMed | [ModMed.md](ModMed.md) | Whole note as PDF via FHIR `DocumentReference` |
-| Nereg | [Nereg.md](Nereg.md) | Auto-mapped from section `key_name` at push time |
 
 ## Category 4 — No push capability
 Marvix generates the note but cannot push it. Doctor copies manually. App should show "Copy Note" prompt.
