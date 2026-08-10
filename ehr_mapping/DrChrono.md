@@ -37,7 +37,7 @@ Backend names: `icd10_codes`, `cpt_codes` (via `sub_template_ids`). **Only these
 **Working assumption:** ICD/CPT sections can map to **any** field on this template.  
 **Open with ops:** Confirm whether mapping must be limited to specific destinations, or anywhere is fine.
 
-DrChrono push is **live** (confirm with a double-check if needed).
+DrChrono push is **live** (product to double-check).
 
 ---
 
