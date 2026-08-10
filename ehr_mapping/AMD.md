@@ -9,7 +9,7 @@
 | `ehr_field_name`       | Yes       | Text   | AMD's field label — used as the stable match key during auto-remap (re-fetches the template and finds the new `ehr_field_id` by this name)          | `"History of Present Illness"` | Postman API                      |
 | `ordinal`              | Yes       | Number | Field position within the page — sent in the push payload as `@ordinal`; AMD requires it to locate the field in the note                            | `1`                            | Postman API                      |
 | `page_name`            | Auto      | Text   | AMD page the field belongs to — groups fields into the correct page block in the push payload and used during auto-remap                            | —                              | Backend (AMD API) — do not enter |
-| `max_character_length` | Auto      | Number | Field character limit fetched from AMD — shown in the character limit indicator in My Templates; used in error messages when push exceeds the limit | —                              | Backend (AMD API) — do not enter |
+| `max_character_length` | Auto      | Number | Field character limit fetched from AMD — informs the global **Character limit** template setting and too-long error copy; still auto per mapped field from the API                                                                 | —                              | Backend (AMD API) — do not enter |
 
 
 **Example YAML:**
@@ -88,8 +88,8 @@ Set once per template. Apply as defaults across sections.
 | Setting | YAML today | AMD notes |
 | ------- | ---------- | --------- |
 | **Push setting** | `append` / `prepend` (or neither = overwrite) | Combined control above. Global default → applied to each section → overridable locally. |
+| **Character limit** | `char_limit` / AMD `max_character_length` | **Global template setting.** Set once, applied to each section, overridable locally. AMD still returns `max_character_length` per field from the API (auto) — that value informs the default and too-long errors when a field is mapped. |
 | Subsection join / headings | `push_subsections`, `retain_headings`, `skip_empty_subsections`, `separator` | How parent + child text is combined into one EHR field. **Template Settings** (not per mapping row). |
-| Character limit display | `char_limit` / AMD `max_character_length` | Limit comes from the AMD field. Shown for reference; not doctor-authored. |
 
 
 `line_separator` — ❌ not used for AMD (ECW HL7 only).
@@ -102,11 +102,11 @@ Opened via the sliders button on a section row (Cat 1 / Cat 2).
 | Setting | Scope | Notes |
 | ------- | ----- | ----- |
 | **Push setting** | Section override | Same Insert before / Insert after / Overwrite control. Overrides the template default for this section only. |
+| **Character limit** | Section override | Overrides the template Character limit for this section. When mapped, AMD field `max_character_length` still caps what the EHR will accept. |
 | Additional text | Section | Fixed text before/after section body on push |
 | Default negative | Section | Text pushed when the section has no generated content |
-| AMD field limit | Read-only | From `max_character_length` on the mapped field |
 
-> YAML migration: keep writing `config.append` / `config.prepend` per row until Template Settings lands; the UI presents one Push setting with global → local inheritance.
+> YAML migration: keep writing `config.append` / `config.prepend` / `config.char_limit` per row until Template Settings lands; the UI presents Push setting + Character limit with global → local inheritance. `max_character_length` remains auto-populated from the AMD API per mapped field.
 
 ---
 
@@ -199,6 +199,7 @@ Header shows an ownership badge + short hint for the active template.
 | AMD checkbox fields               | Same picker as text; distinct control type + allowed values |
 | Push-error Remap                  | Only when mapping is wrong/stale — not for too-long / permission |
 | Push setting (append/prepend/overwrite) | **One control** — set globally on the template, applied to each section, overridable per section |
+| Character limit (`max_character_length` / `char_limit`) | **Global template setting** — applied to each section, overridable per section; AMD API still supplies per-field `max_character_length` |
 
 
 ### Subtle UI elements
@@ -233,18 +234,29 @@ Former `append` / `prepend` / replace are **one control**, not three toggles.
 | Reset | Overridden sections can “Use template default” |
 | Why AMD | AMD can read existing note content before write — all three modes are valid |
 
-#### 3. Other AMD-specific UI subtleties
+#### 3. Character limit (`max_character_length`)
+
+Also a **global template setting** — same hierarchy as Push setting.
+
+| UI detail | What to notice |
+| --- | --- |
+| Global | Template **Character limit** — set once on the template |
+| Apply-all | Applied to each section as the default (`char_limit`) |
+| Local override | Section output settings can change the limit for that section only |
+| AMD API | `max_character_length` is still **auto-fetched per mapped field** from AMD — informs defaults and too-long error copy (e.g. HPI max 2,000) |
+| Too-long errors | Use the effective limit; **Got it** only — do not offer Remap |
+
+#### 4. Other AMD-specific UI subtleties
 
 | Element | Subtlety |
 | --- | --- |
-| **No Configuration column** | AMD does not show a Config/Prepend-Append column in the section table — Push setting lives in the template bar + output settings |
+| **No Configuration column** | AMD does not show a Config/Prepend-Append column in the section table — Push setting + Character limit live in template settings + output settings |
 | **Path style** | Mapping chips, picker, and limits use **`Office Visit > Title Case`** only (not `Clinical Notes > snake_case`) |
-| **AMD field limit** | Read-only amber callout in output settings from `max_character_length` — doctor cannot edit the limit |
 | **Shared field** | Two+ sections mapped to the same EHR field get a neutral **Shared** chip label (valid, not a warning); content combines in section list order |
 | **Push-error actions** | Buttons depend on error type — too-long → **Got it** only (no Remap); template changed → **Remap** + Contact support; permission / invalid value → Contact support only |
-| **Too-long copy** | Message includes section name + AMD char limit (e.g. HPI max 2,000) — mapping is fine; content is the problem |
+| **Too-long copy** | Message includes section name + character limit — mapping is fine; content is the problem |
 | **Self-serve vs ops styling** | Doctor-fixable errors use amber; ops-needed failures use red — driven by `selfServe` on the issue |
-| **Ownership chrome** | Ops-managed: Request New Section. Self-serve: + Add section + Prompt. Remap / output settings / Push setting on both |
+| **Ownership chrome** | Ops-managed: Request New Section. Self-serve: + Add section + Prompt. Remap / output settings / Push setting / Character limit on both |
 | **Parent mapping modes** | Whole section vs map subsections individually — Shared / remap still apply to the active mapping target |
 | **Dropped chrome** | No STATIC section badge; no EHR Pull / File Upload ghost rows † |
 
@@ -275,7 +287,7 @@ Banner + row strip share `pushIssueActions(type)`:
 | `Office Visit > Title Case` mapping + picker                               | **Present** | Chips, picker, char limits aligned                     |
 | Cat 2 Connect EHR / fetch at create                                        | **Missing** | Create is Starting point → Describe → Review           |
 | Remap from field list                                                      | **Present** | Mocked static AMD field list (no live fetch)           |
-| Output settings (push setting, additional text, default negative, char limit) | **Present** | Global Push setting bar + per-section override; no Configuration column |
+| Output settings (push setting, character limit, additional text, default negative) | **Present** | Global Push setting + Character limit; per-section overrides; no Configuration column |
 | AMD checkbox fields in picker                                              | **Present** | Tagged in picker + chip; CC Enable seeded; allowed-values hint |
 | Push errors: template changed / too long / permission / invalid value      | **Present** | Action matrix by type; too-long → Got it only          |
 | Preview / M·S / parent modes / Shared field                                | **Present** |                                                        |
@@ -299,6 +311,7 @@ Banner + row strip share `pushIssueActions(type)`:
 | 2026-08-10 | Checkbox fields in picker + seeded CC Enable; push-error action matrix; subtle-cases notes |
 | 2026-08-10 | Config keys → **Global / Local settings**; Push setting = append+prepend+overwrite (global default, per-section override) |
 | 2026-08-10 | Added **Subtle UI elements** section (checkbox, Push setting, other AMD UI subtleties) |
+| 2026-08-10 | **Character limit** (`max_character_length` / `char_limit`) → global template setting (apply to sections, overridable locally) |
 
 
 ### Footnotes — dropped / superseded / product calls

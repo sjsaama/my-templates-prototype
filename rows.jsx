@@ -358,10 +358,13 @@ function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, eh
 }
 
 // ── Soft-hidden details panel — 4 tabs ────────────────────────────────────
-function InlineAdvPanel({ s, onUpdate, ehr, templatePushMode }) {
+function InlineAdvPanel({ s, onUpdate, ehr, templatePushMode, templateCharLimit }) {
   const I = window.Icons;
   const pushMode = s.config || templatePushMode || "Prepend";
   const usesTemplateDefault = !s.config || s.config === (templatePushMode || "Prepend");
+  const effectiveCharLimit = s.charLimit != null ? s.charLimit : (templateCharLimit || 2000);
+  const usesTemplateCharLimit = s.charLimit == null || s.charLimit === (templateCharLimit || 2000);
+  const amdFieldMax = s.ehr ? (window.AMD_CHAR_LIMITS || {})[s.ehr] : null;
   return (
     <div className="adv">
 
@@ -388,16 +391,40 @@ function InlineAdvPanel({ s, onUpdate, ehr, templatePushMode }) {
               placeholder='e.g. "Not reported" or "None"'
               onChange={e => onUpdate(s.id, { defaultNegative: e.target.value })} />
           </div>
-          {ehr === "AMD" && s.ehr && (() => {
-            const limit = (window.AMD_CHAR_LIMITS || {})[s.ehr];
-            if (!limit) return null;
-            return (
-              <div className="adv-char-limit">
-                <span className="adv-char-limit-label">AMD field limit</span>
-                <span className="adv-char-limit-val">{limit.toLocaleString()} characters</span>
+
+          {ehr === "AMD" && (
+            <div className="adv-field adv-field--char-limit">
+              <label className="adv-field-label">
+                Character limit
+                <span className="adv-field-optional">{usesTemplateCharLimit ? "· template default" : "· section override"}</span>
+              </label>
+              <div className="adv-char-limit-edit">
+                <input
+                  className="adv-field-input adv-field-input--narrow"
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={effectiveCharLimit}
+                  onChange={e => onUpdate(s.id, { charLimit: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                />
+                <span className="adv-char-limit-unit">characters</span>
+                {!usesTemplateCharLimit && (
+                  <button
+                    type="button"
+                    className="adv-reset-link"
+                    onClick={() => onUpdate(s.id, { charLimit: templateCharLimit || 2000 })}
+                  >
+                    Use template default ({(templateCharLimit || 2000).toLocaleString()})
+                  </button>
+                )}
               </div>
-            );
-          })()}
+              {amdFieldMax != null && (
+                <div className="adv-char-limit-hint-line">
+                  AMD field max for this mapping: {amdFieldMax.toLocaleString()} (from max_character_length)
+                </div>
+              )}
+            </div>
+          )}
 
           {ehr === "AMD" && (
             <div className="adv-field adv-field--push-mode">
@@ -441,7 +468,7 @@ function SectionRow({
   onOpenMapping, onSetMappingMode, onUpdate,
   onDragStart, onDragEnd, onDragOver, onDrop,
   isDragging, dropBefore, dropAfter, isDuplicate,
-  parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo, templatePushMode,
+  parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo, templatePushMode, templateCharLimit,
 }) {
   const I = window.Icons;
   const [popover, setPopover] = useStateR(null);
@@ -680,7 +707,7 @@ function SectionRow({
           />
         </div>
       )}
-      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} ehr={ehr} templatePushMode={templatePushMode} />}
+      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} ehr={ehr} templatePushMode={templatePushMode} templateCharLimit={templateCharLimit} />}
     </div>
   );
 
@@ -708,7 +735,7 @@ function AddSubsectionGhostRow({ depth, onClick }) {
 
 // ── Render tree recursively ────────────────────────────────────────────────
 function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
-  const { handlers, dragId, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo, templatePushMode } = ctx;
+  const { handlers, dragId, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo, templatePushMode, templateCharLimit } = ctx;
   const isDragging = dragId === s.id;
   const dropBefore = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'before');
   const dropAfter = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'after');
@@ -731,6 +758,7 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
       canEditPrompt={canEditPrompt}
       dualMappingDemo={dualMappingDemo}
       templatePushMode={templatePushMode}
+      templateCharLimit={templateCharLimit}
       {...handlers}
     />,
   ];
@@ -749,7 +777,7 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
 
 // ── Section table (manages drag state + mapping panel) ────────────────────
 function SectionTable({
-  sections, ehr, pushIssues, templatePushMode,
+  sections, ehr, pushIssues, templatePushMode, templateCharLimit,
   onToggle, onExpand, onToggleDetails, onTogglePrompt, onDeleteSection,
   onReorder, onRemap, onSetMappingMode, onUpdate, remapTarget, onRemapTargetHandled,
   onAddSection, canEditPrompt, dualMappingDemo,
@@ -818,7 +846,7 @@ function SectionTable({
 
   const pushIssuesByName = {};
   (pushIssues || []).forEach(pi => { pushIssuesByName[pi.section] = pi; });
-  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo, templatePushMode };
+  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo, templatePushMode, templateCharLimit };
 
   // ── Add Section availability — varies by EHR category ──
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};

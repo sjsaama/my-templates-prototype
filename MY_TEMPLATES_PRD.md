@@ -69,7 +69,7 @@ Per-section settings opened via the sliders (⊟) button on each section row. On
 |---|---|---|
 | Additional text | Fixed text placed before or after section content on push. Doctor picks Before or After from a dropdown. Replaces old pre-literal / post-literal fields. | Output settings panel |
 | Default negative | Text pushed when section has no generated content (e.g. "Not reported") | Output settings panel |
-| Character limit | Read-only — set by EHR field, shown for reference | Output settings panel (all EHRs where the field has a limit) |
+| Character limit | Read-only guidance from EHR where applicable; **AMD: global template setting** (`char_limit` / `max_character_length`) applied to each section, overridable per section | Template settings (global) + Output settings panel (override) |
 | Can push (AMD checkbox) | AMD only. A checkbox field in AMD is a **distinct field type** returned separately by the AMD template API — it is not merged into the adjacent text field. Checkbox fields appear in the **same field picker dropdown** as text fields; the doctor selects one as the mapping destination, same as any other field. The pushed value is determined by the section's AI prompt output, which must be written to output one of the checkbox field's allowed values (these come through in the same API fetch as the field names). Both the checkbox field and text field are mapped independently as separate sections, even when they relate to the same logical concept (e.g. chief complaint enable + chief complaint text = two separate mappings). Common case: chief complaint = CC Enable (checkbox) + CC Text (text field), both pushed. | Field picker (AMD — checkbox fields appear alongside text fields in the dropdown) |
 | Section separator | Separator character/string inserted between sections on push | Output settings panel (Veradigm) |
 | Subsection separator | Separator character/string inserted between subsections on push | Output settings panel (Veradigm) |
@@ -242,10 +242,10 @@ Apply to the whole template — not per section. Doctor can set these.
 | Setting | EHR | What it controls |
 |---|---|---|
 | **Push setting** (Insert before / Insert after / Overwrite) | AMD (and other read-before-write EHRs) | How Marvix content relates to text already in the EHR field. **Set globally → applied to each section → overridable per section.** Combines former append / prepend / replace toggles into one control. |
+| **Character limit** | AMD (and other EHRs that enforce limits) | Truncates / guides pushed length. **Set globally → applied to each section → overridable per section.** AMD still auto-fetches per-field `max_character_length` from the API for errors and field guidance. |
 | Default line separator | Veradigm | Separator used for all line breaks in pushed content. |
 | Section separator | Veradigm | Separator inserted between top-level sections on push. |
 | Subsection separator | Veradigm | Separator inserted between child subsections on push. |
-| Character limit (if EHR applies globally) | All applicable | ⚠️ TBD — currently shown per section. May need to become a template-level default if the EHR enforces a single limit across all fields. |
 
 ### Section-level settings
 
@@ -468,7 +468,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 **CharmHealth exception:** Field list cannot be re-fetched after creation. Doctor can remap to any field in the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh.
 
-**AMD-specific:** **Push setting** (Insert before / Insert after / Overwrite) is set globally on the template and applied to each section; doctors can override it per section in output settings. Character limit is shown per mapped field (read-only from AMD). AMD is the only EHR where Push setting is doctor-configurable in the prototype.
+**AMD-specific:** **Push setting** and **Character limit** are set globally on the template and applied to each section; doctors can override either per section in output settings. AMD still auto-fetches per-field `max_character_length` for too-long errors. AMD is the only EHR where these are doctor-configurable in the prototype.
 
 ---
 

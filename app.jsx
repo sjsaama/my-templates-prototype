@@ -154,6 +154,7 @@ function App() {
   );
   const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
   const [pushModeByTpl, setPushModeByTpl] = useStateA({});
+  const [charLimitByTpl, setCharLimitByTpl] = useStateA({});
   const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
   const [disableTarget, setDisableTarget] = useStateA(null);
   const [toast, setToast] = useStateA("");
@@ -178,6 +179,7 @@ function App() {
     ? (sectionsByTpl[activeTpl] || (sectionsByTpl[activeTpl] = window.makeSections()))
     : [];
   const templatePushMode = (activeTpl && pushModeByTpl[activeTpl]) || "Prepend";
+  const templateCharLimit = (activeTpl && charLimitByTpl[activeTpl]) || 2000;
 
   const setSections = (fn) => {
     if (!activeTpl) return;
@@ -189,6 +191,14 @@ function App() {
     setPushModeByTpl((m) => ({ ...m, [activeTpl]: mode }));
     setSections((arr) => mapAllSections(arr, (s) => (s.ghost ? s : { ...s, config: mode })));
     flash("Push setting applied to all sections — change any section to override");
+  };
+
+  const applyTemplateCharLimit = (limit) => {
+    if (!activeTpl) return;
+    const n = Math.max(0, parseInt(limit, 10) || 0);
+    setCharLimitByTpl((m) => ({ ...m, [activeTpl]: n }));
+    setSections((arr) => mapAllSections(arr, (s) => (s.ghost ? s : { ...s, charLimit: n })));
+    flash("Character limit applied to all sections — change any section to override");
   };
 
   const flash = (msg) => { setToast(msg); clearTimeout(window.__tt); window.__tt = setTimeout(() => setToast(""), 2600); };
@@ -382,25 +392,42 @@ function App() {
                   )}
                 </div>
               </header>
-              {/* AMD global Push setting — applied to each section, overridable locally */}
+              {/* AMD global settings — Push setting + Character limit */}
               {ehr === "AMD" && ehrCat.cat <= 2 && (
-                <div className="tpl-settings-bar">
-                  <span className="tpl-settings-label">Push setting</span>
-                  <div className="tpl-settings-seg" role="group" aria-label="Template push setting">
-                    {["Prepend", "Append", "Replace"].map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        className={"tpl-settings-seg-btn" + (templatePushMode === mode ? " tpl-settings-seg-btn--on" : "")}
-                        onClick={() => applyTemplatePushMode(mode)}
-                      >
-                        {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
-                      </button>
-                    ))}
+                <div className="tpl-settings-stack">
+                  <div className="tpl-settings-bar">
+                    <span className="tpl-settings-label">Push setting</span>
+                    <div className="tpl-settings-seg" role="group" aria-label="Template push setting">
+                      {["Prepend", "Append", "Replace"].map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          className={"tpl-settings-seg-btn" + (templatePushMode === mode ? " tpl-settings-seg-btn--on" : "")}
+                          onClick={() => applyTemplatePushMode(mode)}
+                        >
+                          {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="tpl-settings-hint">
+                      Template default — applies to every section. Override per section in output settings.
+                    </span>
                   </div>
-                  <span className="tpl-settings-hint">
-                    Template default — applies to every section. Change any section in output settings to override.
-                  </span>
+                  <div className="tpl-settings-bar">
+                    <span className="tpl-settings-label">Character limit</span>
+                    <input
+                      className="tpl-settings-input"
+                      type="number"
+                      min="0"
+                      step="100"
+                      value={templateCharLimit}
+                      onChange={(e) => applyTemplateCharLimit(e.target.value)}
+                      aria-label="Template character limit"
+                    />
+                    <span className="tpl-settings-hint">
+                      Global default — applied to each section; AMD field max still informs too-long errors when mapped.
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -454,6 +481,7 @@ function App() {
                 sections={sections}
                 ehr={ehr}
                 templatePushMode={templatePushMode}
+                templateCharLimit={templateCharLimit}
                 pushIssues={pushIssues}
                 dualMappingDemo={t.dualMappingDemo}
                 remapTarget={remapTarget}
