@@ -6,6 +6,7 @@ See [SHARED_CONFIG.md](SHARED_CONFIG.md) for config keys and `append_other_deriv
 See [PROPERTY_CHANGE_IMPACT.md](PROPERTY_CHANGE_IMPACT.md) for what breaks when template or section properties change, per EHR.
 See [ERROR_UX.md](ERROR_UX.md) for the error detection, popup, and self-service remap UX spec.
 See [CATEGORY_3.md](CATEGORY_3.md) for Cat 3 shared model (Cerner / ModMed — no field mapping, template connection required).
+See [Nereg.md](Nereg.md) for Cat 2 locked auto-mapping UI (connect template, no doctor remap).
 
 ---
 

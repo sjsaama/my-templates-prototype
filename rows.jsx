@@ -1,6 +1,6 @@
 // rows.jsx — simplified edit-mode section table
 // User controls: reorder (drag-and-drop) + EHR mapping. Everything else is soft-hidden / read-only.
-const { useState: useStateR, useState: useStateAdv } = React;
+const { useState: useStateR, useState: useStateAdv, useEffect: useEffectRow } = React;
 
 // ── Local utility ──────────────────────────────────────────────────────────
 function findSecR(sections, id) {
@@ -421,7 +421,7 @@ function SectionRow({
   const autoMapKey = s.autoMapKey || s.keyName || s.name;
 
   // Keep draft in sync when section identity/name changes from outside
-  React.useEffect(() => { setNameDraft(s.name); }, [s.id, s.name]);
+  useEffectRow(() => { setNameDraft(s.name); }, [s.id, s.name]);
 
   // Dual-mapping demo override — applies to "Assessment & Plan" only
   const demoOverride =
