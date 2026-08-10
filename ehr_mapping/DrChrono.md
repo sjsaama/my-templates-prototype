@@ -56,7 +56,7 @@ Informal name for the **ordinary text fields** in that mapping table.
 
 
 - Routed by **name**, not by putting them in the section mapping picker.
-- Backed by `**sub_template_ids`** on `EHRMapping` (JSONB) — ops endpoint `/update_ehr_mapping_subtemplates` — not Extra Fields YAML.
+- Backed by **`sub_template_ids`** on `EHRMapping` (JSONB) — ops endpoint `/update_ehr_mapping_subtemplates` — not Extra Fields YAML.
 - Doctor-facing intent (SHARED_CONFIG): pick from available **templates**, not raw IDs — **not built in this prototype**.
 - Failures today: `logger.warning` only — not raised to Lambda / doctor.
 
