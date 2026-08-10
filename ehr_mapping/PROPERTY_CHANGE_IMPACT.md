@@ -126,9 +126,9 @@ These live in the `templates` table and `json_template` JSON.
 
 ---
 
-### Category 4 EHRs (Athena legacy, ECW FHIR, Greenway, ModMed, Tebra)
+### Out of taxonomy (not Cat 1–3)
 
-No push — property changes have no mapping impact. Doctor copies note manually.
+Athena legacy, ECW FHIR, Greenway, and Tebra are **not** in the My Templates category model. Stub docs may remain under `ehr_mapping/` for engineering reference only — they are not doctor-facing EHRs in this product.
 
 ---
 

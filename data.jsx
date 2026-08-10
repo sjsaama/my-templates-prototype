@@ -23,7 +23,6 @@ const TEMPLATES = [
   { id: "centricity1", name: "Office Visit", derivative: "Clinical Note", ehr: "Centricity_OV", ehrSystem: "Centricity", group: "Clinical Notes" },
   { id: "cerner1", name: "Office Visit", derivative: "Clinical Note", ehr: "Cerner_OV", ehrSystem: "Cerner", group: "Clinical Notes" },
   { id: "nereg1", name: "Progress Note", derivative: "Clinical Note", ehr: "Nereg_Progress", ehrSystem: "Nereg", group: "Clinical Notes" },
-  { id: "athlegacy1", name: "Office Visit", derivative: "Clinical Note", ehr: "Athena_Legacy", ehrSystem: "Athena", group: "Clinical Notes" },
   { id: "modmed1", name: "Progress Note", derivative: "Clinical Note", ehr: "ModMed_OV", ehrSystem: "ModMed", group: "Clinical Notes" },
 ];
 
@@ -565,16 +564,14 @@ const EHR_CATEGORY = {
   AthenaOne:  { cat: 1, label: "AthenaOne",              fieldSource: "fixed" },
   eCW:        { cat: 1, label: "eClinicalWorks",          fieldSource: "fixed" },
   Veradigm:   { cat: 1, label: "Veradigm",               fieldSource: "fixed" },
+  Centricity: { cat: 1, label: "Centricity (Athena Flow)", fieldSource: "fixed" },
   Charm:      { cat: 2, label: "CharmHealth",             fieldSource: "fetch", canReFetch: false },
   DrChrono:   { cat: 2, label: "DrChrono",                fieldSource: "fetch" },
-  Centricity: { cat: 3, label: "Centricity",              fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
-  Cerner:     { cat: 3, label: "Cerner",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
-  Nereg:      { cat: 3, label: "Nereg",                   fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
-  ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
-  Athena:     { cat: 4, label: "Athena (Legacy)",         fieldSource: "none",  noPushMsg: "Athena" },
-  "ECW FHIR": { cat: 4, label: "ECW FHIR",               fieldSource: "none",  noPushMsg: "ECW" },
-  Greenway:   { cat: 4, label: "Greenway (Prime Suites)", fieldSource: "none",  noPushMsg: "Greenway" },
-  Tebra:      { cat: 4, label: "Tebra",                   fieldSource: "none",  noPushMsg: "Tebra" },
+  // Cat 2 Nereg: connect EHR template like other Cat 2, but mapping is locked/auto from key_name —
+  // doctors cannot remap (fieldSource "auto", canRemap false).
+  Nereg:      { cat: 2, label: "Nereg",                   fieldSource: "auto",  canRemap: false, autoMsg: "Auto-mapped from section names", requiresEhrTemplateConnection: true },
+  Cerner:     { cat: 3, label: "Cerner",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF", requiresEhrTemplateConnection: true },
+  ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF", requiresEhrTemplateConnection: true },
 };
 
 // Mock EHR templates per Cat 2 system — shown in the template-level picker.
@@ -596,9 +593,9 @@ const EHR_TEMPLATES_BY_SYSTEM = {
     { id: "charm_t2", name: "Progress Note" },
     { id: "charm_t3", name: "Initial Evaluation" },
   ],
-  Centricity: [
-    { id: "cen_t1", name: "Office Visit" },
-    { id: "cen_t2", name: "Follow-up" },
+  Nereg: [
+    { id: "nereg_t1", name: "Progress Note" },
+    { id: "nereg_t2", name: "Follow-up" },
   ],
 };
 
@@ -623,6 +620,12 @@ const EHR_FIELD_LABELS = {
   "reasonsForVisit":          "Reason for Visit",
   "vitals":                   "Vitals",
   "ICD":                      "ICD Diagnosis Codes",
+  // Centricity (Athena Flow)
+  "chief_complaint":          "Chief Complaint",
+  "ros":                      "Review of Systems",
+  "physical_exam":            "Physical Exam",
+  "assessment_plan":          "Assessment & Plan",
+  "past_medical_history":     "Past Medical History",
 };
 
 // Keep EHR_FIELDS as alias for backward compatibility (AMD default).

@@ -360,8 +360,11 @@ function SectionRow({
   const hasKids = !!(s.children && s.children.length);
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
-  const ehrRowCat = ((window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {}).cat;
-  const hasOutputSettings = ehrRowCat === 1 || ehrRowCat === 2;
+  const ehrRowMeta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
+  const ehrRowCat = ehrRowMeta.cat;
+  const canRemapEhr = ehrRowMeta.canRemap !== false && ehrRowMeta.fieldSource !== "auto" && ehrRowMeta.fieldSource !== "none";
+  // Sliders / remap only when the EHR has remappable field-level config (not Cat 3 PDF, not Nereg locked-auto).
+  const hasOutputSettings = (ehrRowCat === 1 || ehrRowCat === 2) && canRemapEhr;
   const promptOpen = !!s.promptOpen;
 
   // Dual-mapping demo override — applies to "Assessment & Plan" only
@@ -470,11 +473,9 @@ function SectionRow({
         <div className="row-mapping">
           {(() => {
             const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
-            if (cat && cat.cat === 3) return (
-              <span className="mapping-auto-label" title={cat.autoMsg}>{cat.autoMsg}</span>
-            );
-            if (cat && cat.cat === 4) return (
-              <span className="mapping-no-push-label">No push</span>
+            // Cat 3 PDF auto-push, or Cat 2 locked/auto (Nereg) — no remappable mapping chip
+            if (cat && (cat.cat === 3 || cat.fieldSource === "auto" || cat.fieldSource === "none")) return (
+              <span className="mapping-auto-label" title={cat.autoMsg}>{cat.autoMsg || "Auto-mapped"}</span>
             );
             if (cat && cat.fieldsPending) return (
               <span className="mapping-pending-label" title="Field list not yet confirmed — ops will configure this">Field list pending</span>
@@ -738,7 +739,9 @@ function SectionTable({
   );
   const usedFieldCount = Object.keys(ehrCounts).filter((f) => validFieldSet.has(f)).length;
   const totalFieldCount = window.ehrFieldTotalCount ? window.ehrFieldTotalCount(ehr) : 0;
-  const capReached = (isCat1 || isCat2) && (totalFieldCount === 0 || usedFieldCount >= totalFieldCount);
+  // Field cap applies only when there is a remappable field list (not Cat 3 / Nereg locked-auto).
+  const usesFieldCap = (isCat1 || isCat2) && ehrCat.fieldSource !== "auto" && ehrCat.fieldSource !== "none" && ehrCat.canRemap !== false;
+  const capReached = usesFieldCap && (totalFieldCount === 0 || usedFieldCount >= totalFieldCount);
 
   let addDisabledReason = "";
   if (capReached && ehrCat.fieldsPending) addDisabledReason = (ehrCat.label || ehr) + "'s field list isn't confirmed yet — check with ops";

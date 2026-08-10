@@ -281,5 +281,5 @@ Doctor owns structure. **Create template** (no Connect EHR — Cat 1), **+ Add s
 
 ### Footnotes
 
-† **ECW FHIR** is a separate Cat 4 integration (`ECW_FHIR.md`) — not this branch.  
+† **ECW FHIR** is a separate integration stub (`ECW_FHIR.md`) — **not** in the My Templates Cat 1–3 taxonomy.  
 †† **Path style** — Primary: `HPI:` / `Assessment:`; Scribe-it: `ScribeIt > Title Case`.
