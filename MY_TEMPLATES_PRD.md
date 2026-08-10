@@ -133,8 +133,7 @@ Setting is **template-level**, not user-level. Whether content is pushed as a no
 
 | Mechanism | What it is |
 |---|---|
-| Append other derivative | A section can pull content from a derivative template (e.g. a summary template) and append it to the main note on push. Mechanism TBD — needs clarification from Vignesh. |
-| ICD / EM code mapping | Uses template ID in the mapping editor — a **separate mechanism** from append-other-derivative. ICD/CPT fields are not in the standard mapping table. |
+| **Pull from another template** | A section on this template can receive content from a **different** Marvix template (derivative note, ICD/CPT/EM code template, etc.) and map that into an EHR destination on push. Same product idea whether the source is a summary/AVS derivative (`append_other_derivatives_v2`) or a code/sub-template (`sub_template_ids` / ICD·CPT·EM) — backend wiring differs today; doctor-facing model is one: pick another template’s output → attach to a section → map. Details TBD with Vignesh. |
 | One section → two EHR fields | A single logical section (e.g. chief complaint) may map to two separate EHR destination fields — confirmed for AMD (checkbox field + text field). Both fields are mapped independently. For non-checkbox pairs, ordering may matter for how the EHR renders them — handling TBD. See open questions. |
 | Two sections → same EHR field | Multiple Marvix sections can share the same EHR destination field. This is valid and supported. Content from all mapped sections is combined in section order. The UI shows a neutral "Shared" label on the mapping chip (not a warning). Whether section/subsection names are prefixed on join is controlled by **Retain headings** (`retain_headings`) under Template-level settings — not a separate advanced mechanism. |
 
@@ -423,7 +422,7 @@ The section-level inline strip is the primary action surface — the banner is a
 |---|---|---|
 | Do doctor customizations apply per-doctor or per-practice? | If two doctors share a template, do they share settings or have independent ones? | Vignesh |
 | Write mode restrictions per EHR | Athena is append-only; most others may be append-only too. Needs Vignesh to confirm which EHRs support each mode. Currently only AMD exposes push mode in the prototype. | Vignesh |
-| Derivatives | Definition and scope unclear. Needs a session with Vignesh + Nandini before this can be added to the PRD. Known gap. | Vignesh + Nandini |
+| Pull from another template (derivatives / ICD·CPT·EM) | One product idea: attach another template’s output to a section on this template. Backend today splits `append_other_derivatives_v2` vs `sub_template_ids` — confirm unified doctor UX and scope with Vignesh (+ Nandini for derivatives). | Vignesh + Nandini |
 | ECW selective copy — user-level vs. practice-level | Which fields in ECW are owned at the user level vs. practice level? Affects whether remap UI is per-doctor or per-practice. | Vignesh |
 | AMD checkbox — prompt authoring for allowed values | Checkbox fields have predefined allowed values (from the AMD template fetch). The section prompt must be written to output one of those values. Who authors this prompt (ops vs. doctor) and whether allowed values are surfaced in the prompt editor is unresolved. | TBD |
 | One section → two EHR fields — ordering conflict | For non-checkbox dual-field cases: if one Marvix section maps to two EHR text fields, does order matter? How is conflict handled at push time? | Vignesh |
@@ -439,7 +438,7 @@ The section-level inline strip is the primary action surface — the banner is a
 | Area | Notes |
 |---|---|
 | Doctor picks their EHR template | Ops sets this during onboarding. Doctor-facing template picker is future scope. |
-| Derivatives | Customization of derivative templates is a known gap. Needs a scoping session with Vignesh + Nandini before it can be planned. |
+| Derivatives / pull-from-other-template UX | Same gap as open questions — unify derivative append + ICD/CPT/EM sub-templates into one doctor-facing “pull from another template” model. Needs scoping with Vignesh + Nandini. |
 
 ## Preview output (dry run)
 

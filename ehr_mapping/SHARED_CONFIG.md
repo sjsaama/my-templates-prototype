@@ -47,18 +47,20 @@ These three work together: first decide whether to include subsections, then whe
 
 ---
 
-## Sub-template IDs
+## Pull from another template
 
-`sub_template_ids` is a JSONB column on `EHRMapping` — not a YAML key. Updated via ops endpoint `/update_ehr_mapping_subtemplates`. Used for template-driven fields like ICD / CPT codes where the doctor selects from available templates rather than pushing free text.
+Same product idea, two backend paths today — treat as one doctor-facing model: **content from another Marvix template is attached to a section on this template and mapped to an EHR destination.**
+
+### Sub-template IDs (ICD / CPT / EM, etc.)
+
+`sub_template_ids` is a JSONB column on `EHRMapping` — not a YAML key. Updated via ops endpoint `/update_ehr_mapping_subtemplates`. Used when the source is a code/sub-template rather than free text.
 
 - **AMD**: templates are practice-level. Ops fetches field IDs from 2–3 templates per onboarding.
 - **DrChrono**: ICD/CPT fields supported; template API access needed.
 - **CharmHealth**: no templates API. Workaround — create a dummy note, pull it via API, extract field IDs manually. API access shared with Shrutesh; pricing is extra cost, outcome unknown.
 - **Doctor-facing**: picker UI (select from templates), not raw ID entry.
 
----
-
-## Derivative append
+### Derivative append
 
 | YAML key | Type | What it does |
 |---|---|---|
@@ -71,6 +73,8 @@ append_other_derivatives_v2:
 ```
 
 > Spacing between main content and appended derivative is controlled by `config.separator`. `separator` is **not** valid inside this list.
+
+> **PRD:** Do not present derivative append and ICD/CPT/EM as unrelated features — both are “pull from another template into this section.” Unify UX pending Vignesh + Nandini.
 
 ---
 
