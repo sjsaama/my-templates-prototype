@@ -60,9 +60,14 @@ Raised per field when `SaveXNote` returns an error for a specific field. Bubbles
 
 ### AthenaOne
 
-- `LockedEncounterException` (check-in not complete) → caught locally → `FatalException` with message: *"Can't push the note because the patient's check-in is not yet complete in Athena. Please either a) complete the check-in in Athena, or b) click on 'Go to Exam' or 'Go to Intake' in Athena before trying again."*
-- Per-section push failures (`Unable to push HPI`, `Unable to push Assessment`, etc.) → bare `Exception` → logged + email to ops, push continues for remaining sections
+- `LockedEncounterException` (check-in not complete) → caught locally → `FatalException` with message: *"Can't push the note because the patient's check-in is not yet complete in Athena. Please either a) complete the check-in in Athena, or b) click on 'Go to Exam' or 'Go to Intake' in Athena before trying again."* — **doctor-actionable** (Got it → finish check-in → retry). Prototype: `athena_checkin`.
+- Per-section push failures (`Unable to push HPI`, `Unable to push Assessment`, etc.) → bare `Exception` → logged + email to ops, push continues for remaining sections — surface as Remap + Contact support. Prototype: `athena_section`.
+- Transient API 500 / appointment lookup failures → retry with backoff; burst observed 2026-07-27 (~48). Prototype: `athena_transient`.
+- Auth token empty → Contact support. Prototype: `athena_auth`.
 - `"Quota Exceeded"` → `ManagedException` → retry
+- Wrong `ehr_field_name` (not in the 9-item list) → Athena rejects silently — logged + ops email; Layer 2 validation can catch before push
+
+See `AthenaOne.md` → Push errors for the full action matrix.
 
 ### DrChrono
 
@@ -91,7 +96,13 @@ Raised per field when `SaveXNote` returns an error for a specific field. Bubbles
 
 ### ECW (main / HL7)
 
-No error detection — Lambda uploads the HL7 file to S3 and gets a 200. ECW processes it asynchronously with no callback. Lambda never knows if ECW rejected the note.
+No error detection for **note text** — Lambda uploads the HL7 file to S3 and gets a 200. ECW processes it asynchronously with no callback. Lambda never knows if ECW rejected the note text.
+
+**Order sections are different:** lab / rx / referral / imaging / procedure / vaccine pushes log WARNINGs when pattern matching fails (`Couldn't find any Orders of type: …`). Those are ops-facing today; see `ECW.md` → Push errors and `EHR_PUSH_FAILURE_LOG_ANALYSIS.md`.
+
+### ECW (Scribe-it)
+
+Entirely manual paste — no Lambda push, no automated error signal.
 
 ---
 
@@ -107,6 +118,10 @@ Based on the above, the errors that require the doctor (or ops on behalf of the 
 | MA account missing "Create Pt Notes" permission | AMD | Fix permissions in AMD | Practice admin |
 | Field failed to save | Veradigm | Remap the field | Ops |
 | Check-in not complete in Athena | AthenaOne | Complete check-in in Athena (or click "Go to Exam") then push again | Doctor |
+| Per-section / wrong field mapping | AthenaOne | Remap from fixed 9-field list (or ops YAML) | Doctor Remap / ops |
+| Auth token empty / persistent Athena API failure | AthenaOne | Refresh credentials / investigate outage | Ops |
+| Order config mismatch (lab/rx/referral/…) | ECW | Fix order type config in YAML / ops tooling | Ops |
+| Wrong shortcut / section code (after spot-check) | ECW | Remap from fixed list or update `section_code` | Doctor Remap / ops |
 
 All other errors (auth, account locked, signed encounter, quota, DrChrono/Cerner/Nereg failures) are ops-only — they don't require anything in My Templates.
 
@@ -165,9 +180,25 @@ Catch broken mappings before push — feasible for fixed-list EHRs without an AP
 
 | EHR | Scenario | Why |
 |---|---|---|
-| ECW (main) | ECW rejects HL7 silently after S3 upload | Lambda gets 200 from S3 — never knows if ECW rejected |
+| ECW (main) | ECW rejects **note text** HL7 silently after S3 upload | Lambda gets 200 from S3 — never knows if ECW rejected |
 | ECW (Scribe-it) | Doctor pastes into wrong field | Entirely manual |
 | CharmHealth (SOAP) | Field silently skipped | SOAP mode returns no per-field errors |
+
+> ECW **order-section** failures are *not* in this table — they surface as Lambda WARNINGs (ops-visible). See `ECW.md`.
+
+---
+
+## Resolution mechanisms (doctor-facing)
+
+| Action | When to show |
+|---|---|
+| **Remap** | Mapping is wrong / stale and doctor can pick another field from the list (Flow A for ECW) |
+| **Got it** | Doctor must fix outside My Templates (check-in, open chart, shorten note) then retry push |
+| **Contact support** | Ops / practice admin must act (order config, auth, permissions) |
+
+Generic resolve loop: surface issue → doctor takes allowed action → retry push (or ops fixes) → clear `push_errors` row.
+
+ECW-specific copy and per-error step flows: **`ECW.md` → Push errors**.
 
 ---
 
@@ -175,6 +206,10 @@ Catch broken mappings before push — feasible for fixed-list EHRs without an AP
 
 ### Flow A — Fixed list (AthenaOne, ECW, Veradigm)
 Re-open the dropdown. Hardcoded known list, no API call needed.
+
+**AthenaOne actions:** `checkin` → Got it only; `mapping_broken` → Remap + Contact support; `transient` / `auth` → Contact support only. Labels in the picker are human-readable; stored value remains snake_case.
+
+**ECW:** dual-column picker — Primary (shortcut commands) + optional Scribe-it note-panel fields.
 
 ### Flow B — Flexible list (AMD, DrChrono)
 Re-fetch current fields from EHR live, pick correct field.
@@ -191,3 +226,4 @@ Can't re-fetch automatically. Escalate to tech.
 2. For the push issues banner, Lambda would need to write per-section failure rows. Is there appetite to add this?
 3. AMD "Value is too long" already includes the section name and character limit in the error message — can Lambda parse and forward this to the doctor rather than just emailing ops?
 4. Does Lambda know at push time whether CharmHealth is in SOAP mode? If so, it could tag the row as undetectable and alert ops to spot-check.
+5. Should ECW order-section WARNINGs be written to `push_errors` for in-app Contact support, or remain ops-log-only?
