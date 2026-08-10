@@ -408,8 +408,8 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
 
   const ehrCat = (window.EHR_CATEGORY || {})[ehr];
   const ehrLabel = (ehrCat && ehrCat.label) || ehr || "your EHR";
-  // Connect EHR is Cat 2 only — and create-template is self-serve only.
-  const needsConnectEhr = !!(ehrCat && ehrCat.cat === 2);
+  // Connect EHR: Cat 2 self-serve create only (AMD branch always Cat 2).
+  const needsConnectEhr = ehr === "AMD" || !!(ehrCat && ehrCat.cat === 2);
   const totalSteps = needsConnectEhr ? 4 : 3;
   const reviewStep = totalSteps;
   const connectStep = needsConnectEhr ? 3 : null;

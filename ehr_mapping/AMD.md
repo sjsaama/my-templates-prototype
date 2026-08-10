@@ -199,24 +199,9 @@ Tweaks: `amd_checkbox` (dual chip), `amd_invalid_value` (push error). Seeded `Ch
 ### Gaps / open product questions
 
 1. **AMD checkbox value selection** — prompt output vs `extract_boolean_value` (and UI for both ownership modes). See Subtle UI → Checkbox fields.
-2. More fatal mocks if needed (`Template not found`, provider not found)
-
-### Changelog
-
-| Date | Change |
-| ---- | ------ |
-| 2026-08-10 | AMD branch; no Config column; `Office Visit > Title Case`; Self-serve / Ops-managed tabs |
-| 2026-08-10 | Dropped STATIC + EHR Pull ghosts; Request New Section = ops-managed only ††† |
-| 2026-08-10 | Checkbox picker + CC Enable; push-error action matrix |
-| 2026-08-10 | Settings → global/local; Push setting + Character limit; Subtle UI section; doc cleanup |
-| 2026-08-10 | Character limit = **global only** (no per-section override) |
-| 2026-08-10 | **Reset to default = ops-managed only** (not on self-serve) |
-| 2026-08-10 | Self-serve create: Cat 2 **Connect EHR** step (AMD note template picker) |
-| 2026-08-10 | Checkbox management: ops + self-serve cases; value-selection left as open Q |
 
 ### Footnotes
 
-† **STATIC (dropped)** — old non-AI section badge. *Still in mock (different):* Static Start / End / Additional text.  
-† **EHR Pull / File Upload ghosts (dropped)** — inbound-only rows with no mapping chip.  
-†† **`Clinical Notes > snake_case` (superseded)** — prototype uses `Office Visit > Title Case` only.  
-††† **Request New Section** — ops-managed only; self-serve uses + Add section. Overrides earlier PRD line that gated it to self-serve.
+† **STATIC / EHR Pull ghosts (dropped)** — not in UI. Static Start / End / Additional text (boilerplate around section body) still exists and is a different concept.  
+†† **Path style** — `Office Visit > Title Case` only (not `Clinical Notes > snake_case`).  
+††† **Request New Section** — ops-managed only; self-serve uses + Add section.

@@ -18,13 +18,14 @@ This creates three problems:
 
 ## Solution
 
-A self-serve template management surface inside the Marvix app. Doctors can:
+A template management surface inside the Marvix app. Doctors can:
 - View their assigned templates and how each section maps to their EHR
 - Remap sections if a push fails
-- Adjust per-section output settings (formatting, default text, static content)
-- Request new sections
+- Adjust output settings (formatting, default text, push setting where supported)
+- Request new sections (ops-managed) or add sections themselves (self-serve)
 
-Ops remains in control of the template structure. Doctors customize within that structure.
+**Ops-managed** templates: ops owns structure; doctors customize within it.  
+**Self-serve** templates: doctors create and own structure (including Cat 2 Connect EHR at create).
 
 ---
 
