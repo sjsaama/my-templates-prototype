@@ -54,12 +54,12 @@ If a push fails because the EHR field mapping is wrong, the doctor can pick a di
 | Cat 1 — AthenaOne, ECW, Veradigm, Centricity (AthenaFlow) | Open mapping picker, select from hardcoded field list. No API call. Field names shown with human-readable labels. |
 | Cat 2 — AMD, DrChrono | Open mapping picker, select from the field list fetched at template creation. |
 | Cat 2 — CharmHealth | Open mapping picker, select from existing field list. Cannot re-fetch — automation blocked until CharmHealth templates API is available (confirm with KJ). If EHR template changed, doctor uses "Contact support" in picker. |
-| Cat 3 — ModMed (PDF), Cerner (PDF), Nereg (auto `key_name`) | No field mapping to remap. Remap button not shown. EHR template/document connection is still required — see Cat 3 section. |
+| Cat 3 — ModMed (PDF), Cerner (PDF), Nereg (auto `key_name`) | No section→field mapping to remap. Remap button not shown. **Correction:** still requires Marvix↔EHR destination template/document connection — earlier “skip Connect EHR” wording was wrong. See Cat 3 section / [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md). |
 | Cat 4 | No push capability. Remap button not shown. |
 
 ### Adjust section output settings
 
-Per-section settings opened via the sliders (⊟) button on each section row. Only shown for Cat 1 and Cat 2 EHRs — hidden for Cat 3 (auto-push, no field config) and Cat 4 (no push).
+Per-section settings opened via the sliders (⊟) button on each section row. Only shown for Cat 1 and Cat 2 EHRs — hidden for Cat 3 (auto-push, no field config) and Cat 4 (no push). Cat 3’s required EHR destination-template connection is template-level, not a per-section slider.
 
 > **Note:** "How subsections combine" (include headings, skip empty) and subsection spacing (single/double line) are template-level settings that live in the **Settings Portal**, not My Templates. They are out of scope here.
 
@@ -142,8 +142,8 @@ These decisions were made during prototype review and should be treated as locke
 
 - **Macro / summarizer icons:** Labeled `M` (macros) and `S` (summarizers). Not symbols. Active state shown with a dot indicator when at least one item is connected.
 - **Prompt button:** Inline on each row — labeled "Prompt". Shows a `!` indicator if no prompt has been written yet.
-- **Output settings button (sliders):** Only shown for Cat 1 and Cat 2 EHRs. Hidden for Cat 3 and Cat 4 — there is nothing to configure.
-- **Remap button on push error strip:** Only shown for Cat 1 / Cat 2 EHRs (where remap is possible). Cat 3 / Cat 4 error strips show "Contact support" only.
+- **Output settings button (sliders):** Only shown for Cat 1 and Cat 2 EHRs. Hidden for Cat 3 and Cat 4 — there is nothing to configure *per field*. (Cat 3 still requires template-level EHR destination connection — separate from this control.)
+- **Remap button on push error strip:** Only shown for Cat 1 / Cat 2 EHRs (where section→field remap is possible). Cat 3 / Cat 4 error strips show "Contact support" only. Cat 3 has no field remap; destination-template connection issues are ops-facing today.
 
 ### Mapping picker
 
@@ -190,9 +190,13 @@ EHRs: Cerner, ModMed, Nereg
 
 **Shared:** No mapping rows / field picker. Output settings (sliders) hidden. Remap button not shown on push errors.
 
-**Also shared (corrected):** Marvix must still be **connected to a template / document target in the final EHR**. Earlier drafts said Cat 3 skips Connect EHR entirely — that was wrong. There is no section→field mapping, but there is still an EHR-side destination to attach.
+**Correction vs earlier PRD wording:** Earlier drafts said Cat 3 skips **Connect EHR** entirely because there is no field list to fetch. That understates the real requirement:
 
-Per-EHR push behavior and subtle differences are documented in [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md). Summary:
+> Cat 3 does **not** need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR.
+
+How that connection is shown in self-serve My Templates (picker vs ops-only vs display-only name) is **TBD** — see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md). Do not equate “no field mapping” with “no Connect EHR.”
+
+Per-EHR push behavior and subtle differences:
 
 | EHR | How it pushes | Label shown in mapping column | Subtle difference |
 |---|---|---|---|
@@ -438,7 +442,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 | Step | What happens |
 |---|---|
 | 1 — Describe | Doctor enters template name, description, and document type (Clinical Note / Letter / Other). Optionally copies sections from an existing template. |
-| 2 — Connect EHR | **Cat 2** (AMD, DrChrono, CharmHealth): doctor picks EHR note template and fields are fetched. **Cat 3** (Cerner, ModMed, Nereg): no field fetch / mapping, but an EHR template or document destination connection is still required — exact self-serve UX TBD (see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)). Cat 1 and Cat 4 skip this step (Cat 1 uses a fixed field list; Cat 4 has no push). |
+| 2 — Connect EHR | **Cat 2** (AMD, DrChrono, CharmHealth): doctor picks EHR note template and fields are fetched. **Cat 3** (Cerner, ModMed, Nereg): **do not skip Connect EHR.** There is no field list to fetch and no section→field mapping, but the Marvix template **must** still be connected to a destination template (or document target) in the EHR. Self-serve presentation (picker vs ops-only vs display-only name) is TBD — see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md). Cat 1 and Cat 4 skip this step (Cat 1 uses a fixed field list; Cat 4 has no push). |
 | 3 — Review | Summary of name, type, EHR system, and whether sections were copied. Doctor confirms to create. |
 
 **Copy from existing template (step 1, optional):** Doctor selects any of their existing templates from a dropdown. The new template inherits a deep copy of the source section tree — including order, enabled/disabled state, and EHR mappings. If no template is selected, the new template starts from Marvix defaults (Cat 1/3/4) or an empty section list (Cat 2).
@@ -489,10 +493,16 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 #### Cat 3 — Cerner, ModMed, Nereg
 
+**Correction vs earlier PRD wording:** Earlier drafts said Cat 3 skips Connect EHR entirely because there is no field list to fetch. That understates the requirement:
+
+> Cat 3 does **not** need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR.
+
+How that connection is shown in self-serve My Templates (picker vs ops-only vs display-only name) is TBD.
+
 **What the doctor does:**
 1. Click "+ Create template"
 2. Enter name, description, document type. Optionally copy sections.
-3. Step 2 (Connect EHR): **Not a field-mapping step.** Destination template / document connection in the EHR is still required. Whether the doctor picks it here or ops provisions it is **TBD** (see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)). Until UX is decided, treat connection as required and do not imply “skip Connect EHR = no EHR attachment.”
+3. Step 2 (Connect EHR): **Required destination connection — not a field-mapping step.** No field fetch. Whether the doctor picks the destination here or ops provisions it (with a display-only name in the editor) is **TBD** (see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)). Do not imply “skip Connect EHR = no EHR attachment.”
 4. Template is created with the default Marvix section set (or copied sections).
 5. In the editor, mapping column shows the auto-push label for every section ("Auto-mapped from section names" or "Whole note pushed as PDF" depending on the EHR). No per-section field picker.
 

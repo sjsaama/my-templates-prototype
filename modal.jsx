@@ -532,7 +532,10 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
 // ── Add Section / Add Subsection ──────────────────────────────────────────
 // Header + Prompt, written by the doctor — no AI drafting. For Cat 1 (fixed field list) and
 // Cat 2 (fetch-based, once fetched) EHRs, the section must be tied to an available field first.
-// Cat 3 (auto push) and Cat 4 (no push) skip the field picker entirely — nothing to map to.
+// Cat 3 (auto push) and Cat 4 (no push) skip the *field picker* entirely — nothing to map
+// section→field. Cat 3 still requires an EHR destination template/document connection at the
+// template level (not in this modal) — see ehr_mapping/CATEGORY_3.md. Do not equate
+// "no field mapping" with "no Connect EHR."
 function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreate }) {
   const I = window.Icons;
   const [name, setName] = useStateM("");

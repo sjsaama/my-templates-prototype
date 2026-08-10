@@ -106,6 +106,10 @@ These live in the `templates` table and `json_template` JSON.
 
 ---
 
+## Category 3 — Cerner, ModMed, Nereg
+
+> **Correction:** Earlier wording treated “no field list to fetch” as “skip Connect EHR entirely.” Cat 3 does **not** need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR. See [CATEGORY_3.md](CATEGORY_3.md).
+
 ### Cerner
 
 | Property | Changed by | Impact |

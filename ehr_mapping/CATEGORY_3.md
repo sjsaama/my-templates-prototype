@@ -1,4 +1,4 @@
-# Category 3 — Auto push, no field mapping
+# Category 3 — Auto push, no field mapping (template connection required)
 
 EHRs: **Cerner**, **ModMed**, **Nereg**
 
@@ -22,6 +22,8 @@ The PRD previously said Cat 3 skips **Connect EHR** entirely because there is no
 > Cat 3 does **not** need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR.
 
 How that connection is shown in self-serve My Templates (picker vs ops-only vs display-only name) is **TBD** — document the nuances below first, then design UX.
+
+**Do not equate** “no field mapping” with “no Connect EHR.” Skipping the field picker is correct; skipping destination-template connection is not.
 
 ---
 

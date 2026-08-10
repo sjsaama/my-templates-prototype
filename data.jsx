@@ -561,9 +561,11 @@ const EHR_CATEGORY = {
   Charm:      { cat: 2, label: "CharmHealth",             fieldSource: "fetch", canReFetch: false },
   DrChrono:   { cat: 2, label: "DrChrono",                fieldSource: "fetch" },
   Centricity: { cat: 1, label: "Centricity",              fieldSource: "fixed" },
-  Cerner:     { cat: 3, label: "Cerner",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
-  Nereg:      { cat: 3, label: "Nereg",                   fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
-  ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
+  // Cat 3: fieldSource "none" = no section→field mapping. Template/document connection in the
+  // EHR is still required — do not treat as "skip Connect EHR." See ehr_mapping/CATEGORY_3.md.
+  Cerner:     { cat: 3, label: "Cerner",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF", requiresEhrTemplateConnection: true },
+  Nereg:      { cat: 3, label: "Nereg",                   fieldSource: "none",  autoMsg: "Auto-mapped from section names", requiresEhrTemplateConnection: true },
+  ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF", requiresEhrTemplateConnection: true },
   Athena:     { cat: 4, label: "Athena (Legacy)",         fieldSource: "none",  noPushMsg: "Athena" },
   "ECW FHIR": { cat: 4, label: "ECW FHIR",               fieldSource: "none",  noPushMsg: "ECW" },
   Greenway:   { cat: 4, label: "Greenway (Prime Suites)", fieldSource: "none",  noPushMsg: "Greenway" },

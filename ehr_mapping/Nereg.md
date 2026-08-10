@@ -1,7 +1,9 @@
 # EHR Mapping — Nereg
 
 ## Category
-**Category 3 — Auto push, no field mapping.** No manual Extra Fields YAML. Marvix auto-constructs field targets from section `key_name`s at push time.
+**Category 3 — Auto push, no field mapping (template connection required).** No manual Extra Fields YAML. Marvix auto-constructs field targets from section `key_name`s at push time.
+
+> **Correction:** “No field mapping” does **not** mean skip Connect EHR. Cat 3 does not need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR. Self-serve presentation (picker vs ops-only vs display-only name) is TBD.
 
 See [CATEGORY_3.md](CATEGORY_3.md) for shared Cat 3 model and how Nereg differs from Cerner / ModMed (Nereg is **not** a single-PDF push).
 

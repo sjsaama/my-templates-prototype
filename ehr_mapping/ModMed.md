@@ -1,7 +1,9 @@
 # EHR Mapping — ModMed
 
 ## Category
-**Category 3 — Auto push, no field mapping.** Full note → one PDF via FHIR. No section-level mapping.
+**Category 3 — Auto push, no field mapping (template connection required).** Full note → one PDF via FHIR. No section-level mapping.
+
+> **Correction:** “No field mapping” does **not** mean skip Connect EHR. Cat 3 does not need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR. Self-serve presentation (picker vs ops-only vs display-only name) is TBD.
 
 See [CATEGORY_3.md](CATEGORY_3.md) for shared Cat 3 model and how ModMed differs from Cerner / Nereg.
 
