@@ -332,8 +332,7 @@ function InlineAdvPanel({ s, onUpdate }) {
               placeholder='e.g. "Not reported" or "None"'
               onChange={e => onUpdate(s.id, { defaultNegative: e.target.value })} />
           </div>
-          {/* Push setting + Character limit are AMD-only in My Templates (PRD).
-              DrChrono may still use append/prepend/char_limit in backend YAML / Template Settings. */}
+          {/* Push setting is AMD-only. Character limit is global-only (template bar) — never local. */}
         </div>
       )}
 

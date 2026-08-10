@@ -122,6 +122,7 @@ function App() {
     window.INITIAL_PENDING_REQUESTS.map((r) => ({ ...r }))
   );
   const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
+  const [charLimitByTpl, setCharLimitByTpl] = useStateA({});
   const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
   const [disableTarget, setDisableTarget] = useStateA(null);
   const [toast, setToast] = useStateA("");
@@ -145,10 +146,18 @@ function App() {
   const sections = activeTpl
     ? (sectionsByTpl[activeTpl] || (sectionsByTpl[activeTpl] = window.makeSections()))
     : [];
+  const templateCharLimit = (activeTpl && charLimitByTpl[activeTpl]) || 2000;
 
   const setSections = (fn) => {
     if (!activeTpl) return;
     setSectionsByTpl((m) => ({ ...m, [activeTpl]: fn(m[activeTpl] || window.makeSections()) }));
+  };
+
+  const applyTemplateCharLimit = (limit) => {
+    if (!activeTpl) return;
+    const n = Math.max(0, parseInt(limit, 10) || 0);
+    setCharLimitByTpl((m) => ({ ...m, [activeTpl]: n }));
+    flash("Character limit updated for this template");
   };
 
   const flash = (msg) => { setToast(msg); clearTimeout(window.__tt); window.__tt = setTimeout(() => setToast(""), 2600); };
@@ -359,6 +368,27 @@ function App() {
                     {tpl.ehrTemplateName
                       ? <span className="ehr-tpl-banner-value">{tpl.ehrTemplateName}</span>
                       : <span className="ehr-tpl-banner-unset">Not connected — map fields from the list, or reconnect later</span>}
+                  </div>
+                </div>
+              )}
+
+              {/* Global settings — Character limit only (never per-section) */}
+              {ehr === "DrChrono" && ehrCat.cat <= 2 && (
+                <div className="tpl-settings-stack">
+                  <div className="tpl-settings-bar">
+                    <span className="tpl-settings-label">Character limit</span>
+                    <input
+                      className="tpl-settings-input"
+                      type="number"
+                      min="0"
+                      step="100"
+                      value={templateCharLimit}
+                      onChange={(e) => applyTemplateCharLimit(e.target.value)}
+                      aria-label="Template character limit"
+                    />
+                    <span className="tpl-settings-hint">
+                      Global only — applies to the whole template. Not editable per section.
+                    </span>
                   </div>
                 </div>
               )}
