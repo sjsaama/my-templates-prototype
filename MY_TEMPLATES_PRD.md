@@ -492,11 +492,11 @@ This is the **create** path for Flow 2 — Self-serve. Ops-operated templates ar
 4. Template is created with the default Marvix section set (or copied sections).
 5. In the editor, each section row shows the fixed field list in the mapping picker. Doctor maps each section to the appropriate field.
 
-**What's different from ops-managed templates:**
+**What's different from ops-operated templates:**
 - Doctor can remap any section freely from the hardcoded list (eCW: Primary + optional Scribe-it)
 - Doctor can edit per-section prompts
 - Doctor can add or delete sections (up to the EHR's field count cap)
-- **Request New Section** / **Reset to default** stay on **ops-managed** templates; self-serve uses **+ Add section** instead of Request
+- **Request New Section** / **Reset to default** stay on **ops-operated** templates; self-serve uses **+ Add section** instead of Request
 
 ---
 
