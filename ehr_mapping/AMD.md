@@ -173,4 +173,5 @@ Sources: [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md), this file, [ERROR_UX.md]
 
 † **EHR Pull / File Upload ghost rows (dropped)** — inbound rows like Vitals (“Inserted by EHR Pull”) or file upload; enable only, no mapping chip.
 
-†† **`Clinical Notes > snake_case` path style (superseded)** — older design chips; prototype now uses **`Office Visit > Title Case`** only.
+††† **Request New Section ownership (product call)**  
+Shown on **ops-managed** templates only — doctors ask ops to add structure. Self-serve templates use **+ Add section** instead. (Overrides an earlier PRD line that gated Request New Section to user-created templates.)
