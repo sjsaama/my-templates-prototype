@@ -47,27 +47,28 @@ Fails if names were renamed — ops updates YAML.
 
 ## Settings — global and local
 
-Product model: **template defaults** applied to every section, **optional per-section overrides**.  
-YAML today still stores values per row (`config.*`) until Template Settings migration lands.
+Product model: **template defaults**, with **per-section overrides only where noted**.  
+YAML today still stores some values per row (`config.*`) until Template Settings migration lands.
 
-**Hierarchy:** Global (template) → applied to each section → local override in output settings (sliders).
+**Hierarchy (where override is allowed):** Global (template) → applied to each section → optional local override in output settings.
 
-### Global (template)
+### Global (template only)
 
 | Setting | YAML today | Notes |
 | ------- | ---------- | ----- |
-| **Push setting** | `append` / `prepend` / neither (= overwrite) | One control — see below |
-| **Character limit** | `char_limit` | Informed by AMD `max_character_length` when a field is mapped |
+| **Push setting** | `append` / `prepend` / neither (= overwrite) | One control — see below. Global default → applied to sections → **overridable locally** |
+| **Character limit** | `char_limit` | **Global only — no per-section value.** Informed by AMD `max_character_length` when fields are mapped; used for truncation / too-long guidance |
 | Subsection join | `push_subsections`, `retain_headings`, `skip_empty_subsections`, `separator` | How parent + children combine into one EHR field |
 
 ### Local (section output settings)
 
 | Setting | Notes |
 | ------- | ----- |
-| **Push setting** | Override template default for this section |
-| **Character limit** | Override template default; AMD field max still caps what EHR accepts |
+| **Push setting** | Override template default for this section only |
 | Additional text | Fixed text before/after section body |
 | Default negative | Pushed when section has no generated content |
+
+> Character limit is **not** shown or edited per section — template bar only.
 
 ### Push setting options
 
@@ -141,7 +142,8 @@ Branch `cursor/amd-ehr-34b9` — visual / UX only. EHR locked to AMD. Entry: `in
 | Path style | `Office Visit > Title Case` everywhere †† |
 | STATIC badge / EHR Pull ghost rows | Dropped † |
 | Checkbox fields | Same picker as text; distinct type + allowed values |
-| Push setting + Character limit | Global → apply to sections → local override |
+| Push setting | Global → apply to sections → local override |
+| Character limit | **Global only** — template bar; no local / per-section value |
 
 ### Subtle UI elements
 
@@ -162,7 +164,7 @@ Open: surface allowed values in prompt editor; vs YAML `extract_boolean_value` (
 
 | Element | Subtlety |
 | ------- | -------- |
-| No Configuration column | Push setting + Character limit live in template bar + section output settings |
+| No Configuration column | Push setting: template bar + section override. Character limit: **template bar only** (global) |
 | Shared field | Neutral **Shared** chip when 2+ sections map to one field — content joins in list order |
 | Parent mapping | Whole vs map subsections individually |
 | Dropped chrome | No STATIC badge; no EHR Pull / File Upload ghost rows † |
@@ -183,6 +185,7 @@ Open: surface allowed values in prompt editor; vs YAML `extract_boolean_value` (
 | 2026-08-10 | Dropped STATIC + EHR Pull ghosts; Request New Section = ops-managed only ††† |
 | 2026-08-10 | Checkbox picker + CC Enable; push-error action matrix |
 | 2026-08-10 | Settings → global/local; Push setting + Character limit; Subtle UI section; doc cleanup |
+| 2026-08-10 | Character limit = **global only** (no per-section override) |
 
 ### Footnotes
 

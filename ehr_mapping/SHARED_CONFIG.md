@@ -6,7 +6,7 @@ Per-section config options. Every key here lives in the Extra Fields YAML for a 
 
 ## Common — applies to all push EHRs
 
-> **Planned — Template Settings:** The keys `separator`, `char_limit`, `push_subsections`, `retain_headings`, `skip_empty_subsections`, and `line_separator` are being promoted from per-section YAML to a global **Template Settings** level. **Push setting** (`append` / `prepend` / overwrite) and **Character limit** (`char_limit`, informed by AMD `max_character_length`) are template-level defaults applied to each section and overridable locally. Doctors will set globals once per template rather than only per mapping row. The per-section YAML path remains the source of truth until migration is complete.
+> **Planned — Template Settings:** The keys `separator`, `char_limit`, `push_subsections`, `retain_headings`, `skip_empty_subsections`, and `line_separator` are being promoted from per-section YAML to a global **Template Settings** level. **Push setting** (`append` / `prepend` / overwrite) is a template default applied to each section and overridable locally. **Character limit** (`char_limit`, informed by AMD `max_character_length`) is **global only** — no per-section value. Doctors will set globals once per template rather than only per mapping row. The per-section YAML path remains the source of truth until migration is complete.
 
 ### How subsections are combined into one EHR field
 These three work together: first decide whether to include subsections, then whether to label them, then what to put between them.
@@ -26,7 +26,7 @@ These three work together: first decide whether to include subsections, then whe
 | `pre_literal` | top-level | Text | — | Fixed text prepended before section content on push (supports unicode escapes e.g. `•` for `•`). Skipped if already present in target field. | Yes — all push EHRs |
 | `post_literal` | top-level | Text | — | Fixed text appended after section content on push. Planned — not yet in codebase. | Yes — all push EHRs |
 | `default_negative` | top-level | Text | — | Text pushed when the section has no generated content (e.g. "Not reported"). Without this, empty sections push nothing. | Yes — all push EHRs |
-| `char_limit` | `config.char_limit` | Number | — | Truncates pushed text to N characters. **→ Global Template Setting** (default applied to each section; overridable locally). For AMD, informed by auto-fetched per-field `max_character_length`. | Yes — template default + section override |
+| `char_limit` | `config.char_limit` | Number | — | Truncates pushed text to N characters. **→ Global Template Setting only** (no per-section override). For AMD, informed by auto-fetched per-field `max_character_length`. | Yes — template settings only |
 
 ### Push setting / write mode (where EHR supports read-before-write)
 

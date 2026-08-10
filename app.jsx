@@ -197,8 +197,7 @@ function App() {
     if (!activeTpl) return;
     const n = Math.max(0, parseInt(limit, 10) || 0);
     setCharLimitByTpl((m) => ({ ...m, [activeTpl]: n }));
-    setSections((arr) => mapAllSections(arr, (s) => (s.ghost ? s : { ...s, charLimit: n })));
-    flash("Character limit applied to all sections — change any section to override");
+    flash("Character limit updated for this template");
   };
 
   const flash = (msg) => { setToast(msg); clearTimeout(window.__tt); window.__tt = setTimeout(() => setToast(""), 2600); };
@@ -425,7 +424,7 @@ function App() {
                       aria-label="Template character limit"
                     />
                     <span className="tpl-settings-hint">
-                      Global default — applied to each section; AMD field max still informs too-long errors when mapped.
+                      Global only — applies to the whole template (no per-section override). AMD field max still informs too-long errors when mapped.
                     </span>
                   </div>
                 </div>
@@ -481,7 +480,6 @@ function App() {
                 sections={sections}
                 ehr={ehr}
                 templatePushMode={templatePushMode}
-                templateCharLimit={templateCharLimit}
                 pushIssues={pushIssues}
                 dualMappingDemo={t.dualMappingDemo}
                 remapTarget={remapTarget}
