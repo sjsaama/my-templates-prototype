@@ -6,13 +6,15 @@ Prototype scope: visual / UX only.
 
 ## Decisions (confirmed)
 
-| Topic | Decision |
-|---|---|
-| Configuration column | **Not needed for AMD** |
-| EHR path style | **One style everywhere** — either is fine |
-| Template types | **Two kinds: Self-serve** and **Ops-managed** |
-| STATIC section badge | **Dropped** † |
-| EHR Pull / File Upload ghost rows | **Dropped** † |
+
+| Topic                             | Decision                                      |
+| --------------------------------- | --------------------------------------------- |
+| Configuration column              | **Not needed for AMD**                        |
+| EHR path style                    | **One style everywhere** — either is fine     |
+| Template types                    | **Two kinds: Self-serve** and **Ops-managed** |
+| STATIC section badge              | **Dropped** †                                 |
+| EHR Pull / File Upload ghost rows | **Dropped** †                                 |
+
 
 ## Still to align visually
 

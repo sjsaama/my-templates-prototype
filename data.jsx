@@ -31,7 +31,7 @@ const makeSections = () => withDefaultNegatives([
   {
     id: "s_cc",
     name: "Chief Complaint",
-    ehr: "Clinical Notes > chief_complaint",
+    ehr: "Office Visit > Chief Complaint",
     config: "Prepend",
     enabled: true,
     macros: [{ name: "Onset Macro", mode: "Y/N Logic" }],
@@ -44,7 +44,7 @@ const makeSections = () => withDefaultNegatives([
   {
     id: "s_hpi",
     name: "History of Present Illness",
-    ehr: "Clinical Notes > hpi_freetext",
+    ehr: "Office Visit > History of Present Illness",
     config: "Prepend",
     enabled: true,
     macros: [
@@ -68,7 +68,7 @@ const makeSections = () => withDefaultNegatives([
   {
     id: "s_example_parent",
     name: "Example Parent",
-    ehr: "Clinical Notes > example_freetext",
+    ehr: "Office Visit > Example Notes",
     config: "Prepend",
     enabled: true,
     macros: [{ name: "Example Macro", mode: "Y/N Logic" }],
@@ -87,7 +87,7 @@ const makeSections = () => withDefaultNegatives([
   {
     id: "s_ros",
     name: "Review of Systems",
-    ehr: "Clinical Notes > ros_freetext",
+    ehr: "Office Visit > Review of Systems",
     config: "Append",
     enabled: true,
     macros: [{ name: "ROS Negatives Macro", mode: "Free Text" }],
@@ -106,7 +106,7 @@ const makeSections = () => withDefaultNegatives([
       {
         id: "s_ros_general",
         name: "General",
-        ehr: "Clinical Notes > ros_general",
+        ehr: "",
         config: "Append",
         enabled: true,
         macros: [],
@@ -119,7 +119,7 @@ const makeSections = () => withDefaultNegatives([
       {
         id: "s_ros_child2",
         name: "Child 2",
-        ehr: "Clinical Notes > ros_child2",
+        ehr: "",
         config: "Append",
         enabled: true,
         macros: [],
@@ -136,7 +136,7 @@ const makeSections = () => withDefaultNegatives([
           {
             id: "s_ros_gc1",
             name: "Grand Child 1",
-            ehr: "Clinical Notes > ros_gc1",
+            ehr: "",
             config: "Prepend",
             enabled: true,
             macros: [],
@@ -179,7 +179,7 @@ const makeSections = () => withDefaultNegatives([
   {
     id: "s_pmh",
     name: "Past Medical History",
-    ehr: "Clinical Notes > pmh_freetext",
+    ehr: "Office Visit > Past Medical History",
     config: "Prepend",
     enabled: false,
     macros: [],
@@ -192,7 +192,7 @@ const makeSections = () => withDefaultNegatives([
   {
     id: "s_exam",
     name: "Physical Exam",
-    ehr: "Clinical Notes > physical_exam",
+    ehr: "Office Visit > Physical Exam",
     config: "Replace",
     enabled: true,
     macros: [{ name: "Normal Exam Macro", mode: "Free Text" }],
@@ -205,7 +205,7 @@ const makeSections = () => withDefaultNegatives([
       {
         id: "s_exam_c1",
         name: "Cardiovascular",
-        ehr: "Clinical Notes > exam_cv",
+        ehr: "",
         config: "Append",
         enabled: true,
         macros: [],
@@ -218,7 +218,7 @@ const makeSections = () => withDefaultNegatives([
       {
         id: "s_exam_c2",
         name: "Respiratory",
-        ehr: "Clinical Notes > exam_resp",
+        ehr: "",
         config: "Append",
         enabled: true,
         macros: [],
@@ -233,7 +233,7 @@ const makeSections = () => withDefaultNegatives([
   {
     id: "s_labs",
     name: "Labs and Imaging",
-    ehr: "Clinical Notes > labs_imaging",
+    ehr: "Office Visit > Labs & Imaging",
     config: "Prepend",
     enabled: true,
     macros: [],
@@ -246,7 +246,7 @@ const makeSections = () => withDefaultNegatives([
   {
     id: "s_ap",
     name: "Assessment & Plan",
-    ehr: "Clinical Notes > assessment_plan",
+    ehr: "Office Visit > Assessment & Plan",
     config: "Prepend",
     enabled: true,
     macros: [{ name: "Follow-up Macro", mode: "Y/N Logic" }],
@@ -335,8 +335,8 @@ const CONFIG_OPTIONS = ["Prepend", "Append", "Replace"];
 const MACRO_MODES = ["Y/N Logic", "Free Text", "Lorem Ipsum"];
 const SUMMARIZER_MODES = ["Replace", "Append", "Prepend", "Inform"];
 
-// EHR field lists per system. AMD uses "Page > Field Name", eCW uses "Field > section_code",
-// others use plain snake_case field names.
+// EHR field lists per system. AMD uses "Page > Field Name" (Title Case).
+// eCW uses "Field > section_code"; others use plain snake_case field names.
 const EHR_FIELDS_BY_SYSTEM = {
   AMD: [
     { group: "Office Visit", fields: [
@@ -349,6 +349,7 @@ const EHR_FIELDS_BY_SYSTEM = {
       "Office Visit > Labs & Imaging",
       "Office Visit > Medications",
       "Office Visit > Allergies",
+      "Office Visit > Example Notes",
     ]},
     { group: "Vitals", fields: [
       "Vitals > Blood Pressure",

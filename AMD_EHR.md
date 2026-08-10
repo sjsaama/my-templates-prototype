@@ -11,14 +11,14 @@ Companion detail log: **[AMD_DISCREPANCIES.md](./AMD_DISCREPANCIES.md)**
 
 - Tweaks EHR switcher fixed to `AMD`
 - Runtime `ehr` always `AMD`
-- AMD mapping format: `Page > Field` (picker uses Office Visit / Vitals / Administrative)
+- AMD mapping format: **`Office Visit > Field Name`** (Title Case) — chips, picker, and char limits all use this style
 
 ## Confirmed decisions
 
 | Topic | Decision |
 |---|---|
 | Configuration column | **Not needed for AMD** |
-| EHR path style | **One style everywhere** (either is fine) |
+| EHR path style | **`Office Visit > Title Case`** everywhere |
 | Template types | **Self-serve** and **Ops-managed** |
 | STATIC section badge | **Dropped** † |
 | EHR Pull / File Upload ghost rows | **Dropped** † |
@@ -27,7 +27,7 @@ Companion detail log: **[AMD_DISCREPANCIES.md](./AMD_DISCREPANCIES.md)**
 
 1. Template list — Clinical Notes + Other Documents
 2. Section editor — enable/disable, expand, reorder
-3. EHR field mapping — picker + parent As one / Each separately
+3. EHR field mapping — `Office Visit > …` picker + parent As one / Each separately
 4. Output & EHR — push mode (Insert before / after / Overwrite), static start/end, default negatives, char limits
 5. Request New Section modal + pending requests
 6. Save / reset
@@ -40,11 +40,11 @@ Companion detail log: **[AMD_DISCREPANCIES.md](./AMD_DISCREPANCIES.md)**
 | 2026-08-10 | Walked design screens vs prototype; logged gaps |
 | 2026-08-10 | Confirmed: no Configuration column; one path style; Self-serve / Ops-managed |
 | 2026-08-10 | **Dropped STATIC badge + EHR Pull/File Upload ghost rows** † |
+| 2026-08-10 | **Unified path style** to `Office Visit > Title Case` on seeded chips + picker (+ Example Notes demo field). Subsections under As-one parents left unmapped (inherit parent). |
 
 ## Still to align
 
-1. Unify path style on chips + picker (pick one)
-2. Template list tabs: **Self-serve** vs **Ops-managed**
+1. Template list tabs: **Self-serve** vs **Ops-managed**
 
 ---
 
@@ -56,3 +56,6 @@ Was a section-level badge meaning content is not AI-generated (fixed/locked). Ol
 
 † **EHR Pull / File Upload ghost rows (dropped)**  
 Were non-generated “ghost” rows pulled into the note from the EHR (e.g. Vitals — “Inserted by EHR Pull”) or from an upload (“Inserted by File Upload”). Enable toggle only; no mapping chip. Removed from AMD prototype data and UI.
+
+†† **Path style not chosen (superseded)**  
+Earlier mocks used `Clinical Notes > snake_case` on chips while the picker used `Office Visit > Title Case`. Settled on Office Visit Title Case for the AMD prototype.
