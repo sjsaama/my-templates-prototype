@@ -17,4 +17,10 @@ This branch is scoped to **AdvancedMD (AMD)** only.
 5. Parent vs per-subsection mapping modes
 6. Save / reset / section request modal
 
+## Discrepancy review
+
+Full findings: **[AMD_DISCREPANCIES.md](./AMD_DISCREPANCIES.md)**
+
+Biggest issue: seeded chips use `Clinical Notes > snake_case`, but the AMD picker + char limits use `Office Visit > Title Case` — so defaults never match the catalog and char limits never appear.
+
 Use this branch for AMD-only review and changes. Other EHRs (eCW, Athena, Charm, etc.) stay on `main` or their own branches.
