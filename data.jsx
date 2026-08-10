@@ -12,6 +12,9 @@ const TEMPLATES = [
   { id: "referral", name: "Referral Letter", derivative: "Letter", ehr: "AMD_Referral_Template", ehrSystem: "AMD", group: "Other Documents" },
   { id: "leave", name: "Medical Leave Letter", derivative: "Letter", ehr: "AMD_Leave_Template", ehrSystem: "AMD", group: "Other Documents" },
   { id: "ddx", name: "DDx (Beta)", derivative: "Clinical Note", ehr: "AMD_DDx_Template", ehrSystem: "AMD", group: "Other Documents" },
+  // Self-serve examples (doctor-created)
+  { id: "gen3custom", name: "General 3 — Custom", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Clinical Notes", userCreated: true },
+  { id: "followmypush", name: "Follow Up — My Push", derivative: "Clinical Note", ehr: "AMD_FollowUp_Template", ehrSystem: "AMD", group: "Clinical Notes", userCreated: true },
   { id: "athena1", name: "Office Visit", derivative: "Clinical Note", ehr: "AthenaOne_OV", ehrSystem: "AthenaOne", group: "Clinical Notes" },
   { id: "ecw1", name: "Progress Note", derivative: "Clinical Note", ehr: "ECW_Progress", ehrSystem: "eCW", group: "Clinical Notes" },
   { id: "charm1", name: "SOAP Note", derivative: "Clinical Note", ehr: "Charm_SOAP", ehrSystem: "Charm", group: "Clinical Notes" },

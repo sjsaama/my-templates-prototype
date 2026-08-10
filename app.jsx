@@ -163,7 +163,6 @@ function App() {
   const visibleTemplates = EHR_LOCKED
     ? templates.filter((t) => !t.ehrSystem || t.ehrSystem === "AMD")
     : templates;
-  const groups = window.groupsFor(visibleTemplates);
   const sections = activeTpl
     ? (sectionsByTpl[activeTpl] || (sectionsByTpl[activeTpl] = window.makeSections()))
     : [];
@@ -309,7 +308,7 @@ function App() {
       )}
       <window.Sidebar />
       <window.TemplateList
-        groups={groups}
+        templates={visibleTemplates}
         activeId={activeTpl}
         onSelect={selectTpl}
         onRequest={() => flash("Request from ops → Style Transfer")}
@@ -326,11 +325,21 @@ function App() {
             <>
               <header className="ed-head">
                 <div className="ed-head-left">
-                  <h2 className="ed-title">{tpl.name}</h2>
+                  <h2 className="ed-title">
+                    {tpl.name}
+                    {tpl.userCreated
+                      ? <span className="ed-ownership ed-ownership--self">Self-serve</span>
+                      : <span className="ed-ownership ed-ownership--ops">Ops-managed</span>}
+                  </h2>
                   <div className="ed-meta">
                     {tpl.derivative && <span className="ed-meta-tag">{tpl.derivative}</span>}
                     {tpl.ehr && <span className="ed-meta-tag ed-meta-tag--mono">{tpl.ehr}</span>}
                   </div>
+                  {tpl.userCreated ? (
+                    <p className="ed-ownership-hint">You manage this template’s EHR mappings — click any mapping to change where a section is pushed.</p>
+                  ) : (
+                    <p className="ed-ownership-hint">Ops manages the section structure. You can still remap fields and adjust output settings.</p>
+                  )}
                 </div>
                 <div className="ed-head-right">
                   <button className="btn-ghost btn-sm" onClick={() => setPreviewOpen(true)}>Preview output</button>
