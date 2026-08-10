@@ -50,7 +50,7 @@ function ConnectionsModal({ section, onClose, onSave }) {
       <div className="modal" role="dialog" aria-modal="true">
         <div className="modal-head">
           <h2>Connections &amp; Static Text</h2>
-          <span className="modal-sub">{section.name}{section.static ? " · Static section" : ""}</span>
+          <span className="modal-sub">{section.name}</span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
 

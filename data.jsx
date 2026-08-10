@@ -44,7 +44,6 @@ const makeSections = () => withDefaultNegatives([
   {
     id: "s_hpi",
     name: "History of Present Illness",
-    static: true,
     ehr: "Clinical Notes > hpi_freetext",
     config: "Prepend",
     enabled: true,
@@ -234,7 +233,6 @@ const makeSections = () => withDefaultNegatives([
   {
     id: "s_labs",
     name: "Labs and Imaging",
-    static: true,
     ehr: "Clinical Notes > labs_imaging",
     config: "Prepend",
     enabled: true,
@@ -260,16 +258,14 @@ const makeSections = () => withDefaultNegatives([
   },
 ]);
 
-// Ensure every template section has a defaultNegative field (ghost sections excluded).
+// Ensure every template section has a defaultNegative field.
 function withDefaultNegatives(sections) {
   return sections.map((s) => {
     const out = { ...s, detailsExpanded: !!s.detailsExpanded };
-    if (!s.ghost) {
-      out.defaultNegative = s.defaultNegative != null ? s.defaultNegative : "";
-      out.styleDetail   = s.styleDetail   || 'Standard';
-      out.styleFormat   = s.styleFormat   || 'Prose';
-      out.stylePrompt   = s.stylePrompt   || '';
-    }
+    out.defaultNegative = s.defaultNegative != null ? s.defaultNegative : "";
+    out.styleDetail   = s.styleDetail   || 'Standard';
+    out.styleFormat   = s.styleFormat   || 'Prose';
+    out.stylePrompt   = s.stylePrompt   || '';
     if (s.children) {
       out.mappingMode = s.mappingMode || 'whole';
       out.children = withDefaultNegatives(s.children);

@@ -7,7 +7,6 @@ window.DENSITY_VARS = {
     tableGap: 6,
     theadMin: 44,
     tplItemY: 14,
-    ghostRowY: 12,
     collapseTop: 38,
   },
   regular: {
@@ -17,7 +16,6 @@ window.DENSITY_VARS = {
     tableGap: 10,
     theadMin: 48,
     tplItemY: 18,
-    ghostRowY: 16,
     collapseTop: 52,
   },
   comfy: {
@@ -27,7 +25,6 @@ window.DENSITY_VARS = {
     tableGap: 14,
     theadMin: 52,
     tplItemY: 22,
-    ghostRowY: 20,
     collapseTop: 62,
   },
 };
@@ -42,7 +39,6 @@ window.densityStyle = function densityStyle(density, accent) {
     "--table-gap": d.tableGap + "px",
     "--thead-min-height": d.theadMin + "px",
     "--tpl-item-pad-y": d.tplItemY + "px",
-    "--ghost-row-pad-y": d.ghostRowY + "px",
     "--collapse-top": d.collapseTop + "px",
   };
 };

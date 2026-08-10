@@ -386,8 +386,6 @@ function SectionRow({
   parentMappingMode, ehr,
 }) {
   const I = window.Icons;
-  if (s.ghost) return null;
-  
   const hasKids = !!(s.children && s.children.length);
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
@@ -496,7 +494,7 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
   const isDragging = dragId === s.id;
   const dropBefore = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'before');
   const dropAfter = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'after');
-  const isDuplicate = !s.ghost && !!s.ehr && (ehrCounts[s.ehr] || 0) > 1;
+  const isDuplicate = !!s.ehr && (ehrCounts[s.ehr] || 0) > 1;
   const isLast = index === siblings.length - 1;
 
   const nodes = [
@@ -532,7 +530,7 @@ function SectionTable({ sections, ehr, onToggle, onExpand, onToggleDetails, onRe
   const ehrCounts = {};
   const walkEhr = (list) => {
     for (const s of list) {
-      if (!s.ghost && s.ehr) ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
+      if (s.ehr) ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
       if (s.children) walkEhr(s.children);
     }
   };
