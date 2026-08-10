@@ -134,14 +134,17 @@ These decisions were made during prototype review and should be treated as locke
 
 - **Template meta:** EHR system and derivative type shown as chip badges in the editor header — not text labels.
 - **Save / Reset buttons:** Live in the header row alongside the template title. No separate toolbar bar.
-- **"Request New Section" button:** Header, right side — only shown for user-created (self-serve) templates. Ops-managed templates do not show this button.
-- **"+ Add section" button:** Only shown for user-created templates. Hidden for ops-managed templates where the section structure is controlled by ops.
+- **"Request New Section" button:** Header, right side — **ops-managed only**. Self-serve templates use **+ Add section** instead.
+- **"+ Add section" button:** Only shown for user-created (self-serve) templates. Hidden for ops-managed templates where the section structure is controlled by ops.
 - **"Request from ops" (sidebar):** Simplified to a plain ghost text link — no subtitle, no secondary line.
+- **Ownership:** Template list tabs for Ops-managed / Self-serve; header shows ownership badge + short hint.
+- **Reset to default:** **Ops-managed only** — not shown on self-serve (no ops default to restore).
+- **Prompt:** Inline on each row — **self-serve only** (editable). Hidden on ops-managed. Shows a `!` indicator if no prompt has been written yet.
 
 ### Section row
 
 - **Macro / summarizer icons:** Labeled `M` (macros) and `S` (summarizers). Not symbols. Active state shown with a dot indicator when at least one item is connected.
-- **Prompt button:** Inline on each row — labeled "Prompt". Shows a `!` indicator if no prompt has been written yet.
+- **Prompt button:** Inline on each row — labeled "Prompt". **Self-serve only** (hidden on ops-managed). Shows a `!` indicator if no prompt has been written yet.
 - **Output settings button (sliders):** Only shown for Cat 1 and Cat 2 EHRs. Hidden for Cat 3 and Cat 4 — there is nothing to configure.
 - **Remap button on push error strip:** Only shown for Cat 1 / Cat 2 EHRs (where remap is possible). Cat 3 / Cat 4 error strips show "Contact support" only.
 
@@ -278,8 +281,11 @@ The section-level inline strip is the primary action surface — the banner is a
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
-| Note text push failure | Any | ❌ Undetectable | Nothing — Lambda gets a 200 regardless; ECW processes silently | Ops investigates manually |
-| Order section push failure (lab, rx, referral, imaging, procedure, vaccine) | Ops config | ⚠️ Partial — surfaces as WARNING in Lambda logs, not visible to doctor | Nothing | Ops fixes order type config |
+| Note text push failure (HL7 ORU) | Any | ❌ Undetectable | Nothing — Lambda gets a 200 from S3; ECW processes asynchronously with no callback | Ops spot-checks chart; doctor can Remap if ops flags a wrong shortcut |
+| Order section push failure (lab, rx, referral, imaging, procedure, vaccine) | Ops config | ⚠️ Partial — surfaces as WARNING in Lambda logs | If promoted to in-app: "Couldn't find any Orders of type: … Support has been notified." | Ops fixes order type config — Contact support (Remap of note fields will not fix) |
+| Wrong Scribe-it paste target | Doctor / mapping | ❌ Manual only | Doctor may notice wrong field in eCW | Remap Scribe-it destination |
+
+> **Footnote:** “All ECW failures undetectable” is overstated. **Note text** HL7 failures remain undetectable (S3 200 ≠ ECW accept). **Order-section** failures (~2,100 WARNINGs over 3 months — see `EHR_PUSH_FAILURE_LOG_ANALYSIS.md`) do surface in Lambda.
 
 **Veradigm**
 
@@ -364,7 +370,7 @@ The section-level inline strip is the primary action surface — the banner is a
 
 | EHR | What's undetectable |
 |---|---|
-| ECW | All note text failures — Lambda gets a 200 regardless |
+| ECW | Note *text* HL7 failures — Lambda gets a 200 from S3 regardless; order-section WARNINGs are a separate path (see ECW table footnote) |
 | DrChrono | All field-level failures — `save_note` swallows all exceptions |
 | CharmHealth | SOAP mode failures — no per-field errors returned |
 | Centricity (AthenaFlow) | ⚠️ Silently accepts mismatched field names — push appears to succeed even when content goes to the wrong field. Unresolved gap. |
@@ -443,10 +449,10 @@ This is separate from template management (the core v1 feature). Doctors who wan
 5. In the editor, each section row shows the fixed field list in the mapping picker. Doctor maps each section to the appropriate field.
 
 **What's different from ops-managed templates:**
-- Doctor can remap any section freely from the hardcoded list
+- Doctor can remap any section freely from the hardcoded list (eCW: Primary + optional Scribe-it)
 - Doctor can edit per-section prompts
 - Doctor can add or delete sections (up to the EHR's field count cap)
-- Doctor can request new sections from ops
+- **Request New Section** / **Reset to default** stay on **ops-managed** templates; self-serve uses **+ Add section** instead of Request
 
 ---
 

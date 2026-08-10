@@ -36,6 +36,7 @@ function modeTagClass(mode) {
 // ── Mapping picker (right-side drawer) ────────────────────────────────────
 
 function fieldLabel(f) {
+  if (!f) return "";
   const labels = window.EHR_FIELD_LABELS || {};
   const raw = f.split(" > ").pop();
   return labels[raw] || labels[f] || raw;
@@ -201,7 +202,9 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                             className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
                             onClick={() => setPendingEhr(f)}
                           >
-                            <span>{f.split(" > ").pop()}</span>
+                            <span className="mapping-picker-field-main">
+                              <span>{fieldLabel(f)}</span>
+                            </span>
                             {isSelected && <span className="mapping-picker-check"><I.check /></span>}
                           </button>
                         );
@@ -234,10 +237,6 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride 
     background:"#F9FAFB", border:"1px solid #E7E7E9", borderRadius:5,
     padding:"3px 8px", fontSize:12, color:"#444", marginBottom:3,
   };
-  const typeTag = {
-    fontSize:10, color:"#888", background:"#fff", border:"1px solid #E7E7E9",
-    borderRadius:3, padding:"0 4px", marginLeft:2,
-  };
 
   // Item 48: one Marvix section → two EHR fields
   if (demoOverride === "one_to_two") {
@@ -245,34 +244,14 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride 
       <div style={{display:"flex",flexDirection:"column",gap:4}}>
         <div style={chipBase}>
           <span style={{fontSize:11,fontWeight:700,color:"#747AF7"}}>①</span>
-          <span style={{fontWeight:500}}>Assessment &gt; Clinical Notes</span>
+          <span style={{fontWeight:500}}>assessment_clinical_notes</span>
         </div>
         <div style={chipBase}>
           <span style={{fontSize:11,fontWeight:700,color:"#747AF7"}}>②</span>
-          <span style={{fontWeight:500}}>Assessment &gt; Free Text</span>
+          <span style={{fontWeight:500}}>assessment_free_text</span>
         </div>
         <div style={{fontSize:11.5,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:4,padding:"3px 8px",marginTop:2}}>
           ⚠ Push order follows section order in the list — drag to change
-        </div>
-      </div>
-    );
-  }
-
-  // Item 49: AMD checkbox + text dual-field
-  if (demoOverride === "amd_checkbox") {
-    return (
-      <div style={{display:"flex",flexDirection:"column",gap:4}}>
-        <div style={chipBase}>
-          <span style={{fontWeight:500}}>CC Text</span>
-          <span style={typeTag}>text</span>
-        </div>
-        <div style={{...chipBase,background:"#fefce8",border:"1px solid #fde68a",color:"#78350f",marginBottom:0}}>
-          <span>☑</span>
-          <span style={{fontWeight:500}}>CC Enable</span>
-          <span style={{...typeTag,border:"1px solid #fde68a",color:"#92400e"}}>checkbox</span>
-        </div>
-        <div style={{fontSize:11.5,color:"#888",marginTop:2}}>
-          Selected from the same field picker — prompt must output one of its allowed values
         </div>
       </div>
     );
@@ -325,9 +304,8 @@ function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, eh
   );
 }
 
-// ── Soft-hidden details panel — 4 tabs ────────────────────────────────────
-function InlineAdvPanel({ s, onUpdate, ehr }) {
-  const I = window.Icons;
+// ── Soft-hidden details panel ─────────────────────────────────────────────
+function InlineAdvPanel({ s, onUpdate }) {
   return (
     <div className="adv">
 
@@ -354,34 +332,7 @@ function InlineAdvPanel({ s, onUpdate, ehr }) {
               placeholder='e.g. "Not reported" or "None"'
               onChange={e => onUpdate(s.id, { defaultNegative: e.target.value })} />
           </div>
-          {ehr === "AMD" && s.ehr && (() => {
-            const limit = (window.AMD_CHAR_LIMITS || {})[s.ehr];
-            if (!limit) return null;
-            return (
-              <div className="adv-char-limit">
-                <span className="adv-char-limit-label">AMD field limit</span>
-                <span className="adv-char-limit-val">{limit.toLocaleString()} characters</span>
-              </div>
-            );
-          })()}
-
-          {ehr === "AMD" && (
-            <>
-              <div className="adv-field adv-field--push-mode">
-                <label className="adv-field-label">Push mode</label>
-                <div className="adv-seg-row">
-                  {["Prepend", "Append", "Replace"].map(mode => (
-                    <button key={mode}
-                      className={"seg-btn" + ((s.config || "Prepend") === mode ? " seg-btn--on" : "")}
-                      onClick={() => onUpdate(s.id, { config: mode })}>
-                      {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
+          {/* Push setting is AMD-only. Character limit is global-only (template bar) — never local. */}
         </div>
       )}
 
@@ -399,7 +350,6 @@ function SectionRow({
   parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo,
 }) {
   const I = window.Icons;
-  if (s.ghost) return null;
   const [popover, setPopover] = useStateR(null);
 
   const hasMacros = !!(s.macros && s.macros.length);
@@ -417,7 +367,6 @@ function SectionRow({
   // Dual-mapping demo override — applies to "Assessment & Plan" only
   const demoOverride =
     dualMappingDemo === "one_to_two" && s.name === "Assessment & Plan" ? "one_to_two" :
-    dualMappingDemo === "amd_checkbox" && s.name === "Assessment & Plan" ? "amd_checkbox" :
     null;
 
   const rowCls = [
@@ -468,6 +417,9 @@ function SectionRow({
               onClick={(e) => e.stopPropagation()}
               aria-label="Section header"
             />
+            {s.codeSource === "icd" && <span className="mapping-type-tag" title="icd10_codes absorbed into this section">ICD</span>}
+            {s.codeSource === "cpt" && <span className="mapping-type-tag" title="cpt_codes absorbed into this section">CPT</span>}
+            {s.codeSource === "em" && <span className="mapping-type-tag" title="Legacy EM — treat as CPT (cpt_codes)">CPT</span>}
             <div className="name-icons" style={{position:"relative"}}>
               {/* Macros icon */}
               <button type="button"
@@ -602,13 +554,22 @@ function SectionRow({
             <span className="row-push-error-msg">{pushIssue.msg}</span>
           </div>
           <div className="row-push-error-actions">
-            {(pushIssue.type === "mapping_broken") && hasOutputSettings && (
-              <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
-            )}
-            {pushIssue.selfServe
-              ? <button className="row-push-error-dismiss">Got it</button>
-              : <button className="row-push-error-support">Contact support</button>
-            }
+            {(() => {
+              const actions = (window.pushIssueActions || (() => ({})))(pushIssue);
+              return (
+                <>
+                  {actions.remap && hasOutputSettings && (
+                    <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
+                  )}
+                  {actions.gotIt && (
+                    <button className="row-push-error-dismiss">Got it</button>
+                  )}
+                  {actions.support && (
+                    <button className="row-push-error-support">Contact support</button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -627,7 +588,7 @@ function SectionRow({
           />
         </div>
       )}
-      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} ehr={ehr} />}
+      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} />}
     </div>
   );
 
@@ -659,7 +620,7 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
   const isDragging = dragId === s.id;
   const dropBefore = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'before');
   const dropAfter = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'after');
-  const isDuplicate = !s.ghost && !!s.ehr && (ehrCounts[s.ehr] || 0) > 1;
+  const isDuplicate = !!s.ehr && (ehrCounts[s.ehr] || 0) > 1;
   const isLast = index === siblings.length - 1;
 
   const nodes = [
@@ -723,7 +684,7 @@ function SectionTable({
   const ehrCounts = {};
   const walkEhr = (list) => {
     for (const s of list) {
-      if (!s.ghost && s.ehr) ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
+      if (s.ehr) ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
       if (s.children) walkEhr(s.children);
     }
   };

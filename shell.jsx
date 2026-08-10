@@ -1,5 +1,5 @@
 // shell.jsx — Sidebar nav + Template list panel
-const { useState } = React;
+const { useState, useEffect } = React;
 
 function Logo() {
   return (
@@ -38,10 +38,24 @@ function Sidebar() {
   );
 }
 
-function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate, collapsed, onToggle }) {
+function TemplateList({ templates, activeId, onSelect, onRequest, onCreateTemplate, collapsed, onToggle }) {
+  const list = templates || [];
+  const active = list.find((t) => t.id === activeId);
+  const [tab, setTab] = useState(() => (active && active.userCreated ? "self" : "ops"));
   const [query, setQuery] = useState("");
-  const q = query.trim().toLowerCase();
 
+  // Keep the tab in sync when the active template changes (e.g. after create).
+  useEffect(() => {
+    if (!active) return;
+    setTab(active.userCreated ? "self" : "ops");
+  }, [activeId]);
+
+  const opsCount = list.filter((t) => !t.userCreated).length;
+  const selfCount = list.filter((t) => !!t.userCreated).length;
+  const scoped = list.filter((t) => (tab === "self" ? !!t.userCreated : !t.userCreated));
+
+  const q = query.trim().toLowerCase();
+  const groups = window.groupsFor(scoped);
   const filteredGroups = q
     ? groups
         .map((g) => ({
@@ -57,6 +71,11 @@ function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate,
 
   const totalFiltered = filteredGroups.reduce((n, g) => n + g.templates.length, 0);
 
+  const switchTab = (next) => {
+    setTab(next);
+    setQuery("");
+  };
+
   return (
     <aside className={"tpl-panel" + (collapsed ? " tpl-panel--collapsed" : "")}>
       <button className="tpl-collapse" onClick={onToggle} title={collapsed ? "Expand templates" : "Collapse templates"} aria-label="Toggle template list">
@@ -70,6 +89,26 @@ function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate,
         <button className="btn-ghost tpl-request" onClick={onRequest}>
           Request from ops
         </button>
+
+        <div className="tpl-tabs" role="tablist" aria-label="Template ownership">
+          <button
+            role="tab"
+            aria-selected={tab === "ops"}
+            className={"tpl-tab" + (tab === "ops" ? " tpl-tab--active" : "")}
+            onClick={() => switchTab("ops")}
+          >
+            Ops-managed <span className="tpl-tab-count">{opsCount}</span>
+          </button>
+          <button
+            role="tab"
+            aria-selected={tab === "self"}
+            className={"tpl-tab" + (tab === "self" ? " tpl-tab--active" : "")}
+            onClick={() => switchTab("self")}
+          >
+            Self-serve <span className="tpl-tab-count">{selfCount}</span>
+          </button>
+        </div>
+
         <div className="tpl-search-wrap">
           <span className="tpl-search-ico">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -90,6 +129,13 @@ function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate,
           )}
         </div>
         <div className="tpl-scroll">
+          {scoped.length === 0 && !q && (
+            <div className="tpl-empty-tab">
+              {tab === "self"
+                ? "No self-serve templates yet. Create one to customize sections and prompts."
+                : "No ops-managed templates."}
+            </div>
+          )}
           {q && totalFiltered === 0 && (
             <div className="tpl-no-results">No templates match "{query}"</div>
           )}

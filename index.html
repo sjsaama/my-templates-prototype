@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>My Templates — Section Editor</title>
+<title>My Templates — ECW EHR</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -78,7 +78,26 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .tpl-panel--collapsed .tpl-collapse svg{transform:rotate(-90deg);}
 .tpl-title{font-size:24px;font-weight:700;color:var(--ink);margin:0 0 28px;padding:0 24px;}
 .tpl-create{margin:0 20px 10px;width:calc(100% - 40px);padding:10px 16px;border-radius:8px;font-size:14px;font-weight:700;}
-.tpl-request{margin:0 20px 26px;width:calc(100% - 40px);font-size:13px;color:var(--gray);text-align:left;padding:6px 0;}
+.tpl-request{margin:0 20px 10px;width:calc(100% - 40px);font-size:13px;color:var(--gray);text-align:left;padding:6px 0;}
+.tpl-tabs{display:flex;gap:0;margin:0 16px 14px;padding:3px;background:var(--bg-chip);border-radius:10px;}
+.tpl-tab{flex:1;border:0;background:transparent;border-radius:8px;padding:8px 6px;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;transition:background .12s,color .12s,box-shadow .12s;}
+.tpl-tab:hover{color:var(--ink);}
+.tpl-tab--active{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(40,47,111,.12);}
+.tpl-tab-count{display:inline-block;margin-left:4px;font-size:11px;font-weight:700;color:var(--gray-light);}
+.tpl-tab--active .tpl-tab-count{color:var(--accent);}
+.tpl-empty-tab,.tpl-no-results{padding:18px 24px;font-size:13px;line-height:1.45;color:var(--gray);}
+.ed-ownership{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;}
+.ed-ownership--self{background:var(--teal-50);color:var(--teal-text);}
+.ed-ownership--ops{background:var(--bg-chip);color:var(--gray);}
+.ed-ownership-hint{margin:8px 0 0;font-size:13px;line-height:1.4;color:var(--gray);max-width:52ch;}
+.tpl-settings-stack{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.tpl-settings-bar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface,#F9FAFB);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;}
+.tpl-settings-label{font-size:13px;font-weight:600;color:var(--ink);flex:0 0 auto;}
+.tpl-settings-input{width:110px;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit;color:var(--ink);background:#fff;}
+.tpl-settings-input:focus{outline:none;border-color:var(--accent);}
+.tpl-settings-hint{font-size:12px;color:var(--gray);flex:1;min-width:180px;}
+.tpl-settings-select{border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px;font-family:inherit;color:var(--ink);background:#fff;cursor:pointer;}
+.tpl-settings-select:focus{outline:none;border-color:var(--accent);}
 .adv-field--push-mode{margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
 .modal--create-tpl{width:min(600px,100%);}
 .create-steps{display:flex;gap:0;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--bg-soft);}

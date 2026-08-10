@@ -1,4 +1,5 @@
 // app.jsx — root: wires templates, sections, modal, tweaks
+// Branch scoped to eClinicalWorks (eCW) — Cat 1 fixed field list + Scribe-it secondary.
 const { useState: useStateA } = React;
 
 // Reorder sections — enforces same-parent constraint for subsections.
@@ -40,47 +41,28 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "density": "regular",
   "showAdvancedInline": true,
   "monoMapping": true,
-  "ehr": "AMD",
+  "ehr": "eCW",
   "errorScenario": "none",
   "dualMappingDemo": "none"
 }/*EDITMODE-END*/;
 
+// This branch is scoped to eCW only — other EHR systems live on their own branches.
+const EHR_OPTIONS = ["eCW"];
+const EHR_LOCKED = true;
+
 const ERROR_SCENARIOS = {
   none: [],
-  athena_checkin: [
-    { id: "pi1", section: "History of Present Illness", error: "Check-in not complete", type: "checkin", msg: "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again.", selfServe: true },
-    { id: "pi2", section: "Assessment & Plan", error: "Check-in not complete", type: "checkin", msg: "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again.", selfServe: true },
+  ecw_order_config: [
+    { id: "pi1", section: "Labs and Imaging", error: "Order config mismatch", type: "order_config", msg: "Couldn't find any Orders of type: lab_order — pattern matching failed or empty field provided. Support has been notified.", selfServe: false },
+    { id: "pi2", section: "Assessment & Plan", error: "Order config mismatch", type: "order_config", msg: "Couldn't find any Orders of type: prescription_order — pattern matching failed or empty field provided. Support has been notified.", selfServe: false },
   ],
-  athena_section: [
-    { id: "pi1", section: "History of Present Illness", error: "Field mapping broken", type: "mapping_broken", msg: "One or more sections failed to push. Support has been notified.", selfServe: false },
-    { id: "pi2", section: "Assessment & Plan", error: "Field mapping broken", type: "mapping_broken", msg: "One or more sections failed to push. Support has been notified.", selfServe: false },
+  ecw_wrong_shortcut: [
+    { id: "pi1", section: "History of Present Illness", error: "Wrong shortcut / section code", type: "mapping_broken", msg: "Ops flagged that HPI may be landing in the wrong eCW field after a chart spot-check. Remap the shortcut or contact support.", selfServe: false },
   ],
-  athena_transient: [
-    { id: "pi1", section: "History of Present Illness", error: "Athena API error", type: "transient", msg: "Something went wrong on Athena's end — we'll retry automatically. If this keeps happening, contact support.", selfServe: false },
-  ],
-  athena_auth: [
-    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to an authentication issue. Contact support.", selfServe: false },
-  ],
-  amd_template_changed: [
-    { id: "pi1", section: "History of Present Illness", error: "AMD template updated", type: "template_changed", msg: "Your AMD template was updated and some field mappings are no longer valid. Support has been notified.", selfServe: false },
-    { id: "pi2", section: "Assessment & Plan", error: "AMD template updated", type: "template_changed", msg: "Your AMD template was updated and some field mappings are no longer valid. Support has been notified.", selfServe: false },
-  ],
-  amd_too_long: [
-    { id: "pi1", section: "History of Present Illness", error: "Content too long", type: "too_long", msg: "'History of Present Illness' is too long for this field (max 1,000 chars). Shorten your note and push again.", selfServe: true },
-  ],
-  amd_no_permission: [
-    { id: "pi1", section: "History of Present Illness", error: "Permission denied", type: "permission", msg: "Marvix doesn't have permission to write to AMD. Ask your practice admin to check account permissions.", selfServe: false },
-  ],
-  veradigm_chart: [
-    { id: "pi1", section: "History of Present Illness", error: "Chart not open", type: "chart_closed", msg: "Veradigm requires the patient's chart to be open before pushing. Open the chart and try again.", selfServe: true },
-  ],
-  veradigm_locked: [
-    { id: "pi1", section: "Assessment & Plan", error: "Encounter locked", type: "locked", msg: "This encounter is locked in Veradigm and can't be edited.", selfServe: false },
+  ecw_scribeit_mismatch: [
+    { id: "pi1", section: "Physical Exam", error: "Scribe-it destination mismatch", type: "mapping_broken", msg: "Selective Copy (Scribe-it) may be pasting into the wrong note-panel field. Remap Scribe-it or contact support.", selfServe: false },
   ],
 };
-
-
-const EHR_OPTIONS = ["AMD", "AthenaOne", "Athena", "eCW", "Charm", "DrChrono", "Veradigm", "Centricity", "Cerner", "Nereg", "ECW FHIR", "Greenway", "ModMed", "Tebra"];
 
 function mapSectionTree(list, id, fn) {
   return list.map((s) => {
@@ -110,7 +92,7 @@ function collectUsedFields(sections) {
   const used = [];
   const walk = (list) => {
     list.forEach((s) => {
-      if (!s.ghost && s.ehr) used.push(s.ehr);
+      if (s.ehr) used.push(s.ehr);
       if (s.children) walk(s.children);
     });
   };
@@ -133,6 +115,7 @@ function Toast({ msg }) {
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const ehr = EHR_LOCKED ? "eCW" : t.ehr;
   const [templates, setTemplates] = useStateA(window.TEMPLATES);
   const [createTemplateOpen, setCreateTemplateOpen] = useStateA(false);
   const [activeTpl, setActiveTpl] = useStateA("gen3");
@@ -141,6 +124,8 @@ function App() {
     window.INITIAL_PENDING_REQUESTS.map((r) => ({ ...r }))
   );
   const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
+  const [charLimitByTpl, setCharLimitByTpl] = useStateA({});
+  const [lineSepByTpl, setLineSepByTpl] = useStateA({});
   const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
   const [disableTarget, setDisableTarget] = useStateA(null);
   const [toast, setToast] = useStateA("");
@@ -155,17 +140,34 @@ function App() {
   const [addSectionOpen, setAddSectionOpen] = useStateA(null); // { parentId: string|null } | null
 
   const tpl = activeTpl ? templates.find((x) => x.id === activeTpl) : null;
-  const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[t.ehr]) || {};
+  const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
   const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
   const pendingCount = pendingRequests.length;
-  const groups = window.groupsFor(templates);
+  const visibleTemplates = EHR_LOCKED
+    ? templates.filter((x) => !x.ehrSystem || x.ehrSystem === "eCW")
+    : templates;
   const sections = activeTpl
     ? (sectionsByTpl[activeTpl] || (sectionsByTpl[activeTpl] = window.makeSections()))
     : [];
+  const templateCharLimit = (activeTpl && charLimitByTpl[activeTpl]) || 4000;
+  const templateLineSep = (activeTpl && lineSepByTpl[activeTpl]) || "\\X0A\\"; // HL7 hex LF
 
   const setSections = (fn) => {
     if (!activeTpl) return;
     setSectionsByTpl((m) => ({ ...m, [activeTpl]: fn(m[activeTpl] || window.makeSections()) }));
+  };
+
+  const applyTemplateCharLimit = (limit) => {
+    if (!activeTpl) return;
+    const n = Math.max(0, parseInt(limit, 10) || 0);
+    setCharLimitByTpl((m) => ({ ...m, [activeTpl]: n }));
+    flash("Character limit updated for this template");
+  };
+
+  const applyTemplateLineSep = (val) => {
+    if (!activeTpl) return;
+    setLineSepByTpl((m) => ({ ...m, [activeTpl]: val }));
+    flash("Line separator updated — required for eCW HL7 ORU formatting");
   };
 
   const flash = (msg) => { setToast(msg); clearTimeout(window.__tt); window.__tt = setTimeout(() => setToast(""), 2600); };
@@ -186,8 +188,8 @@ function App() {
       setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, detailsExpanded: !s.detailsExpanded }))),
     onReorder: (dragId, targetId, pos) =>
       setSections((arr) => reorderSections(arr, dragId, targetId, pos)),
-    onRemap: (id, ehr, scribeIt) =>
-      setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, ehr, scribeIt: scribeIt !== undefined ? scribeIt : s.scribeIt }))),
+    onRemap: (id, nextEhr, scribeIt) =>
+      setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, ehr: nextEhr, scribeIt: scribeIt !== undefined ? scribeIt : s.scribeIt }))),
     onSetMappingMode: (id, mode) =>
       setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, mappingMode: mode }))),
     onUpdate: (id, fields) =>
@@ -244,21 +246,22 @@ function App() {
       id: newId,
       name: data.name,
       derivative: data.type,
-      ehr: data.ehrTemplateName ? (t && t.ehr ? t.ehr.split("_")[0] + "_" + data.ehrTemplateName.replace(/\s+/g, "_") : data.ehrTemplateName) : "",
-      ehrSystem: t ? t.ehr : "",
+      ehr: data.ehrTemplateName
+        ? "ECW_" + data.ehrTemplateName.replace(/\s+/g, "_")
+        : "ECW_Progress",
+      ehrSystem: ehr || "eCW",
       group: "My Templates",
       userCreated: true,
     };
     setTemplates(arr => [...arr, newTpl]);
-    // Cat 2 (fetch-based EHRs) starts blank — a generic default section may not correspond to
-    // anything in the doctor's real EHR template. Cat 1/3/4 start from Marvix's defaults.
+    // Cat 1 starts from Marvix defaults (fixed field list — no Connect EHR step).
     const baseSections = data.copyFromId && sectionsByTpl[data.copyFromId]
       ? JSON.parse(JSON.stringify(sectionsByTpl[data.copyFromId]))
-      : (ehrCat.cat === 2 ? [] : window.makeSections());
+      : window.makeSections();
     setSectionsByTpl(m => ({ ...m, [newId]: baseSections }));
     setActiveTpl(newId);
     setCreateTemplateOpen(false);
-    flash("Template created — configure your sections and EHR mapping below");
+    flash("Template created — configure sections and eCW mappings below");
   };
 
   const selectTpl = (id) => {
@@ -299,12 +302,12 @@ function App() {
     <div className="app" style={densityVars}>
       {isLocalDev && (
         <div className="dev-ribbon" role="status">
-          Local preview — use <strong>Tweaks</strong> (bottom-right) → Row density &amp; Accent. Hard-refresh if styles look stale (⌘⇧R).
+          Local preview — ECW branch. Use <strong>Tweaks</strong> (bottom-right) → Row density &amp; Accent. Hard-refresh if styles look stale (⌘⇧R).
         </div>
       )}
       <window.Sidebar />
       <window.TemplateList
-        groups={groups}
+        templates={visibleTemplates}
         activeId={activeTpl}
         onSelect={selectTpl}
         onRequest={() => flash("Request from ops → Style Transfer")}
@@ -321,17 +324,30 @@ function App() {
             <>
               <header className="ed-head">
                 <div className="ed-head-left">
-                  <h2 className="ed-title">{tpl.name}</h2>
+                  <h2 className="ed-title">
+                    {tpl.name}
+                    {tpl.userCreated
+                      ? <span className="ed-ownership ed-ownership--self">Self-serve</span>
+                      : <span className="ed-ownership ed-ownership--ops">Ops-managed</span>}
+                  </h2>
                   <div className="ed-meta">
                     {tpl.derivative && <span className="ed-meta-tag">{tpl.derivative}</span>}
                     {tpl.ehr && <span className="ed-meta-tag ed-meta-tag--mono">{tpl.ehr}</span>}
+                    <span className="ed-meta-tag">eClinicalWorks</span>
                   </div>
+                  {tpl.userCreated ? (
+                    <p className="ed-ownership-hint">You manage this template’s structure and eCW mappings — add sections, edit prompts, and remap Primary / Scribe-it destinations.</p>
+                  ) : (
+                    <p className="ed-ownership-hint">Ops manages the section structure. Remap Primary / Scribe-it fields, adjust output settings, or request a new section from ops.</p>
+                  )}
                 </div>
                 <div className="ed-head-right">
                   <button className="btn-ghost btn-sm" onClick={() => setPreviewOpen(true)}>Preview output</button>
-                  <button className="btn-ghost btn-sm" onClick={() => setResetConfirm(true)}>Reset to default</button>
+                  {!tpl.userCreated && (
+                    <button className="btn-ghost btn-sm" onClick={() => setResetConfirm(true)}>Reset to default</button>
+                  )}
                   <button className="btn-teal btn-sm" onClick={() => flash("Changes saved")}>Save changes</button>
-                  {tpl.userCreated && (
+                  {!tpl.userCreated && (
                     <button className="btn-outline btn-outline--req" onClick={() => {
                       setSectionRequestOpen(true);
                       setPendingRequests(arr => arr.map(r => ({ ...r, seenByDoctor: true })));
@@ -344,18 +360,47 @@ function App() {
                         ? <span className="btn-outline-sub btn-outline-sub--coral">{unseenCount} update{unseenCount === 1 ? "" : "s"}</span>
                         : pendingCount > 0
                         ? <span className="btn-outline-sub">{pendingCount} request{pendingCount === 1 ? "" : "s"}</span>
-                        : <span className="btn-outline-sub">Add a section to any template</span>}
+                        : <span className="btn-outline-sub">Ask ops to add a section</span>}
                     </button>
                   )}
                 </div>
               </header>
-              {/* Cat 4 — no push integration notice */}
-              {ehrCat.cat === 4 && (
-                <div className="cat4-notice">
-                  <span className="cat4-notice-icon">ℹ</span>
-                  <span className="cat4-notice-text">
-                    <strong>{ehrCat.label}</strong> doesn't have a push integration — notes are copied manually after each visit. Section mapping isn't needed, but you can still configure content and style.
-                  </span>
+
+              {/* Global settings — Character limit + ECW line separator (no Push setting) */}
+              {ehrCat.cat <= 2 && (
+                <div className="tpl-settings-stack">
+                  <div className="tpl-settings-bar">
+                    <span className="tpl-settings-label">Character limit</span>
+                    <input
+                      className="tpl-settings-input"
+                      type="number"
+                      min="0"
+                      step="100"
+                      value={templateCharLimit}
+                      onChange={(e) => applyTemplateCharLimit(e.target.value)}
+                      aria-label="Template character limit"
+                    />
+                    <span className="tpl-settings-hint">
+                      Global only — applies to the whole template. Not editable per section.
+                    </span>
+                  </div>
+                  <div className="tpl-settings-bar">
+                    <span className="tpl-settings-label">Line separator</span>
+                    <select
+                      className="tpl-settings-select"
+                      value={templateLineSep}
+                      onChange={(e) => applyTemplateLineSep(e.target.value)}
+                      aria-label="ECW line separator"
+                    >
+                      <option value={"\\X0A\\"}>{"\\X0A\\ (HL7 ORU default)"}</option>
+                      <option value={"\\n"}>{"\\n (plain LF)"}</option>
+                      <option value={"\\r\\n"}>{"\\r\\n (CRLF)"}</option>
+                      <option value="<br>">&lt;br&gt;</option>
+                    </select>
+                    <span className="tpl-settings-hint">
+                      eCW HL7 main mode — replaces newlines before S3 upload. Not used for Selective Copy (Scribe-it).
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -374,24 +419,30 @@ function App() {
                   </div>
                   <div className="push-issues-msg">{pushIssues[0].msg}</div>
                   <div className="push-issues-list">
-                    {pushIssues.map(issue => (
-                      <div key={issue.id} className="push-issues-item">
-                        <span className="push-issues-section">• {issue.section}</span>
-                        {(issue.type === "mapping_broken" || issue.selfServe) && (
-                          <button className="push-issues-remap" onClick={() => setRemapTarget(issue.section)}>Remap</button>
-                        )}
-                        {!issue.selfServe && (
-                          <button className="push-issues-support">Contact support</button>
-                        )}
-                      </div>
-                    ))}
+                    {pushIssues.map(issue => {
+                      const actions = (window.pushIssueActions || (() => ({})))(issue);
+                      return (
+                        <div key={issue.id} className="push-issues-item">
+                          <span className="push-issues-section">• {issue.section}</span>
+                          {actions.remap && (
+                            <button className="push-issues-remap" onClick={() => setRemapTarget(issue.section)}>Remap</button>
+                          )}
+                          {actions.gotIt && (
+                            <button className="push-issues-remap" onClick={() => setPushIssuesDismissed(true)}>Got it</button>
+                          )}
+                          {actions.support && (
+                            <button className="push-issues-support">Contact support</button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
               <window.SectionTable
                 sections={sections}
-                ehr={t.ehr}
+                ehr={ehr}
                 pushIssues={pushIssues}
                 dualMappingDemo={t.dualMappingDemo}
                 remapTarget={remapTarget}
@@ -453,8 +504,8 @@ function App() {
 
       {createTemplateOpen && (
         <window.CreateTemplateModal
-          ehr={t.ehr}
-          templates={templates}
+          ehr={ehr}
+          templates={visibleTemplates}
           sectionsByTpl={sectionsByTpl}
           onClose={() => setCreateTemplateOpen(false)}
           onCreate={handleCreateTemplate}
@@ -463,7 +514,7 @@ function App() {
 
       {sectionRequestOpen && (
         <window.RequestNewSectionModal
-          templates={templates}
+          templates={visibleTemplates}
           activeTplId={activeTpl}
           pending={pendingRequests}
           onClose={() => setSectionRequestOpen(false)}
@@ -473,7 +524,7 @@ function App() {
 
       {addSectionOpen && (
         <window.AddSectionModal
-          ehr={t.ehr}
+          ehr={ehr}
           ehrCat={ehrCat}
           parentName={addSectionOpen.parentId ? (findSection(sections, addSectionOpen.parentId) || {}).name : null}
           usedFields={collectUsedFields(sections)}
@@ -494,16 +545,25 @@ function App() {
           options={["compact", "regular", "comfy"]}
           onChange={(v) => setTweak("density", v)} />
         <TweakSection label="EHR" />
-        <TweakSelect label="EHR system" value={t.ehr}
-          options={EHR_OPTIONS}
-          onChange={(v) => setTweak("ehr", v)} />
+        {EHR_LOCKED ? (
+          <TweakRadio
+            label="EHR system (ECW branch)"
+            value="eCW"
+            options={["eCW"]}
+            onChange={() => setTweak("ehr", "eCW")}
+          />
+        ) : (
+          <TweakSelect label="EHR system" value={t.ehr}
+            options={EHR_OPTIONS}
+            onChange={(v) => setTweak("ehr", v)} />
+        )}
         <TweakSection label="Simulate push error" />
         <TweakSelect label="Error scenario" value={t.errorScenario}
-          options={["none","athena_checkin","athena_section","athena_transient","athena_auth","amd_template_changed","amd_too_long","amd_no_permission","veradigm_chart","veradigm_locked"]}
+          options={["none","ecw_order_config","ecw_wrong_shortcut","ecw_scribeit_mismatch"]}
           onChange={(v) => setTweak("errorScenario", v)} />
         <TweakSection label="Advanced mapping demos" />
         <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}
-          options={["none","one_to_two","amd_checkbox"]}
+          options={["none","one_to_two"]}
           onChange={(v) => setTweak("dualMappingDemo", v)} />
       </TweaksPanel>
     </div>
