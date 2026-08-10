@@ -110,11 +110,11 @@ Product model: **template defaults**, with **per-section overrides only where no
 YAML today still stores some values per row (`config.`*) until Template Settings migration lands.
 
 
-| Scope          | Settings                                                                                                                                               |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Global**     | **Character limit** (`char_limit`) — global only. **Line separator** (`line_separator`) — **ECW main / HL7 only**. Subsection join → Template Settings |
-| **Local**      | Additional text, Default negative                                                                                                                      |
-| **Not on ECW** | **Push setting** (`append` / `prepend`) — AMD-only (ECW does not fetch existing note content)                                                          |
+| Scope | Settings |
+|---|---|
+| **Global** | **Character limit** (`char_limit`). **Section / subsection separators** (`separator`). **Line separator** (`line_separator`) — ECW HL7 main only. Subsection join (`push_subsections`, `retain_headings`, `skip_empty_subsections`) → Template Settings |
+| **Local** | Additional text, Default negative |
+| **Not on ECW** | **Push setting** (`append` / `prepend`) — AMD-only (ECW does not fetch existing note content) |
 
 
 ### `line_separator`
