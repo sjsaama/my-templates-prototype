@@ -43,7 +43,6 @@ None — push not implemented.
 ## App UX
 
 Not in the My Templates doctor-facing taxonomy. Do not surface a Cat 4 / "No push" product experience for ECW FHIR.
-> *"Your EHR doesn't support auto-push — copy and paste into ECW."*
 
 ---
 
