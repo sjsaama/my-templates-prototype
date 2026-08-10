@@ -243,8 +243,8 @@ Apply to the whole template — not per section. Doctor can set these.
 | **Push setting** (Insert before / Insert after / Overwrite) | AMD (and other read-before-write EHRs) | How Marvix content relates to text already in the EHR field. **Set globally → applied to each section → overridable per section.** Combines former append / prepend / replace toggles into one control. |
 | **Character limit** | AMD (and other EHRs that enforce limits) | Truncates / guides pushed length. **Global only — no per-section override.** AMD still auto-fetches per-field `max_character_length` from the API for error copy / guidance. |
 | Default line separator | Veradigm | Separator used for all line breaks in pushed content. |
-| Section separator | Veradigm | Separator inserted between top-level sections on push. |
-| Subsection separator | Veradigm | Separator inserted between child subsections on push. |
+| Section separator | Veradigm, AMD (and any EHR that allows multi-parent → one field) | Between **parent** sections that share one EHR field (shared-field join). Default `\n\n`. |
+| Subsection separator | Veradigm, AMD (and any EHR that allows parent→children → one field) | Between **child** sections under one parent. Default `\n`. Subsection join may use either separator depending on what is being joined (parents sharing a field vs children under one parent). |
 
 ### Section-level settings
 
