@@ -14,7 +14,7 @@ These three work together: first decide whether to include subsections, then whe
 | Key | Where in YAML | Type | Default | What it does | Doctor-facing? |
 |---|---|---|---|---|---|
 | `push_subsections` | `config.push_subsections` | Boolean | true | Include child subsections in the pushed text. If false, only the parent section's own text is pushed — subsections are ignored. | Yes — Cat 1 + Cat 2, parent sections. **→ Moving to Template Settings** |
-| `retain_headings` | `config.retain_headings` | Boolean | false | Prefix each subsection's content with its name (e.g. "Onset: …"). Only applies when `push_subsections` is true. | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings** |
+| `retain_headings` | `config.retain_headings` | Boolean | false | When joining sections/subsections into one EHR field, prefix each block with its name (e.g. "Onset: …"). Off = omit headings (same intent as “first-line heading omit”). Only applies when `push_subsections` is true. | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings (global)** |
 | `separator` | `config.separator` | Text | `\n` | Text inserted between subsections when joined into one block. Only applies when `push_subsections` is true. | Yes — Cat 1 + Cat 2, parent sections. **→ Moving to Template Settings** |
 | `skip_separator_between_children` | top-level | Boolean | false | Use no separator between child subsections — tighter spacing. Overrides `separator` at the child level. | Yes — Cat 1 + Cat 2, parent sections |
 | `skip_empty_subsections` | `config.skip_empty_subsections` | Boolean | false | Exclude subsections that have no generated content from the joined output. | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings** |

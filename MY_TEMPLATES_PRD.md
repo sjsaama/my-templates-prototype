@@ -136,8 +136,7 @@ Setting is **template-level**, not user-level. Whether content is pushed as a no
 | Append other derivative | A section can pull content from a derivative template (e.g. a summary template) and append it to the main note on push. Mechanism TBD — needs clarification from Vignesh. |
 | ICD / EM code mapping | Uses template ID in the mapping editor — a **separate mechanism** from append-other-derivative. ICD/CPT fields are not in the standard mapping table. |
 | One section → two EHR fields | A single logical section (e.g. chief complaint) may map to two separate EHR destination fields — confirmed for AMD (checkbox field + text field). Both fields are mapped independently. For non-checkbox pairs, ordering may matter for how the EHR renders them — handling TBD. See open questions. |
-| Two sections → same EHR field | Multiple Marvix sections can share the same EHR destination field. This is valid and supported. Content from all mapped sections is combined in section order. The UI shows a neutral "Shared" label on the mapping chip (not a warning). |
-| First-line heading omit | Whether the first line (section heading) is stripped before push. Configurability unconfirmed — see open questions. |
+| Two sections → same EHR field | Multiple Marvix sections can share the same EHR destination field. This is valid and supported. Content from all mapped sections is combined in section order. The UI shows a neutral "Shared" label on the mapping chip (not a warning). Whether section/subsection names are prefixed on join is controlled by **Retain headings** (`retain_headings`) under Template-level settings — not a separate advanced mechanism. |
 
 ### Request a new section (ops-operated only)
 
@@ -285,7 +284,8 @@ Apply to the whole template — not per section. Doctor can set these in My Temp
 | **Default line separator** | Veradigm; also where configurable | Separator used for all line breaks in pushed content. Veradigm requires `\r\n` (CRLF) — plain `\n` renders incorrectly. |
 | **Line separator (ECW)** | ECW (HL7 main) | Replaces `\n` before S3 upload (e.g. `\X0A\`). Required for HL7 ORU formatting. Not used for Selective Copy (Scribe-it). |
 | **Keep bullet points** | All push EHRs | When on, keep bullet characters in pushed text. When off (default), bullets are stripped before push (`keep_bullet_points`). |
-| How subsections combine | Cat 1 / Cat 2 | Include headings, skip empty, spacing — **Settings Portal** / Template Settings (`push_subsections`, `retain_headings`, `skip_empty_subsections`) |
+| **Retain headings** | Cat 1 / Cat 2 | When multiple sections or subsections are joined into one EHR field, whether each block is prefixed with its name (e.g. "Onset: …"). `retain_headings` — covers what was previously called “first-line heading omit.” Only applies when subsections are included (`push_subsections`). |
+| How subsections combine | Cat 1 / Cat 2 | Include subsections, skip empty — Template Settings (`push_subsections`, `skip_empty_subsections`) alongside Retain headings and separators |
 
 > **Not global settings:** AMD checkbox fields (field type in the mapping picker — see Adjust section output settings). Write mode (AMD) may remain global-with-override separately — see Write mode above.
 
@@ -425,7 +425,6 @@ The section-level inline strip is the primary action surface — the banner is a
 | Write mode restrictions per EHR | Athena is append-only; most others may be append-only too. Needs Vignesh to confirm which EHRs support each mode. Currently only AMD exposes push mode in the prototype. | Vignesh |
 | Derivatives | Definition and scope unclear. Needs a session with Vignesh + Nandini before this can be added to the PRD. Known gap. | Vignesh + Nandini |
 | ECW selective copy — user-level vs. practice-level | Which fields in ECW are owned at the user level vs. practice level? Affects whether remap UI is per-doctor or per-practice. | Vignesh |
-| First-line heading omit — is it configurable? | Whether the section heading is stripped before push. Currently unconfirmed. | Vignesh |
 | AMD checkbox — prompt authoring for allowed values | Checkbox fields have predefined allowed values (from the AMD template fetch). The section prompt must be written to output one of those values. Who authors this prompt (ops vs. doctor) and whether allowed values are surfaced in the prompt editor is unresolved. | TBD |
 | One section → two EHR fields — ordering conflict | For non-checkbox dual-field cases: if one Marvix section maps to two EHR text fields, does order matter? How is conflict handled at push time? | Vignesh |
 | One section → two EHR fields — is it actually used beyond AMD checkbox? | Confirm with ops whether non-checkbox dual-field mapping is in use before designing a general solution. | Ops |
