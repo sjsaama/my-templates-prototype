@@ -35,6 +35,12 @@ function modeTagClass(mode) {
 
 // ── Mapping picker (right-side drawer) ────────────────────────────────────
 
+function fieldLabel(f) {
+  const labels = window.EHR_FIELD_LABELS || {};
+  const raw = f.split(" > ").pop();
+  return labels[raw] || labels[f] || raw;
+}
+
 function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeIt, ehr, onSelect, onClose }) {
   const [query, setQuery] = useStateR("");
   const [scribeQuery, setScribeQuery] = useStateR("");
@@ -42,6 +48,9 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
   const [pendingScribeIt, setPendingScribeIt] = useStateR(currentScribeIt || "");
   const I = window.Icons;
   const isEcw = ehr === "eCW";
+  const ehrCat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
+  const isFixedList = ehrCat && ehrCat.fieldSource === "fixed";
+  const isCharm = ehr === "Charm";
 
   const confirm = () => {
     onSelect(sectionId, pendingEhr, isEcw ? pendingScribeIt : undefined);
@@ -57,9 +66,20 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
             <button className="mapping-picker-close" onClick={onClose} aria-label="Close"><I.close /></button>
           </div>
           <div className="mapping-picker-sub">Section: <strong>{sectionName}</strong></div>
+          {isFixedList && (
+            <div className="mapping-picker-fixed-notice">
+              Fixed list — defined by {ehr}'s API
+            </div>
+          )}
+          {isCharm && (
+            <div className="mapping-picker-charm-notice">
+              <span>Field list can't be refreshed — remap from the list below, or contact support if your EHR template changed.</span>
+              <button className="mapping-picker-support-btn" onClick={() => {}}>Contact support</button>
+            </div>
+          )}
           {pendingEhr && (
             <div className="mapping-picker-current">
-              Primary: <span className="mapping-picker-current-val">{isEcw ? pendingEhr : pendingEhr.split(" > ").pop()}</span>
+              Primary: <span className="mapping-picker-current-val">{isEcw ? pendingEhr : fieldLabel(pendingEhr)}</span>
             </div>
           )}
         </div>
@@ -94,7 +114,7 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                               className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
                               onClick={() => setPendingEhr(f)}
                             >
-                              <span>{f.split(" > ").pop()}</span>
+                              <span>{fieldLabel(f)}</span>
                               {isSelected && <span className="mapping-picker-check"><I.check /></span>}
                             </button>
                           );
@@ -119,7 +139,7 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
               </div>
               <div className="mapping-picker-body">
                 {(() => {
-                  const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [];
+                  const groups = window.ECW_SCRIBEIT_FIELDS || [];
                   const filtered = groups.map(g => ({
                     ...g,
                     fields: g.fields.filter(f => {
@@ -139,7 +159,7 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                               className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
                               onClick={() => setPendingScribeIt(f)}
                             >
-                              <span>{f.split(" > ").pop()}</span>
+                              <span>{fieldLabel(f)}</span>
                               {isSelected && <span className="mapping-picker-check"><I.check /></span>}
                             </button>
                           );
@@ -206,12 +226,60 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
 }
 
 // ── Editable mapping chip (leaf sections) ─────────────────────────────────
-function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr }) {
+function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride }) {
   const I = window.Icons;
+
+  const chipBase = {
+    display:"flex", alignItems:"center", gap:6, alignSelf:"flex-start",
+    background:"#F9FAFB", border:"1px solid #E7E7E9", borderRadius:5,
+    padding:"3px 8px", fontSize:12, color:"#444", marginBottom:3,
+  };
+  const typeTag = {
+    fontSize:10, color:"#888", background:"#fff", border:"1px solid #E7E7E9",
+    borderRadius:3, padding:"0 4px", marginLeft:2,
+  };
+
+  // Item 48: one Marvix section → two EHR fields
+  if (demoOverride === "one_to_two") {
+    return (
+      <div style={{display:"flex",flexDirection:"column",gap:4}}>
+        <div style={chipBase}>
+          <span style={{fontSize:11,fontWeight:700,color:"#747AF7"}}>①</span>
+          <span style={{fontWeight:500}}>Assessment &gt; Clinical Notes</span>
+        </div>
+        <div style={chipBase}>
+          <span style={{fontSize:11,fontWeight:700,color:"#747AF7"}}>②</span>
+          <span style={{fontWeight:500}}>Assessment &gt; Free Text</span>
+        </div>
+        <div style={{fontSize:11.5,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:4,padding:"3px 8px",marginTop:2}}>
+          ⚠ Push order follows section order in the list — drag to change
+        </div>
+      </div>
+    );
+  }
+
+  // Item 49: AMD checkbox + text dual-field
+  if (demoOverride === "amd_checkbox") {
+    return (
+      <div style={{display:"flex",flexDirection:"column",gap:4}}>
+        <div style={chipBase}>
+          <span style={{fontWeight:500}}>CC Text</span>
+          <span style={typeTag}>text</span>
+        </div>
+        <div style={{...chipBase,background:"#fefce8",border:"1px solid #fde68a",color:"#78350f",marginBottom:0}}>
+          <span>☑</span>
+          <span style={{fontWeight:500}}>CC Enable</span>
+          <span style={{...typeTag,border:"1px solid #fde68a",color:"#92400e"}}>checkbox</span>
+        </div>
+        <div style={{fontSize:11.5,color:"#888",marginTop:2}}>
+          Selected from the same field picker — prompt must output one of its allowed values
+        </div>
+      </div>
+    );
+  }
+
   const isEmpty = !s.ehr;
-  // AMD and eCW show full "X > Y" format; all other EHRs show just the field name.
-  const showFullFormat = ehr === "AMD" || ehr === "eCW" || ehr === "Charm";
-  const label = isEmpty ? "Not mapped" : (showFullFormat ? s.ehr : s.ehr.split(" > ").pop());
+  const label = isEmpty ? "Not mapped" : fieldLabel(s.ehr);
   return (
     <div className="mapping-cell-wrap">
       <button
@@ -223,8 +291,8 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr }) {
         <span className="mapping-edit-ico"><I.pencil /></span>
       </button>
       {isDuplicate && (
-        <span className="mapping-warn" title={"Two sections map to this field — last in order wins at push time"}>
-          <I.warn />
+        <span className="mapping-shared" title="Multiple sections push to this field — content is combined in section order">
+          Shared
         </span>
       )}
     </div>
@@ -260,66 +328,32 @@ function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, eh
 // ── Soft-hidden details panel — 4 tabs ────────────────────────────────────
 function InlineAdvPanel({ s, onUpdate, ehr }) {
   const I = window.Icons;
-  const [tab, setTab] = useStateAdv("macros");
-  const macros = s.macros || [];
-  const sums = s.summarizers || [];
-
-  const tabs = [
-    { id: "macros",      label: "Macros",      dot: macros.length > 0 },
-    { id: "summarizers", label: "Summarizers",  dot: sums.length > 0   },
-    { id: "push",        label: "Output & EHR", dot: !!(s.defaultNegative || s.staticStart || s.staticEnd) },
-  ];
-
   return (
     <div className="adv">
 
-      {/* ── Tab strip ── */}
-      <div className="adv-tabs">
-        {tabs.map(t => (
-          <button key={t.id}
-            className={"adv-tab" + (tab === t.id ? " adv-tab--active" : "")}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-            {t.dot && <span className="adv-tab-dot" />}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Tab: Macros ── */}
-      {tab === "macros" && (
+      {/* ── Output & EHR (always shown, no tab strip) ── */}
+      {(
         <div className="adv-tab-body">
-          <div className="adv-tab-heading">Connected Macros</div>
-          {macros.length === 0
-            ? <div className="adv-empty">No macros connected to this section.</div>
-            : macros.map((m, i) => (
-              <div className="adv-item" key={i}>
-                <span className="adv-item-name">{m.name}</span>
-                <span className={"mode-tag " + modeTagClass(m.mode)}>{m.mode}</span>
-              </div>
-            ))}
-        </div>
-      )}
-
-      {/* ── Tab: Summarizers ── */}
-      {tab === "summarizers" && (
-        <div className="adv-tab-body">
-          <div className="adv-tab-heading">Connected Summarizers</div>
-          {sums.length === 0
-            ? <div className="adv-empty">No summarizers connected to this section.</div>
-            : sums.map((m, i) => (
-              <div className="adv-item" key={i}>
-                <span className="adv-item-name">{m.name}</span>
-                <span className={"mode-tag " + modeTagClass(m.mode)}>{m.mode}</span>
-              </div>
-            ))}
-        </div>
-      )}
-
-      {/* ── Tab: Output & EHR ── */}
-      {tab === "push" && (
-        <div className="adv-tab-body">
-          <div className="adv-tab-heading">Output &amp; EHR</div>
+          <div className="adv-field">
+            <label className="adv-field-label">Additional text</label>
+            <div className="adv-additional-row">
+              <select className="adv-additional-placement"
+                value={s.additionalPlacement || "before"}
+                onChange={e => onUpdate(s.id, { additionalPlacement: e.target.value })}>
+                <option value="before">Before content</option>
+                <option value="after">After content</option>
+              </select>
+              <input className="adv-field-input adv-field-input--grow" value={s.additionalText || ""}
+                placeholder="Fixed text added around section content on push…"
+                onChange={e => onUpdate(s.id, { additionalText: e.target.value })} />
+            </div>
+          </div>
+          <div className="adv-field">
+            <label className="adv-field-label">Default negative</label>
+            <input className="adv-field-input" value={s.defaultNegative || ""}
+              placeholder='e.g. "Not reported" or "None"'
+              onChange={e => onUpdate(s.id, { defaultNegative: e.target.value })} />
+          </div>
           {ehr === "AMD" && s.ehr && (() => {
             const limit = (window.AMD_CHAR_LIMITS || {})[s.ehr];
             if (!limit) return null;
@@ -327,48 +361,27 @@ function InlineAdvPanel({ s, onUpdate, ehr }) {
               <div className="adv-char-limit">
                 <span className="adv-char-limit-label">AMD field limit</span>
                 <span className="adv-char-limit-val">{limit.toLocaleString()} characters</span>
-                <span className="adv-char-limit-hint">This EHR field truncates content beyond this length</span>
               </div>
             );
           })()}
+
           {ehr === "AMD" && (
-            <div className="adv-field">
-              <label className="adv-field-label">Push mode</label>
-              <div className="adv-seg-row">
-                {["Prepend", "Append", "Replace"].map(mode => (
-                  <button
-                    key={mode}
-                    className={"seg-btn" + ((s.config || "Prepend") === mode ? " seg-btn--on" : "")}
-                    onClick={() => onUpdate(s.id, { config: mode })}
-                  >
-                    {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
-                  </button>
-                ))}
+            <>
+              <div className="adv-field adv-field--push-mode">
+                <label className="adv-field-label">Push mode</label>
+                <div className="adv-seg-row">
+                  {["Prepend", "Append", "Replace"].map(mode => (
+                    <button key={mode}
+                      className={"seg-btn" + ((s.config || "Prepend") === mode ? " seg-btn--on" : "")}
+                      onClick={() => onUpdate(s.id, { config: mode })}>
+                      {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="adv-field-hint">Controls how this section's content is written to the AMD EHR field.</div>
-            </div>
+            </>
           )}
-          <div className="adv-field">
-            <label className="adv-field-label">Default Negative</label>
-            <textarea className="adv-field-textarea" value={s.defaultNegative || ""}
-              placeholder="Fallback text when nothing was captured for this section…"
-              rows={2} onChange={e => onUpdate(s.id, { defaultNegative: e.target.value })} />
-            <div className="adv-field-hint">Shown when no content was captured for this section during the visit.</div>
-          </div>
-          <div className="adv-field">
-            <label className="adv-field-label">Static Start</label>
-            <textarea className="adv-field-textarea" value={s.staticStart || ""}
-              placeholder="Fixed text prepended to this section…"
-              rows={2} onChange={e => onUpdate(s.id, { staticStart: e.target.value })} />
-            <div className="adv-field-hint">Fixed text added before the section. The model never rewrites it.</div>
-          </div>
-          <div className="adv-field">
-            <label className="adv-field-label">Static End</label>
-            <textarea className="adv-field-textarea" value={s.staticEnd || ""}
-              placeholder="Fixed text appended to this section…"
-              rows={2} onChange={e => onUpdate(s.id, { staticEnd: e.target.value })} />
-            <div className="adv-field-hint">Fixed text added after the section. The model never rewrites it.</div>
-          </div>
+
         </div>
       )}
 
@@ -379,16 +392,32 @@ function InlineAdvPanel({ s, onUpdate, ehr }) {
 // ── Section row ────────────────────────────────────────────────────────────
 function SectionRow({
   s, depth, treePos,
-  onToggle, onExpand, onToggleDetails,
+  onToggle, onExpand, onToggleDetails, onTogglePrompt, onDeleteSection,
   onOpenMapping, onSetMappingMode, onUpdate,
   onDragStart, onDragEnd, onDragOver, onDrop,
   isDragging, dropBefore, dropAfter, isDuplicate,
-  parentMappingMode, ehr,
+  parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo,
 }) {
   const I = window.Icons;
+  const [popover, setPopover] = useStateR(null);
+
+  const hasMacros = !!(s.macros && s.macros.length);
+  const hasSums = !!(s.summarizers && s.summarizers.length);
+
+  const togglePopover = (key) => setPopover(p => p === key ? null : key);
+
   const hasKids = !!(s.children && s.children.length);
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
+  const ehrRowCat = ((window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {}).cat;
+  const hasOutputSettings = ehrRowCat === 1 || ehrRowCat === 2;
+  const promptOpen = !!s.promptOpen;
+
+  // Dual-mapping demo override — applies to "Assessment & Plan" only
+  const demoOverride =
+    dualMappingDemo === "one_to_two" && s.name === "Assessment & Plan" ? "one_to_two" :
+    dualMappingDemo === "amd_checkbox" && s.name === "Assessment & Plan" ? "amd_checkbox" :
+    null;
 
   const rowCls = [
     "row",
@@ -431,24 +460,87 @@ function SectionRow({
             <I.chevron />
           </button>
           <div className="namecell">
-            <span className="sname">{s.name}</span>
+            <input
+              className="sname-input"
+              value={s.name}
+              onChange={(e) => onUpdate(s.id, { name: e.target.value })}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Section header"
+            />
+            <div className="name-icons" style={{position:"relative"}}>
+              {/* Macros icon */}
+              <button type="button"
+                className={"row-icon-btn" + (hasMacros ? " row-icon-btn--active" : "") + (popover === "macros" ? " row-icon-btn--open" : "")}
+                onClick={() => togglePopover("macros")}
+                title="Connected macros">
+                M{hasMacros && <span className="row-icon-dot" />}
+              </button>
+              {/* Summarizers icon */}
+              <button type="button"
+                className={"row-icon-btn" + (hasSums ? " row-icon-btn--active" : "") + (popover === "sums" ? " row-icon-btn--open" : "")}
+                onClick={() => togglePopover("sums")}
+                title="Connected summarizers">
+                S{hasSums && <span className="row-icon-dot" />}
+              </button>
+              {/* Macros popover */}
+              {popover === "macros" && (
+                <div className="row-popover">
+                  <div className="row-popover-title">Macros</div>
+                  {(s.macros || []).length === 0
+                    ? <div className="row-popover-empty">No macros connected</div>
+                    : (s.macros || []).map((m, i) => (
+                      <div key={i} className="row-popover-item">
+                        <span>{m.name}</span>
+                        <span className={"mode-tag " + modeTagClass(m.mode)}>{m.mode}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
+              {/* Summarizers popover */}
+              {popover === "sums" && (
+                <div className="row-popover">
+                  <div className="row-popover-title">Summarizers</div>
+                  {(s.summarizers || []).length === 0
+                    ? <div className="row-popover-empty">No summarizers connected</div>
+                    : (s.summarizers || []).map((m, i) => (
+                      <div key={i} className="row-popover-item">
+                        <span>{m.name}</span>
+                        <span className={"mode-tag " + modeTagClass(m.mode)}>{m.mode}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
         {/* EHR Mapping */}
         <div className="row-mapping">
-          {parentMappingMode === 'whole' ? (
-            <span className="mapping-inherited">Mapped with parent</span>
-          ) : hasKids ? (
-            <ParentMappingCell
-              s={s}
-              onOpenMapping={onOpenMapping}
-              onSetMappingMode={onSetMappingMode}
-              isDuplicate={isDuplicate}
-              ehr={ehr}
-            />
-          ) : (
-            <EditableMappingCell s={s} onOpenMapping={onOpenMapping} isDuplicate={isDuplicate} ehr={ehr} />
-          )}
+          {(() => {
+            const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
+            if (cat && cat.cat === 3) return (
+              <span className="mapping-auto-label" title={cat.autoMsg}>{cat.autoMsg}</span>
+            );
+            if (cat && cat.cat === 4) return (
+              <span className="mapping-no-push-label">No push</span>
+            );
+            if (cat && cat.fieldsPending) return (
+              <span className="mapping-pending-label" title="Field list not yet confirmed — ops will configure this">Field list pending</span>
+            );
+            // cat 1 or 2 — normal mapping cell
+            return parentMappingMode === 'whole' ? (
+              <span className="mapping-inherited">Mapped with parent</span>
+            ) : hasKids ? (
+              <ParentMappingCell
+                s={s}
+                onOpenMapping={onOpenMapping}
+                onSetMappingMode={onSetMappingMode}
+                isDuplicate={isDuplicate}
+                ehr={ehr}
+              />
+            ) : (
+              <EditableMappingCell s={s} onOpenMapping={onOpenMapping} isDuplicate={isDuplicate} ehr={ehr} demoOverride={demoOverride} />
+            );
+          })()}
         </div>
         {/* eCW secondary column — Scribe-it destination */}
         {ehr === "eCW" && (
@@ -462,20 +554,79 @@ function SectionRow({
         )}
         {/* Actions */}
         <div className="row-actions">
-          <button
-            type="button"
-            className={"toolbox" + (detailsOpen ? " toolbox--open" : "")}
-            onClick={() => onToggleDetails(s.id)}
-            title={detailsOpen ? "Hide Marvix configuration" : "View Marvix configuration"}
-            aria-expanded={detailsOpen}
-            aria-label={"Marvix configuration for " + s.name}
-          >
-            <I.sliders />
-          </button>
+          {canEditPrompt && (
+            <button
+              type="button"
+              className={"row-icon-btn row-icon-btn--prompt" + (s.stylePrompt ? " row-icon-btn--active" : "") + (promptOpen ? " row-icon-btn--open" : "")}
+              onClick={() => onTogglePrompt(s.id)}
+              title={promptOpen ? "Hide prompt" : "Edit prompt"}
+              aria-expanded={promptOpen}
+            >
+              Prompt
+              {!s.stylePrompt && <span className="row-prompt-missing" title="No prompt written yet">!</span>}
+            </button>
+          )}
+          {s.custom && (
+            <button
+              type="button"
+              className="row-icon-btn row-icon-btn--danger"
+              onClick={() => {
+                if (window.confirm('Delete "' + s.name + '"? This can\'t be undone.')) onDeleteSection(s.id);
+              }}
+              title="Delete section"
+              aria-label={"Delete " + s.name}
+            >
+              <I.trash />
+            </button>
+          )}
+          {hasOutputSettings && (
+            <button
+              type="button"
+              className={"toolbox" + (detailsOpen ? " toolbox--open" : "")}
+              onClick={() => onToggleDetails(s.id)}
+              title={detailsOpen ? "Hide output settings" : "Output settings"}
+              aria-expanded={detailsOpen}
+              aria-label={"Output settings for " + s.name}
+            >
+              <I.sliders />
+            </button>
+          )}
           <Toggle on={s.enabled} onChange={(v) => onToggle(s.id, v)} />
         </div>
       </div>
-      {detailsOpen && <InlineAdvPanel s={s} onUpdate={onUpdate} ehr={ehr} />}
+      {pushIssue && (
+        <div className={"row-push-error" + (pushIssue.selfServe ? " row-push-error--selfserve" : "")}>
+          <div className="row-push-error-body">
+            <span className="row-push-error-icon">{pushIssue.selfServe ? "⚠" : "✕"}</span>
+            <span className="row-push-error-msg">{pushIssue.msg}</span>
+          </div>
+          <div className="row-push-error-actions">
+            {(pushIssue.type === "mapping_broken") && hasOutputSettings && (
+              <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
+            )}
+            {pushIssue.selfServe
+              ? <button className="row-push-error-dismiss">Got it</button>
+              : <button className="row-push-error-support">Contact support</button>
+            }
+          </div>
+        </div>
+      )}
+      {promptOpen && (
+        <div className="row-prompt-panel">
+          <label className="row-prompt-label">
+            Prompt
+            <span className="row-prompt-label-hint">— tells the AI what to write in this section</span>
+          </label>
+          <textarea
+            className="row-prompt-textarea"
+            rows={3}
+            value={s.stylePrompt || ""}
+            placeholder="e.g. Summarize the patient's chief complaint in one or two sentences, in their own words where possible."
+            onChange={(e) => onUpdate(s.id, { stylePrompt: e.target.value })}
+          />
+        </div>
+      )}
+      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} ehr={ehr} />}
     </div>
   );
 
@@ -488,9 +639,22 @@ function SectionRow({
   );
 }
 
+// ── "Add Subsection" ghost row ─────────────────────────────────────────────
+function AddSubsectionGhostRow({ depth, onClick }) {
+  const I = window.Icons;
+  return (
+    <div className={"tree-branch tree-branch--d" + depth}>
+      <span className="tree-connector" aria-hidden="true" />
+      <button type="button" className="add-subsection-btn" onClick={onClick}>
+        <I.plus /> Add subsection
+      </button>
+    </div>
+  );
+}
+
 // ── Render tree recursively ────────────────────────────────────────────────
 function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
-  const { handlers, dragId, dropTarget, ehrCounts, ehr } = ctx;
+  const { handlers, dragId, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo } = ctx;
   const isDragging = dragId === s.id;
   const dropBefore = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'before');
   const dropAfter = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'after');
@@ -509,6 +673,9 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
       isDuplicate={isDuplicate}
       parentMappingMode={parentMappingMode}
       ehr={ehr}
+      pushIssue={pushIssuesByName ? pushIssuesByName[s.name] : null}
+      canEditPrompt={canEditPrompt}
+      dualMappingDemo={dualMappingDemo}
       {...handlers}
     />,
   ];
@@ -516,15 +683,40 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
     s.children.forEach((c, i) => {
       nodes.push(...renderSectionTree(c, depth + 1, i, s.children, ctx, s.mappingMode || 'whole'));
     });
+    if (onAddSection && !s.ghost) {
+      nodes.push(
+        <AddSubsectionGhostRow key={s.id + "_addsub"} depth={depth + 1} onClick={() => onAddSection(s.id)} />
+      );
+    }
   }
   return nodes;
 }
 
 // ── Section table (manages drag state + mapping panel) ────────────────────
-function SectionTable({ sections, ehr, onToggle, onExpand, onToggleDetails, onReorder, onRemap, onSetMappingMode, onUpdate }) {
+function SectionTable({
+  sections, ehr, pushIssues,
+  onToggle, onExpand, onToggleDetails, onTogglePrompt, onDeleteSection,
+  onReorder, onRemap, onSetMappingMode, onUpdate, remapTarget, onRemapTargetHandled,
+  onAddSection, canEditPrompt, dualMappingDemo,
+}) {
+  const { useEffect: useEffectR } = React;
   const [dragState, setDragState] = useStateR(null);   // { id }
   const [dropTarget, setDropTarget] = useStateR(null); // { id, pos }
   const [mappingPanel, setMappingPanel] = useStateR(null);
+
+  useEffectR(() => {
+    if (!remapTarget) return;
+    const findByName = (list) => {
+      for (const s of list) {
+        if (s.name === remapTarget) return s;
+        if (s.children) { const hit = findByName(s.children); if (hit) return hit; }
+      }
+      return null;
+    };
+    const sec = findByName(sections);
+    if (sec) setMappingPanel({ sectionId: sec.id, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "" });
+    onRemapTargetHandled && onRemapTargetHandled();
+  }, [remapTarget]);
 
   // Compute duplicate EHR destinations across all sections
   const ehrCounts = {};
@@ -551,6 +743,8 @@ function SectionTable({ sections, ehr, onToggle, onExpand, onToggleDetails, onRe
     onToggle,
     onExpand,
     onToggleDetails,
+    onTogglePrompt,
+    onDeleteSection,
     onOpenMapping: openMapping,
     onSetMappingMode,
     onUpdate,
@@ -567,10 +761,45 @@ function SectionTable({ sections, ehr, onToggle, onExpand, onToggleDetails, onRe
     },
   };
 
-  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr };
+  const pushIssuesByName = {};
+  (pushIssues || []).forEach(pi => { pushIssuesByName[pi.section] = pi; });
+  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo };
+
+  // ── Add Section availability — varies by EHR category ──
+  const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
+  const isCat1 = ehrCat.cat === 1;
+  const isCat2 = ehrCat.cat === 2;
+  // Only count fields actually in *this* EHR's field list — sections mapped under a
+  // previously-selected EHR (or seeded demo data) shouldn't count against a different EHR's cap.
+  const validFieldSet = new Set(
+    ((window.EHR_FIELDS_BY_SYSTEM && window.EHR_FIELDS_BY_SYSTEM[ehr]) || []).flatMap((g) => g.fields)
+  );
+  const usedFieldCount = Object.keys(ehrCounts).filter((f) => validFieldSet.has(f)).length;
+  const totalFieldCount = window.ehrFieldTotalCount ? window.ehrFieldTotalCount(ehr) : 0;
+  const capReached = (isCat1 || isCat2) && (totalFieldCount === 0 || usedFieldCount >= totalFieldCount);
+
+  let addDisabledReason = "";
+  if (capReached && ehrCat.fieldsPending) addDisabledReason = (ehrCat.label || ehr) + "'s field list isn't confirmed yet — check with ops";
+  else if (capReached) addDisabledReason = "All available " + (ehrCat.label || ehr) + " fields are already used";
 
   return (
     <div className={"table table-edit" + (ehr ? " table--" + ehr.toLowerCase() : "")}>
+      <div className="section-toolbar">
+        {onAddSection && (
+          <button
+            type="button"
+            className="btn-outline btn-sm add-section-btn"
+            disabled={!!addDisabledReason}
+            title={addDisabledReason || undefined}
+            onClick={() => onAddSection(null)}
+          >
+            + Add section
+          </button>
+        )}
+        {isCat1 && totalFieldCount > 0 && (
+          <span className="section-toolbar-hint">{usedFieldCount}/{totalFieldCount} {ehrCat.label || ehr} fields used</span>
+        )}
+      </div>
       <div className="thead">
         <div className="th">Section</div>
         <div className="th">

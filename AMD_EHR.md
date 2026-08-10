@@ -41,10 +41,18 @@ Companion detail log: **[AMD_DISCREPANCIES.md](./AMD_DISCREPANCIES.md)**
 | 2026-08-10 | Confirmed: no Configuration column; one path style; Self-serve / Ops-managed |
 | 2026-08-10 | **Dropped STATIC badge + EHR Pull/File Upload ghost rows** † |
 | 2026-08-10 | **Unified path style** to `Office Visit > Title Case` on seeded chips + picker (+ Example Notes demo field). Subsections under As-one parents left unmapped (inherit parent). |
+| 2026-08-10 | **Merged `main`** — pulled in `MY_TEMPLATES_PRD.md`, `ehr_mapping/` (incl. AMD.md), error-scenario + dual-mapping prototype updates. Kept AMD lock; template list filtered to AMD; STATIC/ghost stay dropped. |
+
+## Product docs (from main)
+
+- [MY_TEMPLATES_PRD.md](./MY_TEMPLATES_PRD.md) — full PRD
+- [ehr_mapping/AMD.md](./ehr_mapping/AMD.md) — AMD field IDs, auto-remap, char limits
+- [ehr_mapping/ERROR_UX.md](./ehr_mapping/ERROR_UX.md) — push failure UX
+- [AMD_DISCREPANCIES.md](./AMD_DISCREPANCIES.md) — gap log for this branch
 
 ## Still to align
 
-1. Template list tabs: **Self-serve** vs **Ops-managed**
+1. Template list tabs: **Self-serve** vs **Ops-managed** (PRD: doctors customize within ops-owned structure)
 
 ---
 

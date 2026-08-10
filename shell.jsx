@@ -38,7 +38,25 @@ function Sidebar() {
   );
 }
 
-function TemplateList({ groups, activeId, onSelect, onRequest, collapsed, onToggle }) {
+function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate, collapsed, onToggle }) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+
+  const filteredGroups = q
+    ? groups
+        .map((g) => ({
+          ...g,
+          templates: g.templates.filter(
+            (t) =>
+              t.name.toLowerCase().includes(q) ||
+              (t.derivative && t.derivative.toLowerCase().includes(q))
+          ),
+        }))
+        .filter((g) => g.templates.length > 0)
+    : groups;
+
+  const totalFiltered = filteredGroups.reduce((n, g) => n + g.templates.length, 0);
+
   return (
     <aside className={"tpl-panel" + (collapsed ? " tpl-panel--collapsed" : "")}>
       <button className="tpl-collapse" onClick={onToggle} title={collapsed ? "Expand templates" : "Collapse templates"} aria-label="Toggle template list">
@@ -46,12 +64,36 @@ function TemplateList({ groups, activeId, onSelect, onRequest, collapsed, onTogg
       </button>
       <div className="tpl-inner">
         <h1 className="tpl-title">My Templates</h1>
-        <button className="btn-outline tpl-request" onClick={onRequest}>
-          <span className="btn-outline-main">Request New Template</span>
-          <span className="btn-outline-sub">Redirects to Style Transfer</span>
+        <button className="btn-teal tpl-create" onClick={onCreateTemplate}>
+          + Create template
         </button>
+        <button className="btn-ghost tpl-request" onClick={onRequest}>
+          Request from ops
+        </button>
+        <div className="tpl-search-wrap">
+          <span className="tpl-search-ico">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M8.5 8.5L11.5 11.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+          </span>
+          <input
+            className="tpl-search"
+            type="search"
+            placeholder="Search templates…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search templates"
+          />
+          {q && (
+            <button className="tpl-search-clear" onClick={() => setQuery("")} aria-label="Clear search">✕</button>
+          )}
+        </div>
         <div className="tpl-scroll">
-          {groups.map((g) => (
+          {q && totalFiltered === 0 && (
+            <div className="tpl-no-results">No templates match "{query}"</div>
+          )}
+          {filteredGroups.map((g) => (
             <div className="tpl-group" key={g.label}>
               <div className="tpl-group-label">{g.label}</div>
               {g.templates.map((t) => (
