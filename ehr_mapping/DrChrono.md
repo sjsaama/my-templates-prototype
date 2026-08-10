@@ -21,14 +21,14 @@ No `ordinal` / `page_name` / per-field `max_character_length` (those are AMD).
 
 ---
 
-## Mapping table vs ICD / CPT
+## Mapping (DrChrono-specific)
 
-| Kind | What | In mapping picker? |
-| --- | --- | --- |
-| **Free-text fields** (“naked” clinical note fields) | Section → `ehr_field_id` + prose body. Snake_case IDs with human labels (`history_of_present_illness` → "History of Present Illness") | ✅ Yes |
-| **ICD / CPT** | `icd10_codes` / `cpt_codes` → structured code handlers via `sub_template_ids` (ops `/update_ehr_mapping_subtemplates`). Not Extra Fields YAML | ❌ No — separate mechanism; doctor UI not prototyped |
+Standard section → free-text EHR field mapping applies here like other Cat 2 EHRs.
 
-Do not put ICD/CPT in the mapping field list.
+| DrChrono delta | Detail |
+| --- | --- |
+| Field ID format | Snake_case (`history_of_present_illness`), shown with human labels in the picker |
+| ICD / CPT | **Not** in the mapping picker. Routed by `ehr_field_name` (`icd10_codes` / `cpt_codes`) via `sub_template_ids` — separate mechanism; doctor UI not prototyped |
 
 ---
 
