@@ -133,6 +133,7 @@ Branch `cursor/amd-ehr-34b9` — visual / UX only. EHR locked to AMD. Entry: `in
 | **Reset to default** | ✅ only | ❌ — no ops default to restore |
 | **Request New Section** | ✅ only ††† | ❌ |
 | **+ Add section** / **Prompt** edit | ❌ | ✅ |
+| **Create → Connect EHR** (Cat 2) | ❌ | ✅ — pick AMD note template (or skip) |
 
 ### Subtle UI elements
 
@@ -155,6 +156,7 @@ Open: surface allowed values in prompt editor; vs YAML `extract_boolean_value` (
 | ------- | -------- |
 | No Configuration column | Push setting: template bar + section override. Character limit: **template bar only** (global) |
 | Reset to default | **Ops-managed only** — restores ops default; absent on self-serve |
+| Connect EHR at create | **Self-serve + Cat 2 only** — Starting point → Describe → **Connect EHR** → Review. Uses `EHR_TEMPLATES_BY_SYSTEM.AMD`. Skip allowed. |
 | Shared field | Neutral **Shared** chip when 2+ sections map to one field — content joins in list order |
 | Parent mapping | Whole vs map subsections individually |
 | Dropped chrome | No STATIC badge; no EHR Pull / File Upload ghost rows † |
@@ -163,9 +165,8 @@ Open: surface allowed values in prompt editor; vs YAML `extract_boolean_value` (
 
 ### Gaps
 
-1. Cat 2 **Connect EHR** at create (`EHR_TEMPLATES_BY_SYSTEM.AMD` unused)
-2. Prompt editor: surface checkbox allowed values
-3. More fatal mocks if needed (`Template not found`, provider not found)
+1. Prompt editor: surface checkbox allowed values
+2. More fatal mocks if needed (`Template not found`, provider not found)
 
 ### Changelog
 
@@ -177,6 +178,7 @@ Open: surface allowed values in prompt editor; vs YAML `extract_boolean_value` (
 | 2026-08-10 | Settings → global/local; Push setting + Character limit; Subtle UI section; doc cleanup |
 | 2026-08-10 | Character limit = **global only** (no per-section override) |
 | 2026-08-10 | **Reset to default = ops-managed only** (not on self-serve) |
+| 2026-08-10 | Self-serve create: Cat 2 **Connect EHR** step (AMD note template picker) |
 
 ### Footnotes
 

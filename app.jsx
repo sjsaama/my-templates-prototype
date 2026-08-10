@@ -272,12 +272,17 @@ function App() {
 
   const handleCreateTemplate = (data) => {
     const newId = "user_" + Date.now().toString(36);
+    const connectedName = data.ehrTemplateName || "";
     const newTpl = {
       id: newId,
       name: data.name,
       derivative: data.type,
-      ehr: data.ehrTemplateName ? (ehr ? ehr.split("_")[0] + "_" + data.ehrTemplateName.replace(/\s+/g, "_") : data.ehrTemplateName) : "",
+      ehr: connectedName
+        ? ((ehr || "AMD") + "_" + connectedName.replace(/\s+/g, "_"))
+        : ((ehr || "AMD") + "_Unconnected"),
       ehrSystem: ehr || "AMD",
+      ehrTemplateId: data.ehrTemplateId || "",
+      ehrTemplateName: connectedName,
       group: "My Templates",
       userCreated: true,
     };
@@ -290,7 +295,9 @@ function App() {
     setSectionsByTpl(m => ({ ...m, [newId]: baseSections }));
     setActiveTpl(newId);
     setCreateTemplateOpen(false);
-    flash("Template created — configure your sections and EHR mapping below");
+    flash(connectedName
+      ? "Template created — connected to " + connectedName
+      : "Template created — configure your sections and EHR mapping below");
   };
 
   const selectTpl = (id) => {
@@ -393,6 +400,18 @@ function App() {
                   )}
                 </div>
               </header>
+              {/* Connected AMD note template (self-serve Cat 2) */}
+              {tpl.userCreated && ehr === "AMD" && (
+                <div className="ehr-tpl-banner">
+                  <div className="ehr-tpl-banner-left">
+                    <span className="ehr-tpl-banner-label">Connected AMD note template</span>
+                    {tpl.ehrTemplateName
+                      ? <span className="ehr-tpl-banner-value">{tpl.ehrTemplateName}</span>
+                      : <span className="ehr-tpl-banner-unset">Not connected — map fields from the list, or reconnect later</span>}
+                  </div>
+                </div>
+              )}
+
               {/* AMD global settings — Push setting + Character limit */}
               {ehr === "AMD" && ehrCat.cat <= 2 && (
                 <div className="tpl-settings-stack">
