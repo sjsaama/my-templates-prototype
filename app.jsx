@@ -49,7 +49,8 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 const EHR_OPTIONS = ["DrChrono"];
 const EHR_LOCKED = true;
 
-// DrChrono: field-level failures often invisible to Lambda — still show error copy when mocked.
+// DrChrono-scoped branch — only DrChrono push-error demos are wired into Tweaks.
+// Field-level failures often invisible to Lambda — still show error copy when mocked.
 const ERROR_SCENARIOS = {
   none: [],
   drchrono_auth: [
@@ -66,6 +67,25 @@ const ERROR_SCENARIOS = {
     { id: "pi1", section: "ICD Codes", error: "ICD/CPT push failed", type: "push_failed", msg: "ICD/CPT codes for 'ICD Codes' failed to push to DrChrono. Contact support.", selfServe: false },
   ],
 };
+
+const ERROR_SCENARIO_OPTIONS = Object.keys(ERROR_SCENARIOS);
+
+function PushIssueActionButtons({ issue, remapClass, gotItClass, supportClass, onRemap, onGotIt, showRemap }) {
+  const actions = (window.pushIssueActions || (() => ({})))(issue);
+  return (
+    <>
+      {actions.remap && showRemap !== false && onRemap && (
+        <button className={remapClass} onClick={onRemap}>Remap</button>
+      )}
+      {actions.gotIt && (
+        <button className={gotItClass} onClick={onGotIt || undefined}>Got it</button>
+      )}
+      {actions.support && (
+        <button className={supportClass}>Contact support</button>
+      )}
+    </>
+  );
+}
 
 function mapSectionTree(list, id, fn) {
   return list.map((s) => {
@@ -142,6 +162,7 @@ function App() {
   const [addSectionOpen, setAddSectionOpen] = useStateA(null); // { parentId: string|null } | null
 
   const tpl = activeTpl ? templates.find((x) => x.id === activeTpl) : null;
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
   const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
   const pendingCount = pendingRequests.length;
@@ -152,6 +173,7 @@ function App() {
     ? (sectionsByTpl[activeTpl] || (sectionsByTpl[activeTpl] = window.makeSections()))
     : [];
   const templateCharLimit = (activeTpl && charLimitByTpl[activeTpl]) || 2000;
+  const showTemplateSettings = caps.hasPushMode || caps.hasCharLimit;
 
   const setSections = (fn) => {
     if (!activeTpl) return;
@@ -261,7 +283,7 @@ function App() {
     // anything in the doctor's real EHR template. Cat 1/3/4 start from Marvix's defaults.
     const baseSections = data.copyFromId && sectionsByTpl[data.copyFromId]
       ? JSON.parse(JSON.stringify(sectionsByTpl[data.copyFromId]))
-      : (ehrCat.cat === 2 ? [] : window.makeSections());
+      : (caps.category === 2 ? [] : window.makeSections());
     setSectionsByTpl(m => ({ ...m, [newId]: baseSections }));
     setActiveTpl(newId);
     setCreateTemplateOpen(false);
@@ -370,11 +392,11 @@ function App() {
                   )}
                 </div>
               </header>
-              {/* Connected DrChrono note template (self-serve Cat 2) */}
-              {tpl.userCreated && ehr === "DrChrono" && (
+              {/* Connected note template (self-serve Cat 2) */}
+              {tpl.userCreated && caps.needsConnectEhr && (
                 <div className="ehr-tpl-banner">
                   <div className="ehr-tpl-banner-left">
-                    <span className="ehr-tpl-banner-label">Connected DrChrono note template</span>
+                    <span className="ehr-tpl-banner-label">Connected {caps.label} note template</span>
                     {tpl.ehrTemplateName
                       ? <span className="ehr-tpl-banner-value">{tpl.ehrTemplateName}</span>
                       : <span className="ehr-tpl-banner-unset">Not connected — map fields from the list, or reconnect later</span>}
@@ -382,33 +404,35 @@ function App() {
                 </div>
               )}
 
-              {/* Global settings — Character limit only (Push setting is AMD-only) */}
-              {ehr === "DrChrono" && ehrCat.cat <= 2 && (
+              {/* Template-level settings driven by EHR capabilities (DrChrono: char limit only) */}
+              {showTemplateSettings && caps.hasOutputSettings && (
                 <div className="tpl-settings-stack">
-                  <div className="tpl-settings-bar">
-                    <span className="tpl-settings-label">Character limit</span>
-                    <input
-                      className="tpl-settings-input"
-                      type="number"
-                      min="0"
-                      step="100"
-                      value={templateCharLimit}
-                      onChange={(e) => applyTemplateCharLimit(e.target.value)}
-                      aria-label="Template character limit"
-                    />
-                    <span className="tpl-settings-hint">
-                      Global only — applies to the whole template. Not editable per section.
-                    </span>
-                  </div>
+                  {caps.hasCharLimit && (
+                    <div className="tpl-settings-bar">
+                      <span className="tpl-settings-label">Character limit</span>
+                      <input
+                        className="tpl-settings-input"
+                        type="number"
+                        min="0"
+                        step="100"
+                        value={templateCharLimit}
+                        onChange={(e) => applyTemplateCharLimit(e.target.value)}
+                        aria-label="Template character limit"
+                      />
+                      <span className="tpl-settings-hint">
+                        Global only — applies to the whole template. Not editable per section.
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Cat 4 — no push integration notice */}
-              {ehrCat.cat === 4 && (
+              {caps.showCat4Notice && (
                 <div className="cat4-notice">
                   <span className="cat4-notice-icon">ℹ</span>
                   <span className="cat4-notice-text">
-                    <strong>{ehrCat.label}</strong> doesn't have a push integration — notes are copied manually after each visit. Section mapping isn't needed, but you can still configure content and style.
+                    <strong>{caps.label}</strong> doesn't have a push integration — notes are copied manually after each visit. Section mapping isn't needed, but you can still configure content and style.
                   </span>
                 </div>
               )}
@@ -428,23 +452,19 @@ function App() {
                   </div>
                   <div className="push-issues-msg">{pushIssues[0].msg}</div>
                   <div className="push-issues-list">
-                    {pushIssues.map(issue => {
-                      const actions = (window.pushIssueActions || (() => ({})))(issue);
-                      return (
-                        <div key={issue.id} className="push-issues-item">
-                          <span className="push-issues-section">• {issue.section}</span>
-                          {actions.remap && (
-                            <button className="push-issues-remap" onClick={() => setRemapTarget(issue.section)}>Remap</button>
-                          )}
-                          {actions.gotIt && (
-                            <button className="push-issues-remap" onClick={() => setPushIssuesDismissed(true)}>Got it</button>
-                          )}
-                          {actions.support && (
-                            <button className="push-issues-support">Contact support</button>
-                          )}
-                        </div>
-                      );
-                    })}
+                    {pushIssues.map(issue => (
+                      <div key={issue.id} className="push-issues-item">
+                        <span className="push-issues-section">• {issue.section}</span>
+                        <PushIssueActionButtons
+                          issue={issue}
+                          remapClass="push-issues-remap"
+                          gotItClass="push-issues-remap"
+                          supportClass="push-issues-support"
+                          onRemap={() => setRemapTarget(issue.section)}
+                          onGotIt={() => setPushIssuesDismissed(true)}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -568,7 +588,7 @@ function App() {
         )}
         <TweakSection label="Simulate push error" />
         <TweakSelect label="Error scenario" value={t.errorScenario}
-          options={["none","drchrono_auth","drchrono_field_failed","drchrono_stale_mapping","drchrono_icd_cpt_failed"]}
+          options={ERROR_SCENARIO_OPTIONS}
           onChange={(v) => setTweak("errorScenario", v)} />
         <TweakSection label="Advanced mapping demos" />
         <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}
@@ -579,4 +599,5 @@ function App() {
   );
 }
 
+Object.assign(window, { PushIssueActionButtons });
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
