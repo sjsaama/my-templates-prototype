@@ -6,7 +6,7 @@ Per-section config options. Every key here lives in the Extra Fields YAML for a 
 
 ## Common — applies to all push EHRs
 
-> **Planned — Template Settings:** The keys `separator` (section + subsection), `char_limit`, `push_subsections`, `retain_headings`, `skip_empty_subsections`, and `line_separator` (ECW HL7; Veradigm uses hardcoded `\r\n`) are **global template settings** — doctors set them once per template, not in the per-section content-shaping panel. See [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md) → Template-level settings. The per-section YAML path remains the source of truth until migration is complete.
+> **Planned — Template Settings:** The keys `separator` (section + subsection), `char_limit`, `push_subsections`, `retain_headings`, `skip_empty_subsections`, `line_separator` (ECW HL7; Veradigm uses hardcoded `\r\n`), and `keep_bullet_points` are **global template settings** — doctors set them once per template, not in the per-section content-shaping panel. See [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md) → Template-level settings. The per-section YAML path remains the source of truth until migration is complete.
 
 ### How subsections are combined into one EHR field
 These three work together: first decide whether to include subsections, then whether to label them, then what to put between them.

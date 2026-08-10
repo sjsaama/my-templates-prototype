@@ -113,9 +113,7 @@ Per-section settings opened via the sliders (⊟) button on each section row. On
 | Additional text | Fixed text placed before or after section content on push. Doctor picks Before or After from a dropdown. Replaces old pre-literal / post-literal fields. | Output settings panel |
 | Default negative | Text pushed when section has no generated content (e.g. "Not reported") | Output settings panel |
 
-> Character limit, section / subsection / line separators, and EHR line-break requirements live under **Template-level settings (global)** below — do not repeat them on the section panel.
-
-> **Removed:** "Keep bullet points" toggle is out of scope for v1 — stripped from prototype.
+> Character limit, separators, line-break rules, and **Keep bullet points** live under **Template-level settings (global)** below — do not repeat them on the section panel.
 
 **Write mode** — AMD only
 
@@ -286,6 +284,7 @@ Apply to the whole template — not per section. Doctor can set these in My Temp
 | **Subsection separator** | Cat 1 / Cat 2 (incl. Veradigm) | String inserted between child subsections when a parent is joined into one field |
 | **Default line separator** | Veradigm; also where configurable | Separator used for all line breaks in pushed content. Veradigm requires `\r\n` (CRLF) — plain `\n` renders incorrectly. |
 | **Line separator (ECW)** | ECW (HL7 main) | Replaces `\n` before S3 upload (e.g. `\X0A\`). Required for HL7 ORU formatting. Not used for Selective Copy (Scribe-it). |
+| **Keep bullet points** | All push EHRs | When on, keep bullet characters in pushed text. When off (default), bullets are stripped before push (`keep_bullet_points`). |
 | How subsections combine | Cat 1 / Cat 2 | Include headings, skip empty, spacing — **Settings Portal** / Template Settings (`push_subsections`, `retain_headings`, `skip_empty_subsections`) |
 
 > **Not global settings:** AMD checkbox fields (field type in the mapping picker — see Adjust section output settings). Write mode (AMD) may remain global-with-override separately — see Write mode above.
