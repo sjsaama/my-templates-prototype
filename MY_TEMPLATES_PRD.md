@@ -97,7 +97,7 @@ Setting is **template-level**, not user-level. Whether content is pushed as a no
 | Mechanism | What it is |
 |---|---|
 | Append other derivative | A section can pull content from a derivative template (e.g. a summary template) and append it to the main note on push. Mechanism TBD — needs clarification from Vignesh. |
-| **ICD / EM codes (Add Section)** | **Self-serve only.** On **+ Add section**, doctor chooses content type: **Nothing** (normal free-text), **ICD codes**, or **EM codes**. If ICD/EM, those codes are absorbed into that section; doctor writes the prompt and maps to a field in **this template’s field list**. Ops-managed: section already exists — doctor can **remap only** (no add / no prompt edit). **Open with ops:** can mapping reach other sub-templates, or only fields on the connected template? |
+| **ICD / CPT codes (Add Section)** | **Self-serve only.** Sub-templates for now: **`icd10_codes`** and **`cpt_codes` only**. On **+ Add section**, content type: **Nothing / ICD / CPT** → Header → Prompt → Map. Codes are absorbed into that section. Ops-managed: remap only. **Assumption:** can map to any field on this template. **Open with ops:** confirm any-field vs specific destinations only. |
 | One section → two EHR fields | A single logical section (e.g. chief complaint) may map to two separate EHR destination fields — confirmed for AMD (checkbox field + text field). Both fields are mapped independently. For non-checkbox pairs, ordering may matter for how the EHR renders them — handling TBD. See open questions. |
 | Two sections → same EHR field | Multiple Marvix sections can share the same EHR destination field. This is valid and supported. Content from all mapped sections is combined in section order. The UI shows a neutral "Shared" label on the mapping chip (not a warning). |
 | First-line heading omit | Whether the first line (section heading) is stripped before push. Configurability unconfirmed — see open questions. |
@@ -175,7 +175,7 @@ Fields come from the doctor's EHR note template. The field list is populated at 
 | EHR | Format | Remap / refresh behavior |
 |---|---|---|
 | AMD | `Page Name > Field Name` (Title Case) | **Push setting** (global + per-section override) and **Character limit** (global only). Doctor remaps from the field list fetched at Connect EHR (self-serve create) or set by ops. |
-| DrChrono | Snake_case field names | **Character limit** (global only). ICD/CPT fields handled separately — not in mapping table. Doctor can remap. **Push setting is AMD-only.** |
+| DrChrono | Snake_case field names | **Character limit** (global only). Sub-templates for now: `icd10_codes` / `cpt_codes` via Add Section (self-serve). **Push setting is AMD-only.** |
 | CharmHealth | `entry_chart_section` value if set, otherwise field name | Field list cannot be re-fetched. Doctor can remap from the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh. |
 
 > **Self-serve Cat 2:** EHR note template is chosen at **create** (Connect EHR step); fields come from that template. There is no separate "Fetch fields" action in the editor. If fields go stale after an EHR template change, remap (or Contact support for CharmHealth) is the recovery path.  
@@ -309,9 +309,11 @@ The section-level inline strip is the primary action surface — the banner is a
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
-| EHR template changed | EHR admin | ❌ Undetectable | Nothing | Ops investigates; Lambda change required to surface failures |
-| Any field-level failure | Any | ❌ Undetectable | Nothing — `save_note` swallows all exceptions | Ops investigates |
-| Auth / credentials expired | Any | ✅ Yes | — | Ops |
+| Free-text field push failed | Any | ❌ Often invisible (`save_note` swallows) — not fixable for now | "One or more sections failed to push to DrChrono. Contact support." | Ops investigates |
+| ICD / CPT push failed | Any | ❌ `logger.warning` only | "ICD/CPT codes for '[Section]' failed to push to DrChrono. Contact support." | Ops |
+| Stale / archived field mapping | EHR admin | ❌ Silent fail today | "A mapped field is no longer available in DrChrono. Remap the section or contact support." | Remap or ops |
+| Auth / credentials expired | Any | ✅ Yes | "Push failed due to a DrChrono authentication issue. Contact support." | Ops |
+| Rate limit | DrChrono | ✅ Yes | — (auto-retry) | Auto |
 
 **CharmHealth**
 
@@ -387,7 +389,7 @@ The section-level inline strip is the primary action surface — the banner is a
 | One section → two EHR fields — ordering conflict | For non-checkbox dual-field cases: if one Marvix section maps to two EHR text fields, does order matter? How is conflict handled at push time? | Vignesh |
 | One section → two EHR fields — is it actually used beyond AMD checkbox? | Confirm with ops whether non-checkbox dual-field mapping is in use before designing a general solution. | Ops |
 | CharmHealth push activation status | Is CharmHealth push currently live? Automation blocked until templates API available — confirm timeline with KJ. | KJ |
-| DrChrono push activation status | Is DrChrono push currently active for any practices? | Vignesh |
+| ICD / CPT map destination | Can ICD/CPT sections map to **any** field on the template, or only specific destinations? Working assumption: anywhere. Confirm with ops. | Ops |
 | Athena rate-limit scope | Is the quota per-practice, per-doctor, or per-API-key? Affects how the error copy is worded. | Vignesh |
 
 ---

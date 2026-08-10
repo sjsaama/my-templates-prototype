@@ -49,16 +49,21 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 const EHR_OPTIONS = ["DrChrono"];
 const EHR_LOCKED = true;
 
-// DrChrono field-level push failures are undetectable today (save_note swallows exceptions).
-// Only auth / credentials errors surface. Remap is still available in the editor for stale fields.
+// DrChrono: field-level failures often invisible to Lambda — still show error copy when mocked.
 const ERROR_SCENARIOS = {
   none: [],
   drchrono_auth: [
-    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to a DrChrono authentication issue. Contact support to reconnect the integration.", selfServe: false },
+    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to a DrChrono authentication issue. Contact support.", selfServe: false },
   ],
-  // Hypothetical — needs Lambda change to surface field failures (PRD gap).
-  drchrono_field_gap: [
-    { id: "pi1", section: "History of Present Illness", error: "Field push failed (undetectable today)", type: "mapping_broken", msg: "DrChrono field-level failures are not surfaced yet — save_note swallows exceptions. This mock shows the future banner once Lambda reports failures.", selfServe: false },
+  drchrono_field_failed: [
+    { id: "pi1", section: "History of Present Illness", error: "Field push failed", type: "mapping_broken", msg: "One or more sections failed to push to DrChrono. Contact support.", selfServe: false },
+    { id: "pi2", section: "Assessment & Plan", error: "Field push failed", type: "mapping_broken", msg: "One or more sections failed to push to DrChrono. Contact support.", selfServe: false },
+  ],
+  drchrono_stale_mapping: [
+    { id: "pi1", section: "Past Medical History", error: "Field no longer available", type: "mapping_broken", msg: "A mapped field is no longer available in DrChrono. Remap the section or contact support.", selfServe: false },
+  ],
+  drchrono_icd_cpt_failed: [
+    { id: "pi1", section: "ICD Codes", error: "ICD/CPT push failed", type: "mapping_broken", msg: "ICD/CPT codes for 'ICD Codes' failed to push to DrChrono. Contact support.", selfServe: false },
   ],
 };
 
@@ -213,7 +218,7 @@ function App() {
       styleDetail: "Standard",
       styleFormat: "Prose",
       stylePrompt: data.prompt,
-      codeSource: data.codeSource || "none", // none | icd | em
+      codeSource: data.codeSource || "none", // none | icd | cpt
     };
     const parentId = addSectionOpen.parentId;
     if (parentId) {
@@ -229,9 +234,9 @@ function App() {
     }
     setAddSectionOpen(null);
     flash(data.codeSource === "icd"
-      ? "Section added — ICD codes absorbed"
-      : data.codeSource === "em"
-      ? "Section added — EM codes absorbed"
+      ? "Section added — ICD (icd10_codes) absorbed"
+      : data.codeSource === "cpt"
+      ? "Section added — CPT (cpt_codes) absorbed"
       : "Section added");
   };
 
@@ -563,7 +568,7 @@ function App() {
         )}
         <TweakSection label="Simulate push error" />
         <TweakSelect label="Error scenario" value={t.errorScenario}
-          options={["none","drchrono_auth","drchrono_field_gap"]}
+          options={["none","drchrono_auth","drchrono_field_failed","drchrono_stale_mapping","drchrono_icd_cpt_failed"]}
           onChange={(v) => setTweak("errorScenario", v)} />
         <TweakSection label="Advanced mapping demos" />
         <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}
