@@ -168,6 +168,7 @@ design/                 # Figma + screenshots (not runtime)
 - Ownership tabs: **Ops-managed** / **Self-serve** (with counts)
 - AMD **checkbox** fields appear in the same field picker as text fields (tagged + allowed-values hint)
 - Push-error actions vary by error type (Remap / Got it / Contact support) — see matrix below
+- Global template settings: **Push setting** + **Character limit** (applied to sections, overridable locally)
 
 ### Ownership matrix (current)
 
