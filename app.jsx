@@ -336,16 +336,16 @@ function App() {
                     {tpl.ehr && <span className="ed-meta-tag ed-meta-tag--mono">{tpl.ehr}</span>}
                   </div>
                   {tpl.userCreated ? (
-                    <p className="ed-ownership-hint">You manage this template’s EHR mappings — click any mapping to change where a section is pushed.</p>
+                    <p className="ed-ownership-hint">You manage this template’s structure and EHR mappings — add sections, edit prompts, and remap fields.</p>
                   ) : (
-                    <p className="ed-ownership-hint">Ops manages the section structure. You can still remap fields and adjust output settings.</p>
+                    <p className="ed-ownership-hint">Ops manages the section structure. Remap fields, adjust output settings, or request a new section from ops.</p>
                   )}
                 </div>
                 <div className="ed-head-right">
                   <button className="btn-ghost btn-sm" onClick={() => setPreviewOpen(true)}>Preview output</button>
                   <button className="btn-ghost btn-sm" onClick={() => setResetConfirm(true)}>Reset to default</button>
                   <button className="btn-teal btn-sm" onClick={() => flash("Changes saved")}>Save changes</button>
-                  {tpl.userCreated && (
+                  {!tpl.userCreated && (
                     <button className="btn-outline btn-outline--req" onClick={() => {
                       setSectionRequestOpen(true);
                       setPendingRequests(arr => arr.map(r => ({ ...r, seenByDoctor: true })));
@@ -358,7 +358,7 @@ function App() {
                         ? <span className="btn-outline-sub btn-outline-sub--coral">{unseenCount} update{unseenCount === 1 ? "" : "s"}</span>
                         : pendingCount > 0
                         ? <span className="btn-outline-sub">{pendingCount} request{pendingCount === 1 ? "" : "s"}</span>
-                        : <span className="btn-outline-sub">Add a section to any template</span>}
+                        : <span className="btn-outline-sub">Ask ops to add a section</span>}
                     </button>
                   )}
                 </div>

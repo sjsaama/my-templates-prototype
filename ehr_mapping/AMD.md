@@ -122,6 +122,7 @@ design/                 # Figma + screenshots (not runtime)
 | Configuration column | **Not needed for AMD** |
 | EHR path style | **`Office Visit > Title Case`** everywhere |
 | Template types | **Self-serve** and **Ops-managed** |
+| Request New Section | **Ops-managed only** (self-serve uses + Add section) |
 | STATIC section badge | **Dropped** † |
 | EHR Pull / File Upload ghost rows | **Dropped** † |
 
@@ -137,7 +138,7 @@ Sources: [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md), this file, [ERROR_UX.md]
 
 | Area | Status | Notes |
 |---|---|---|
-| Self-serve vs ops gating (Request / Add / Prompt edit) | **Present** | Gated by `userCreated`; seeded AMD templates act as ops-managed |
+| Self-serve vs ops gating | **Present** | **Request New Section = ops-managed only.** Self-serve: + Add section + Prompt edit. |
 | Self-serve vs Ops-managed **list tabs** | **Present** | Tabs with counts; seeded `General 3 — Custom` + `Follow Up — My Push` |
 | `Office Visit > Title Case` mapping + picker | **Present** | Chips, picker, char limits aligned |
 | Cat 2 Connect EHR / fetch at create | **Missing** | Create is Starting point → Describe → Review; no EHR template pick |
@@ -163,6 +164,7 @@ Sources: [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md), this file, [ERROR_UX.md]
 | 2026-08-10 | Cleaned branch layout: removed stale `My Templates.html` + junk; moved design assets to `design/` |
 | 2026-08-10 | Compared branch vs PRD for AMD; logged scoreboard above |
 | 2026-08-10 | Added **Ops-managed / Self-serve** template list tabs + ownership badge/hint; seeded two self-serve AMD templates |
+| 2026-08-10 | Corrected: **Request New Section is ops-managed only** (self-serve adds sections directly) |
 
 ### Footnotes — dropped / superseded
 
