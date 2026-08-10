@@ -468,7 +468,9 @@ Doctors who want a template beyond what ops provides can create one themselves.
 
 **CharmHealth exception:** Field list cannot be re-fetched after creation. Doctor can remap from the existing list; Contact support if the list is stale.
 
-**AMD-specific:** **Push setting** — global with per-section override. **Character limit** — global only. Per-field `max_character_length` from AMD informs too-long errors.
+**AMD-specific:** **Push setting** — global with per-section override. Per-field `max_character_length` from AMD informs too-long errors.
+
+**DrChrono + AMD:** **Character limit** — global only (never per-section). DrChrono has no per-field max from the API in the prototype.
 
 ---
 
