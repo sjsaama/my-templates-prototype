@@ -133,7 +133,6 @@ Branch `cursor/amd-ehr-34b9` — visual / UX only. EHR locked to AMD. Entry: `in
 | **Reset to default** | ✅ only | ❌ — no ops default to restore |
 | **Request New Section** | ✅ only ††† | ❌ |
 | **+ Add section** / **Prompt** edit | ❌ | ✅ |
-| Seeded | General 1–3, First Visit, Follow Up, Neuro, AVS, Letters, DDx | `General 3 — Custom`, `Follow Up — My Push` |
 
 ### Subtle UI elements
 
