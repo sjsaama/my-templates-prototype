@@ -128,7 +128,7 @@ Branch `cursor/amd-ehr-34b9` — visual / UX only. EHR locked to AMD. Entry: `in
 | Capability | Ops-managed | Self-serve |
 | ---------- | ----------- | ---------- |
 | List tab | ✅ | ✅ |
-| Remap + output settings + global Push / Character limit | ✅ | ✅ |
+| Remap + output settings + global Push setting / Character limit | ✅ | ✅ |
 | Preview / Save / Reset | ✅ | ✅ |
 | **Request New Section** | ✅ only ††† | ❌ |
 | **+ Add section** / **Prompt** edit | ❌ | ✅ |
@@ -169,7 +169,7 @@ Open: surface allowed values in prompt editor; vs YAML `extract_boolean_value` (
 | Parent mapping | Whole vs map subsections individually |
 | Dropped chrome | No STATIC badge; no EHR Pull / File Upload ghost rows † |
 
-*(Push setting, Character limit, and push-error actions — see Settings and Push errors above.)*
+*(Push setting + push-error actions — see Settings and Push errors. Character limit is global-only.)*
 
 ### Gaps
 
