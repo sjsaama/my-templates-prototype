@@ -46,7 +46,8 @@ This is the primary product split. Template list tabs: **Ops-managed** / **Self-
 |---|---|---|
 | View sections + EHR mappings | ✅ | ✅ |
 | Remap fields (per EHR category rules) | ✅ | ✅ |
-| Output settings (where Cat 1 / Cat 2) | ✅ | ✅ |
+| Output settings (Additional text, Default negative) | ✅ | ✅ |
+| Global Character limit + separators / line-break settings | ✅ | ✅ |
 | Preview / Save | ✅ | ✅ |
 | **Reset to default** | ✅ | ❌ — no ops default to restore |
 | **Request New Section** | ✅ | ❌ — use **+ Add section** |
@@ -105,34 +106,26 @@ If a push fails because the EHR field mapping is wrong, the doctor can pick a di
 
 Per-section settings opened via the sliders (⊟) button on each section row. Only shown for Cat 1 and Cat 2 EHRs — hidden for Cat 3 (auto-push, no field config) and Cat 4 (no push).
 
-> **Note:** "How subsections combine" (include headings, skip empty) and subsection spacing (single/double line) are template-level settings that live in the **Settings Portal**, not My Templates. They are out of scope here.
-
-**Content shaping** — Cat 1 and Cat 2 EHRs
+**Content shaping** — Cat 1 and Cat 2 EHRs (per section only)
 
 | Setting | What it does | Where it appears |
 |---|---|---|
 | Additional text | Fixed text placed before or after section content on push. Doctor picks Before or After from a dropdown. Replaces old pre-literal / post-literal fields. | Output settings panel |
 | Default negative | Text pushed when section has no generated content (e.g. "Not reported") | Output settings panel |
-| Character limit | Read-only — set by EHR field, shown for reference | Output settings panel (all EHRs where the field has a limit) |
-| Can push (AMD checkbox) | AMD only. A checkbox field in AMD is a **distinct field type** returned separately by the AMD template API — it is not merged into the adjacent text field. Checkbox fields appear in the **same field picker dropdown** as text fields; the doctor selects one as the mapping destination, same as any other field. The pushed value is determined by the section's AI prompt output, which must be written to output one of the checkbox field's allowed values (these come through in the same API fetch as the field names). Both the checkbox field and text field are mapped independently as separate sections, even when they relate to the same logical concept (e.g. chief complaint enable + chief complaint text = two separate mappings). Common case: chief complaint = CC Enable (checkbox) + CC Text (text field), both pushed. | Field picker (AMD — checkbox fields appear alongside text fields in the dropdown) |
-| Section separator | Separator character/string inserted between sections on push | Output settings panel (Veradigm) |
-| Subsection separator | Separator character/string inserted between subsections on push | Output settings panel (Veradigm) |
-| Default line separator | Default separator used for all line breaks in pushed content | Output settings panel (Veradigm) |
+
+> Character limit, section / subsection / line separators, and EHR line-break requirements live under **Template-level settings (global)** below — do not repeat them on the section panel.
 
 > **Removed:** "Keep bullet points" toggle is out of scope for v1 — stripped from prototype.
-
-**EHR-specific line-break requirements**
-
-| EHR | Requirement |
-|---|---|
-| ECW | Uses a non-standard line-break character — content must be formatted accordingly before push |
-| Veradigm | Requires `\r\n` (CRLF) line endings — plain `\n` will render incorrectly in the EHR |
 
 **Write mode** — AMD only
 
 | Setting | What it does |
 |---|---|
 | Prepend / Replace / Append | How Marvix content relates to text already in the EHR field |
+
+**AMD checkbox fields** (not a global setting)
+
+A checkbox field in AMD is a **distinct field type** from the AMD template API — not merged into the adjacent text field. Checkboxes appear in the **same field picker** as text fields; the doctor maps a section to one as the destination. Allowed values come from the same API fetch. Dual mapping (e.g. CC Enable + CC Text) = two independent sections. How the pushed value is chosen is open — see Open questions.
 
 **Veradigm — push as note vs. push as document**
 
@@ -284,18 +277,22 @@ Configured by ops or practice admin. Doctors do not see or control these.
 
 ### Template-level settings (global per template)
 
-Apply to the whole template — not per section. Doctor can set these.
+Apply to the whole template — not per section. Doctor can set these in My Templates (template settings bar / Settings). Do **not** also show them in the per-section output panel.
 
 | Setting | EHR | What it controls |
 |---|---|---|
-| Default line separator | Veradigm | Separator used for all line breaks in pushed content. |
-| Section separator | Veradigm | Separator inserted between top-level sections on push. |
-| Subsection separator | Veradigm | Separator inserted between child subsections on push. |
-| Character limit (if EHR applies globally) | All applicable | ⚠️ TBD — currently shown per section. May need to become a template-level default if the EHR enforces a single limit across all fields. |
+| **Character limit** | All applicable (Cat 1 / Cat 2) | Global only — max length for pushed content on this template. Informed by EHR field limits where known (e.g. AMD `max_character_length`). Not editable per section. |
+| **Section separator** | Cat 1 / Cat 2 (incl. Veradigm) | String inserted between top-level / parent sections when joined (e.g. two parents → one EHR field) |
+| **Subsection separator** | Cat 1 / Cat 2 (incl. Veradigm) | String inserted between child subsections when a parent is joined into one field |
+| **Default line separator** | Veradigm; also where configurable | Separator used for all line breaks in pushed content. Veradigm requires `\r\n` (CRLF) — plain `\n` renders incorrectly. |
+| **Line separator (ECW)** | ECW (HL7 main) | Replaces `\n` before S3 upload (e.g. `\X0A\`). Required for HL7 ORU formatting. Not used for Selective Copy (Scribe-it). |
+| How subsections combine | Cat 1 / Cat 2 | Include headings, skip empty, spacing — **Settings Portal** / Template Settings (`push_subsections`, `retain_headings`, `skip_empty_subsections`) |
+
+> **Not global settings:** AMD checkbox fields (field type in the mapping picker — see Adjust section output settings). Write mode (AMD) may remain global-with-override separately — see Write mode above.
 
 ### Section-level settings
 
-Per-section, configured in the output settings panel (sliders button). See "Adjust section output settings" above for the full list.
+Per-section, configured in the output settings panel (sliders): **Additional text**, **Default negative**, and AMD **Write mode** where applicable. Separators, character limit, and line-break rules are template-global only.
 
 ---
 
