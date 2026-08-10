@@ -177,7 +177,7 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
     setTplIds((arr) => (arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]));
 
   const send = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !desc.trim() || !ehr.trim()) return;
     onSubmit({
       name: name.trim(),
       description: desc.trim(),
@@ -204,9 +204,9 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
               <input className="req-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Allergy History" />
             </div>
             <div className="req-field">
-              <label>Map to EHR field <span className="req-optional">Optional</span></label>
+              <label>Map to EHR field</label>
               <input className="req-input" value={ehr} onChange={(e) => setEhr(e.target.value)}
-                placeholder="Which EHR field?" />
+                placeholder="Which EHR field should this map to?" />
             </div>
           </div>
 
@@ -281,4 +281,419 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
   );
 }
 
-Object.assign(window, { ConnectionsModal, ConfirmModal, DisableConfirmModal, RequestNewSectionModal });
+const DERIVATIVE_OPTIONS = ["Clinical Note", "After Visit Summary", "Letter", "Other"];
+
+// ── Template Gallery Step ─────────────────────────────────────────────────
+function TemplateGalleryStep({ templates, sectionsByTpl, selected, onSelect }) {
+  const [previewId, setPreviewId] = useStateM(null);
+  const starters = window.STARTER_TEMPLATES || [];
+
+  const getPreviewData = (id) => {
+    const starter = starters.find(t => t.id === id);
+    if (starter) return { name: starter.name, specialty: starter.specialty, sections: starter.sections, sampleOutput: starter.sampleOutput };
+    const myTpl = (templates || []).find(t => t.id === id);
+    if (myTpl) {
+      const secs = (sectionsByTpl || {})[id] || [];
+      const flat = [];
+      const walk = (list) => list.forEach(s => { flat.push(s); if (s.children) walk(s.children); });
+      walk(secs);
+      return { name: myTpl.name, specialty: myTpl.derivative || "", sections: flat.map(s => ({ id: s.id, name: s.name, prompt: s.prompt || "" })), sampleOutput: window.SAMPLE_OUTPUT || {} };
+    }
+    return null;
+  };
+
+  const preview = previewId ? getPreviewData(previewId) : null;
+
+  if (preview) {
+    return (
+      <div className="gallery-preview-full">
+        <button className="gallery-preview-back" onClick={() => setPreviewId(null)}>← Back to templates</button>
+        <div className="gallery-preview-meta">
+          <span className="gallery-preview-title">{preview.name}</span>
+          {preview.specialty && <span className="gallery-card-tag">{preview.specialty}</span>}
+        </div>
+        <div className="gallery-preview-note">
+          {preview.sections.map(s => (
+            <div key={s.id} className="gallery-preview-section">
+              <div className="gallery-preview-section-name">{s.name.toUpperCase()}</div>
+              <div className="gallery-preview-section-text">{preview.sampleOutput[s.id] || s.prompt || "—"}</div>
+            </div>
+          ))}
+        </div>
+        <div className="gallery-preview-foot">
+          <button className="btn-teal" onClick={() => { onSelect(previewId); setPreviewId(null); }}>
+            {selected === previewId ? "✓ Selected" : "Use this template"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="gallery-wrap">
+      <div className="gallery-grid">
+        {/* Blank */}
+        <div className={"gallery-card gallery-card--blank" + (selected === "__blank__" ? " gallery-card--on" : "")}
+          onClick={() => onSelect("__blank__")}>
+          <div className="gallery-card-blank-body">
+            <span className="gallery-blank-plus">+</span>
+            <span className="gallery-blank-label">Start blank</span>
+          </div>
+        </div>
+        {/* Starter templates */}
+        {starters.map(t => (
+          <div key={t.id} className={"gallery-card" + (selected === t.id ? " gallery-card--on" : "")}
+            onClick={() => onSelect(t.id)}>
+            <div className="gallery-card-body">
+              {t.sections.slice(0, 4).map(s => (
+                <div key={s.id} className="gallery-mini-section">
+                  <div className="gallery-mini-heading">{s.name}</div>
+                  <div className="gallery-mini-text">{(t.sampleOutput[s.id] || s.prompt || "").slice(0, 80)}{(t.sampleOutput[s.id] || "").length > 80 ? "…" : ""}</div>
+                </div>
+              ))}
+              {t.sections.length > 4 && <div className="gallery-mini-more">+{t.sections.length - 4} more</div>}
+            </div>
+            <div className="gallery-card-footer">
+              <span className="gallery-card-name">{t.name}</span>
+              {t.specialty && <span className="gallery-card-tag">{t.specialty}</span>}
+              <button className="gallery-preview-btn" onClick={e => { e.stopPropagation(); setPreviewId(t.id); }}>Preview</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {templates && templates.length > 0 && (
+        <div className="gallery-mytpls">
+          <div className="gallery-section-label">Or copy from my templates</div>
+          <div className="gallery-my-list">
+            {templates.map(t => (
+              <div key={t.id} className={"gallery-my-item" + (selected === t.id ? " gallery-my-item--on" : "")}
+                onClick={() => onSelect(t.id)}>
+                <span className="gallery-my-name">{t.name}</span>
+                <span className="gallery-my-tag">{t.derivative}</span>
+                <button className="gallery-preview-btn" onClick={e => { e.stopPropagation(); setPreviewId(t.id); }}>Preview</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate }) {
+  const I = window.Icons;
+  const [step, setStep] = useStateM(1);
+  const [gallerySelection, setGallerySelection] = useStateM("__blank__");
+  const [name, setName] = useStateM("");
+  const [desc, setDesc] = useStateM("");
+  const [type, setType] = useStateM("Clinical Note");
+
+  useEffectM(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Pre-fill name/desc/type when a starter is selected
+  useEffectM(() => {
+    const starter = (window.STARTER_TEMPLATES || []).find(t => t.id === gallerySelection);
+    if (starter) {
+      if (!name) setName(starter.name);
+      if (!desc) setDesc(starter.description);
+    }
+  }, [gallerySelection]);
+
+  const ehrCat = (window.EHR_CATEGORY || {})[ehr];
+  const ehrLabel = (ehrCat && ehrCat.label) || ehr || "your EHR";
+  const totalSteps = 3;
+  const stepLabel = (n) => ({ 1: "Starting point", 2: "Describe", 3: "Review" }[n]);
+
+  const step1Valid = true; // gallery always has a selection (blank by default)
+  const step2Valid = name.trim() && desc.trim();
+
+  const copyFromId = gallerySelection === "__blank__" ? null : gallerySelection;
+
+  const handleCreate = () => {
+    onCreate({
+      name: name.trim(),
+      description: desc.trim(),
+      type,
+      copyFromId,
+    });
+  };
+
+  return (
+    <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal modal--create-tpl" role="dialog" aria-modal="true">
+
+        <div className="modal-head">
+          <h2>Create a template</h2>
+          <span className="modal-sub">You'll configure sections and EHR mapping after creation</span>
+          <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
+        </div>
+
+        {/* Step indicator */}
+        <div className="create-steps">
+          {Array.from({ length: totalSteps }, (_, i) => i + 1).map(n => (
+            <div key={n} className={"create-step" + (n === step ? " create-step--active" : "") + (n < step ? " create-step--done" : "")}>
+              <span className="create-step-num">{n < step ? "✓" : n}</span>
+              <span className="create-step-label">{stepLabel(n)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className={"modal-body" + (step === 1 ? " modal-body--gallery" : "")}>
+
+          {/* ── Step 1: Gallery ── */}
+          {step === 1 && (
+            <TemplateGalleryStep
+              templates={templates}
+              sectionsByTpl={sectionsByTpl}
+              selected={gallerySelection}
+              onSelect={setGallerySelection}
+            />
+          )}
+
+          {/* ── Step 2: Describe ── */}
+          {step === 2 && (
+            <div className="create-step-body">
+              <div className="req-field">
+                <label>Template name</label>
+                <input className="req-input" value={name} autoFocus
+                  onChange={e => setName(e.target.value)}
+                  placeholder="e.g. Cardiology Follow-up" />
+              </div>
+              <div className="req-field">
+                <label>What is this template for?</label>
+                <textarea className="req-input req-textarea" value={desc} rows={3}
+                  onChange={e => setDesc(e.target.value)}
+                  placeholder="Describe the visit type, specialty, or patient population this template should cover…" />
+                <div className="adv-field-hint">This helps ops review and onboard the template correctly. No AI is used.</div>
+              </div>
+              <div className="req-field">
+                <label>Document type</label>
+                <div className="create-type-row">
+                  {DERIVATIVE_OPTIONS.map(opt => (
+                    <button key={opt}
+                      className={"create-type-btn" + (type === opt ? " create-type-btn--on" : "")}
+                      onClick={() => setType(opt)}>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 3: Review ── */}
+          {step === 3 && (
+            <div className="create-step-body">
+              <div className="create-review-notice">
+                <p className="create-review-lead">Review your template before creating.</p>
+              </div>
+              <table className="create-review-table">
+                <tbody>
+                  <tr><td>Name</td><td><strong>{name}</strong></td></tr>
+                  <tr><td>Type</td><td>{type}</td></tr>
+                  <tr><td>Purpose</td><td>{desc}</td></tr>
+                  <tr><td>EHR</td><td>{ehrLabel}</td></tr>
+                  <tr><td>Starting point</td><td>{
+                    gallerySelection === "__blank__" ? "Blank template" :
+                    ((window.STARTER_TEMPLATES || []).find(t => t.id === gallerySelection) || (templates || []).find(t => t.id === gallerySelection) || {}).name || "Unknown"
+                  }</td></tr>
+                </tbody>
+              </table>
+              <p className="create-review-hint">
+                After creation you'll be taken to the template editor where you can configure sections and EHR field mappings.
+              </p>
+            </div>
+          )}
+
+        </div>
+
+        <div className="modal-foot">
+          {step > 1
+            ? <button className="btn-ghost" onClick={() => setStep(s => s - 1)}>Back</button>
+            : <button className="btn-ghost" onClick={onClose}>Cancel</button>}
+          {step < totalSteps
+            ? <button className="btn-teal" onClick={() => setStep(s => s + 1)}
+                disabled={step === 2 ? !step2Valid : false}>
+                Next
+              </button>
+            : <button className="btn-teal" onClick={handleCreate}>Create template</button>}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ── Add Section / Add Subsection ──────────────────────────────────────────
+// Header + Prompt, written by the doctor — no AI drafting. For Cat 1 (fixed field list) and
+// Cat 2 (fetch-based, once fetched) EHRs, the section must be tied to an available field first.
+// Cat 3 (auto push) and Cat 4 (no push) skip the field picker entirely — nothing to map to.
+function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreate }) {
+  const I = window.Icons;
+  const [name, setName] = useStateM("");
+  const [prompt, setPrompt] = useStateM("");
+  const [field, setField] = useStateM("");
+  const [query, setQuery] = useStateM("");
+
+  useEffectM(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const cat = ehrCat || {};
+  const needsFieldPick = (cat.cat === 1 || cat.cat === 2) && cat.fieldSource !== "none";
+  const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || [];
+  const used = usedFields || [];
+  const filteredGroups = needsFieldPick
+    ? groups
+        .map((g) => ({
+          ...g,
+          fields: g.fields.filter((f) => {
+            if (used.includes(f)) return false;
+            const label = f.split(" > ").pop();
+            return label.toLowerCase().includes(query.toLowerCase()) || g.group.toLowerCase().includes(query.toLowerCase());
+          }),
+        }))
+        .filter((g) => g.fields.length > 0)
+    : [];
+
+  const canSubmit = name.trim() && prompt.trim() && (!needsFieldPick || field);
+
+  const submit = () => {
+    if (!canSubmit) return;
+    onCreate({ name: name.trim(), prompt: prompt.trim(), field: field || "" });
+  };
+
+  return (
+    <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal modal--add-section" role="dialog" aria-modal="true">
+        <div className="modal-head">
+          <h2>{parentName ? "Add subsection" : "Add section"}</h2>
+          <span className="modal-sub">{parentName ? "Under " + parentName : "Header and prompt — you write both, no AI drafting"}</span>
+          <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
+        </div>
+
+        <div className="modal-body">
+          {needsFieldPick && (
+            <div className="req-field">
+              <label>Map to {cat.label || ehr} field</label>
+              <input className="req-input" placeholder="Search fields…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+              <div className="add-section-field-list">
+                {filteredGroups.length === 0 ? (
+                  <div className="mapping-picker-empty">No unused fields match{query ? ` "${query}"` : ""}.</div>
+                ) : (
+                  filteredGroups.map((g) => (
+                    <div key={g.group}>
+                      <div className="mapping-picker-group-label">{g.group}</div>
+                      {g.fields.map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          className={"mapping-picker-field" + (f === field ? " mapping-picker-field--selected" : "")}
+                          onClick={() => { setField(f); if (!name.trim()) setName(f.split(" > ").pop()); }}
+                        >
+                          <span>{f.split(" > ").pop()}</span>
+                          {f === field && <span className="mapping-picker-check"><I.check /></span>}
+                        </button>
+                      ))}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="req-field">
+            <label>Header</label>
+            <input className="req-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Allergy History" autoFocus={!needsFieldPick} />
+          </div>
+
+          <div className="req-field">
+            <label>Prompt</label>
+            <textarea className="req-input req-textarea" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Tell the AI what to write in this section…" />
+            <div className="adv-field-hint">This is the actual instruction the AI follows — write it the way you'd want this section described.</div>
+          </div>
+        </div>
+
+        <div className="modal-foot">
+          <button className="btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn-teal" disabled={!canSubmit} onClick={submit}>
+            {parentName ? "Add subsection" : "Add section"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Preview Output Modal ───────────────────────────────────────────────────
+function PreviewModal({ sections, tpl, onClose }) {
+  const [transcriptOpen, setTranscriptOpen] = useStateM(false);
+  const enabled = window.collectEnabledSections(sections);
+  const SAMPLE = window.SAMPLE_OUTPUT;
+
+  useEffectM(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal modal--preview" role="dialog" aria-modal="true">
+        <div className="modal-head">
+          <h2>Output preview</h2>
+          <span className="modal-sub">Based on your current section settings</span>
+          <button className="modal-x" onClick={onClose} aria-label="Close"><window.Icons.close /></button>
+        </div>
+
+        <div className="modal-body preview-body">
+          {/* Collapsible transcript */}
+          <div className="preview-transcript-wrap">
+            <button className="preview-transcript-toggle" onClick={() => setTranscriptOpen(o => !o)}>
+              <span>Sample transcript</span>
+              <span className="preview-chevron">{transcriptOpen ? "▲" : "▼"}</span>
+            </button>
+            {transcriptOpen && (
+              <pre className="preview-transcript-text">{window.SAMPLE_TRANSCRIPT}</pre>
+            )}
+          </div>
+
+          {/* Note output */}
+          <div className="preview-note-wrap">
+            <div className="preview-note-meta">
+              {tpl && <span className="preview-note-tpl">{tpl.name}</span>}
+              {tpl && tpl.ehr && <span className="preview-note-ehr">→ {tpl.ehr}</span>}
+            </div>
+            {enabled.length === 0 && (
+              <div className="preview-empty">All sections are disabled — enable at least one to see output.</div>
+            )}
+            {enabled.map(s => (
+              <div key={s.id} className="preview-section">
+                <div className="preview-section-name">{s.name}</div>
+                <div className="preview-section-text">
+                  {SAMPLE[s.id]
+                    ? SAMPLE[s.id]
+                    : (s.defaultNegative || "No content available for this section in the sample.")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="modal-foot">
+          <button className="btn-ghost" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { ConnectionsModal, ConfirmModal, DisableConfirmModal, RequestNewSectionModal, CreateTemplateModal, AddSectionModal, PreviewModal });
