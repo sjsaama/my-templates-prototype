@@ -156,6 +156,7 @@ function App() {
 
   const tpl = activeTpl ? templates.find((x) => x.id === activeTpl) : null;
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[t.ehr]) || {};
+  const caps = (window.ehrCapabilities || (() => ({})))(t.ehr);
   const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
   const pendingCount = pendingRequests.length;
   const groups = window.groupsFor(templates);
@@ -349,11 +350,11 @@ function App() {
                 </div>
               </header>
               {/* Cat 4 — no push integration notice */}
-              {ehrCat.cat === 4 && (
+              {caps.showCat4Notice && (
                 <div className="cat4-notice">
                   <span className="cat4-notice-icon">ℹ</span>
                   <span className="cat4-notice-text">
-                    <strong>{ehrCat.label}</strong> doesn't have a push integration — notes are copied manually after each visit. Section mapping isn't needed, but you can still configure content and style.
+                    <strong>{caps.label}</strong> doesn't have a push integration — notes are copied manually after each visit. Section mapping isn't needed, but you can still configure content and style.
                   </span>
                 </div>
               )}
