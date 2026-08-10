@@ -92,8 +92,6 @@ Set once per template. Apply as defaults across sections.
 | Subsection join / headings | `push_subsections`, `retain_headings`, `skip_empty_subsections`, `separator` | How parent + child text is combined into one EHR field. **Template Settings** (not per mapping row). |
 
 
-`line_separator` — ❌ not used for AMD (ECW HL7 only).
-
 ### Local — section output settings
 
 Opened via the sliders button on a section row (Cat 1 / Cat 2).
