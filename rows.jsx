@@ -514,7 +514,8 @@ function SectionRow({
             </div>
           </div>
         </div>
-        {/* EHR Mapping */}
+        {/* EHR Mapping — Cat 3 shows auto-push label (no section→field picker).
+            Template/document connection is template-level, not this cell — see CATEGORY_3.md. */}
         <div className="row-mapping">
           {(() => {
             const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
