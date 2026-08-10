@@ -371,7 +371,9 @@ function App() {
                 </div>
                 <div className="ed-head-right">
                   <button className="btn-ghost btn-sm" onClick={() => setPreviewOpen(true)}>Preview output</button>
-                  <button className="btn-ghost btn-sm" onClick={() => setResetConfirm(true)}>Reset to default</button>
+                  {!tpl.userCreated && (
+                    <button className="btn-ghost btn-sm" onClick={() => setResetConfirm(true)}>Reset to default</button>
+                  )}
                   <button className="btn-teal btn-sm" onClick={() => flash("Changes saved")}>Save changes</button>
                   {!tpl.userCreated && (
                     <button className="btn-outline btn-outline--req" onClick={() => {

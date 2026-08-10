@@ -129,7 +129,8 @@ Branch `cursor/amd-ehr-34b9` — visual / UX only. EHR locked to AMD. Entry: `in
 | ---------- | ----------- | ---------- |
 | List tab | ✅ | ✅ |
 | Remap + output settings + global Push setting / Character limit | ✅ | ✅ |
-| Preview / Save / Reset | ✅ | ✅ |
+| Preview / Save | ✅ | ✅ |
+| **Reset to default** | ✅ only | ❌ — no ops default to restore |
 | **Request New Section** | ✅ only ††† | ❌ |
 | **+ Add section** / **Prompt** edit | ❌ | ✅ |
 | Seeded | General 1–3, First Visit, Follow Up, Neuro, AVS, Letters, DDx | `General 3 — Custom`, `Follow Up — My Push` |
@@ -154,6 +155,7 @@ Open: surface allowed values in prompt editor; vs YAML `extract_boolean_value` (
 | Element | Subtlety |
 | ------- | -------- |
 | No Configuration column | Push setting: template bar + section override. Character limit: **template bar only** (global) |
+| Reset to default | **Ops-managed only** — restores ops default; absent on self-serve |
 | Shared field | Neutral **Shared** chip when 2+ sections map to one field — content joins in list order |
 | Parent mapping | Whole vs map subsections individually |
 | Dropped chrome | No STATIC badge; no EHR Pull / File Upload ghost rows † |

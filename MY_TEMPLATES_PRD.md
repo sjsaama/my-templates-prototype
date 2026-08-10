@@ -108,7 +108,9 @@ Setting is **template-level**, not user-level. Whether content is pushed as a no
 
 ### Reset to default
 
-Doctor can discard all their customizations for a template and restore the ops-configured default. Requires a confirmation step (lists what will be cleared: custom EHR mappings, section order, output settings).
+Doctor can discard customizations on an **ops-managed** template and restore the ops-configured default. Requires a confirmation step (lists what will be cleared: custom EHR mappings, section order, output settings).
+
+**Not shown on self-serve templates** — the doctor owns the template; there is no ops default to reset to.
 
 ### Request a new section
 
