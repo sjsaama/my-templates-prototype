@@ -95,6 +95,20 @@ This survives field reordering and ID reassignment. It **fails** if `page_name` 
 Living notes for branch `cursor/amd-ehr-34b9`. Visual / UX prototype — not production wiring.  
 Related: [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md), [ERROR_UX.md](ERROR_UX.md).
 
+### Repo layout (this branch)
+
+```
+index.html              # app entry (GitHub Pages)
+*.jsx / design-tokens.js
+MY_TEMPLATES_PRD.md     # product PRD
+BACKEND.md
+EHR_PUSH_FAILURE_LOG_ANALYSIS.md
+ehr_mapping/            # per-EHR docs — AMD notes live in AMD.md
+design/                 # Figma + screenshots (not runtime)
+  screenshots/
+.github/                # historical design-PR bodies
+```
+
 ### Prototype scope
 
 - Tweaks EHR switcher fixed to `AMD`; runtime `ehr` always `AMD`
@@ -125,6 +139,7 @@ Related: [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md), [ERROR_UX.md](ERROR_UX.m
 | 2026-08-10 | Unified path style to `Office Visit > Title Case` on seeded chips + picker |
 | 2026-08-10 | Merged `main` (PRD, `ehr_mapping/`, error-scenario + dual-mapping demos). Kept AMD lock; STATIC/ghost stay dropped |
 | 2026-08-10 | Consolidated prototype notes into this file; removed standalone AMD branch docs |
+| 2026-08-10 | Cleaned branch layout: removed stale `My Templates.html` + junk; moved design assets to `design/` |
 
 ### Footnotes — dropped / superseded
 

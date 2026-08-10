@@ -7,7 +7,7 @@
 
 ## Test plan
 
-- Open `My Templates.html` in a browser
+- Open `index.html` in a browser
 - Toggle **Tweaks → Row density** — list items, editor top padding, row height, and table gap all change
 - Confirm "Section Name" header lines up with row titles
 - Expand nested sections — tree indent is even at each depth
