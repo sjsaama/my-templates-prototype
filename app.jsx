@@ -78,6 +78,22 @@ const ERROR_SCENARIOS = {
   amd_invalid_value: [
     { id: "pi1", section: "Chief Complaint Enable", error: "Invalid field value", type: "invalid_value", msg: "'Chief Complaint Enable' contains a value AMD doesn't accept for this checkbox field. Contact support.", selfServe: false },
   ],
+  amd_template_deleted: [
+    { id: "pi1", section: "History of Present Illness", error: "AMD template removed", type: "template_deleted", msg: "Your AMD template was removed. Support has been notified to reconnect your template.", selfServe: false },
+    { id: "pi2", section: "Assessment & Plan", error: "AMD template removed", type: "template_deleted", msg: "Your AMD template was removed. Support has been notified to reconnect your template.", selfServe: false },
+  ],
+  amd_locked: [
+    { id: "pi1", section: "History of Present Illness", error: "Note locked", type: "locked", msg: "This note is locked in AMD and can't be edited. Contact support if this is unexpected.", selfServe: false },
+  ],
+  amd_provider_not_found: [
+    { id: "pi1", section: "History of Present Illness", error: "Provider not found", type: "provider_not_found", msg: "Your provider account wasn't found in AMD. Contact support.", selfServe: false },
+  ],
+  amd_prev_note_fetch: [
+    { id: "pi1", section: "History of Present Illness", error: "Previous note unavailable", type: "prev_note_fetch", msg: "Couldn't retrieve your previous note from AMD. Push was stopped — contact support.", selfServe: false },
+  ],
+  amd_auth: [
+    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to an authentication issue. Contact support.", selfServe: false },
+  ],
   veradigm_chart: [
     { id: "pi1", section: "History of Present Illness", error: "Chart not open", type: "chart_closed", msg: "Veradigm requires the patient's chart to be open before pushing. Open the chart and try again.", selfServe: true },
   ],
@@ -617,7 +633,7 @@ function App() {
         )}
         <TweakSection label="Simulate push error" />
         <TweakSelect label="Error scenario" value={t.errorScenario}
-          options={["none","amd_template_changed","amd_too_long","amd_no_permission","amd_invalid_value"]}
+          options={["none","amd_template_changed","amd_template_deleted","amd_too_long","amd_no_permission","amd_invalid_value","amd_locked","amd_provider_not_found","amd_prev_note_fetch","amd_auth"]}
           onChange={(v) => setTweak("errorScenario", v)} />
         <TweakSection label="Advanced mapping demos" />
         <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}

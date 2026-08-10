@@ -320,6 +320,8 @@ No `push_errors` DB table — failures go to ops email + CloudWatch only. In-app
 
 \* Remap only if the section was mapped to the wrong control type (e.g. text↔checkbox); not the default action for bad prompt output.
 
+**Tweaks (prototype):** `amd_too_long`, `amd_template_changed`, `amd_template_deleted`, `amd_no_permission`, `amd_invalid_value`, `amd_locked`, `amd_provider_not_found`, `amd_prev_note_fetch`, `amd_auth`.
+
 ### End-to-end resolve loop (all types)
 
 ```
