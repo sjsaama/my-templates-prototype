@@ -19,4 +19,4 @@ These were cross-cutting drafts. Product truth is now in `MY_TEMPLATES_PRD.md` +
 |---|---|
 | [ERROR_UX.md](ERROR_UX.md) | Doctor error UX + copy live in the PRD "Push errors" section. Per-EHR files already list exceptions. This draft was incomplete (missing several PRD scenarios) and had a duplicated CharmHealth block. |
 | [SHARED_CONFIG.md](SHARED_CONFIG.md) | Ops YAML key dump. Stale vs PRD (e.g. keep-bullets out of v1; subsection combine → Settings Portal; write mode AMD-only). Each per-EHR file already lists which `config` keys apply. |
-| [PROPERTY_CHANGE_IMPACT.md](PROPERTY_CHANGE_IMPACT.md) | Cross-EHR "what breaks" matrix. Duplicates the "What breaks the mapping" tables already in each per-EHR file; Marvix-side `template_id` / `key_name` notes are covered in `BACKEND.md` + the PRD. |
+| [PROPERTY_CHANGE_IMPACT.md](PROPERTY_CHANGE_IMPACT.md) | Cross-EHR "what breaks" matrix. Duplicates the "What breaks the mapping" tables already in each per-EHR file; Marvix-side `template_id` / `key_name` notes are covered in `docs/BACKEND.md` + the PRD. |
