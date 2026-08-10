@@ -607,7 +607,7 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
   const [prompt, setPrompt] = useStateM("");
   const [field, setField] = useStateM("");
   const [query, setQuery] = useStateM("");
-  // none = normal free-text section; icd / em = codes absorbed into this section, then mapped
+  // none = normal free-text section; icd / cpt = codes absorbed into this section, then mapped
   const [codeSource, setCodeSource] = useStateM("none");
 
   useEffectM(() => {
@@ -648,14 +648,14 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
       name: name.trim(),
       prompt: prompt.trim(),
       field: field || "",
-      codeSource, // "none" | "icd" | "em"
+      codeSource, // "none" | "icd" | "cpt"
     });
   };
 
   const codeHint = {
     none: "Normal free-text section — AI writes prose for this header.",
-    icd: "ICD codes are absorbed into this section. Write a prompt for how codes should be produced, then map where they push.",
-    em: "EM codes are absorbed into this section. Write a prompt for how codes should be produced, then map where they push.",
+    icd: "ICD codes (icd10_codes) are absorbed into this section. Write a prompt, then map where they push.",
+    cpt: "CPT codes (cpt_codes) are absorbed into this section. Write a prompt, then map where they push.",
   }[codeSource];
 
   return (
@@ -673,8 +673,8 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
             <div className="create-type-row" role="group" aria-label="Section content type">
               {[
                 { id: "none", label: "Nothing" },
-                { id: "icd", label: "ICD codes" },
-                { id: "em", label: "EM codes" },
+                { id: "icd", label: "ICD (icd10_codes)" },
+                { id: "cpt", label: "CPT (cpt_codes)" },
               ].map((opt) => (
                 <button
                   key={opt.id}
@@ -699,7 +699,7 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
             <textarea className="req-input req-textarea" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)}
               placeholder={codeSource === "none"
                 ? "Tell the AI what to write in this section…"
-                : "Tell the AI how to produce " + (codeSource === "icd" ? "ICD" : "EM") + " codes for this section…"} />
+                : "Tell the AI how to produce " + (codeSource === "icd" ? "ICD (icd10_codes)" : "CPT (cpt_codes)") + " for this section…"} />
             <div className="adv-field-hint">You write the prompt — this is the instruction the AI follows.</div>
           </div>
 
@@ -730,8 +730,7 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
                 )}
               </div>
               <div className="adv-field-hint">
-                Maps within this template’s field list only.
-                {codeSource !== "none" ? " Whether ICD/EM can target other sub-templates — check with ops." : ""}
+                Maps within this template’s field list. Assumption: ICD/CPT can map to any field — confirm with ops if destinations should be restricted.
               </div>
             </div>
           )}

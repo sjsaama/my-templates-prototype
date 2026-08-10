@@ -366,7 +366,7 @@ The section-level inline strip is the primary action surface — the banner is a
 | EHR | What's undetectable |
 |---|---|
 | ECW | All note text failures — Lambda gets a 200 regardless |
-| DrChrono | All field-level failures — `save_note` swallows all exceptions |
+| DrChrono | Field / ICD / CPT / stale mapping failures often invisible to Lambda (`save_note` / warnings) — still show doctor error copy when known; not fixable for now |
 | CharmHealth | SOAP mode failures — no per-field errors returned |
 | Centricity (AthenaFlow) | ⚠️ Silently accepts mismatched field names — push appears to succeed even when content goes to the wrong field. Unresolved gap. |
 
