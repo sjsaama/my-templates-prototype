@@ -410,10 +410,9 @@ function SectionRow({
   const hasKids = !!(s.children && s.children.length);
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
-  const ehrCatMeta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
-  const ehrRowCat = ehrCatMeta.cat;
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
   // Nereg is Cat 2 but locked auto-map — no per-section output settings / remap.
-  const hasOutputSettings = (ehrRowCat === 1 || ehrRowCat === 2) && ehrCatMeta.canRemap !== false && ehrCatMeta.fieldSource !== "auto";
+  const hasOutputSettings = !!caps.hasOutputSettings;
   const promptOpen = !!s.promptOpen;
 
   // Dual-mapping demo override — applies to "Assessment & Plan" only
@@ -520,13 +519,13 @@ function SectionRow({
             Template/document connection is template-level, not this cell. */}
         <div className="row-mapping">
           {(() => {
-            const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
-            if (cat && (cat.cat === 3 || cat.fieldSource === "auto" || cat.canRemap === false) && cat.autoMsg) return (
-              <span className="mapping-auto-label" title={cat.autoMsg}>{cat.autoMsg}</span>
+            if (caps.showAutoMappingLabel) return (
+              <span className="mapping-auto-label" title={caps.autoMsg}>{caps.autoMsg}</span>
             );
-            if (cat && cat.cat === 4) return (
+            if (caps.showCat4Notice) return (
               <span className="mapping-no-push-label">No push</span>
             );
+            const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
             if (cat && cat.fieldsPending) return (
               <span className="mapping-pending-label" title="Field list not yet confirmed — ops will configure this">Field list pending</span>
             );

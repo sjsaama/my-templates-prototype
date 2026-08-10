@@ -550,7 +550,8 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
   }, []);
 
   const cat = ehrCat || {};
-  const needsFieldPick = (cat.cat === 1 || cat.cat === 2) && cat.fieldSource !== "none" && cat.fieldSource !== "auto" && cat.canRemap !== false;
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
+  const needsFieldPick = !!caps.needsFieldPick;
   const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || [];
   const used = usedFields || [];
   const filteredGroups = needsFieldPick
