@@ -197,7 +197,6 @@ Branch `cursor/drchrono-ehr-9d4d` — visual / UX only. EHR locked to DrChrono. 
 | **Field-level push visibility** | `save_note` swallows exceptions → no real push-issues banner | Needs Lambda change |
 | **ICD / CPT doctor UX** | Supported in backend via `sub_template_ids`; no My Templates UI | Needs design + template API access |
 | **DrChrono push activation** | Is push live for any practices? | Confirm with Vignesh |
-| **Append / prepend in doctor UI** | ~~YAML/ops only~~ → **Push setting** global + local like AMD | Done in prototype |
 | **Stale field detection** | No auto-remap; silent drop | Remap + ops until API surfaces failures |
 
 ### Changelog
