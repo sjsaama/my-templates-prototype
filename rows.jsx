@@ -36,9 +36,15 @@ function modeTagClass(mode) {
 // ── Mapping picker (right-side drawer) ────────────────────────────────────
 
 function fieldLabel(f) {
+  if (!f) return "";
   const labels = window.EHR_FIELD_LABELS || {};
   const raw = f.split(" > ").pop();
   return labels[raw] || labels[f] || raw;
+}
+
+function fieldMeta(path) {
+  if (window.amdFieldMeta) return window.amdFieldMeta(path);
+  return { type: "text" };
 }
 
 function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeIt, ehr, onSelect, onClose }) {
@@ -196,12 +202,18 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                       <div className="mapping-picker-group-label">{g.group}</div>
                       {g.fields.map(f => {
                         const isSelected = f === pendingEhr;
+                        const meta = fieldMeta(f);
+                        const isCheckbox = meta.type === "checkbox";
                         return (
                           <button key={f}
-                            className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
+                            className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "") + (isCheckbox ? " mapping-picker-field--checkbox" : "")}
                             onClick={() => setPendingEhr(f)}
                           >
-                            <span>{f.split(" > ").pop()}</span>
+                            <span className="mapping-picker-field-main">
+                              {isCheckbox && <span className="mapping-picker-cb-ico" aria-hidden="true">☑</span>}
+                              <span>{f.split(" > ").pop()}</span>
+                              {isCheckbox && <span className="mapping-type-tag">checkbox</span>}
+                            </span>
                             {isSelected && <span className="mapping-picker-check"><I.check /></span>}
                           </button>
                         );
@@ -212,6 +224,17 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
             </div>
             <div className="mapping-picker-foot">
               <button className="mapping-picker-clear" onClick={() => setPendingEhr("")}>Clear mapping — remove EHR destination</button>
+              {pendingEhr && fieldMeta(pendingEhr).type === "checkbox" && (
+                <div className="mapping-picker-checkbox-hint">
+                  <strong>Checkbox field</strong>
+                  {(fieldMeta(pendingEhr).allowedValues || []).length > 0 && (
+                    <span> — allowed values: {(fieldMeta(pendingEhr).allowedValues || []).join(", ")}</span>
+                  )}
+                  <div className="mapping-picker-checkbox-hint-sub">
+                    {fieldMeta(pendingEhr).hint || "Prompt must output one of the allowed values for AMD to accept the push."}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -280,19 +303,28 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride 
 
   const isEmpty = !s.ehr;
   const label = isEmpty ? "Not mapped" : fieldLabel(s.ehr);
+  const meta = fieldMeta(s.ehr);
+  const isCheckbox = !isEmpty && meta.type === "checkbox";
   return (
     <div className="mapping-cell-wrap">
       <button
-        className={"mapping-edit-btn" + (isEmpty ? " mapping-edit-btn--empty" : "")}
+        className={"mapping-edit-btn" + (isEmpty ? " mapping-edit-btn--empty" : "") + (isCheckbox ? " mapping-edit-btn--checkbox" : "")}
         onClick={() => onOpenMapping(s.id)}
         title={isEmpty ? "Click to assign an EHR field" : "Change EHR mapping: " + s.ehr}
       >
+        {isCheckbox && <span className="mapping-cb-ico" aria-hidden="true">☑</span>}
         <span className="mapping-edit-label">{label}</span>
+        {isCheckbox && <span className="mapping-type-tag">checkbox</span>}
         <span className="mapping-edit-ico"><I.pencil /></span>
       </button>
       {isDuplicate && (
         <span className="mapping-shared" title="Multiple sections push to this field — content is combined in section order">
           Shared
+        </span>
+      )}
+      {isCheckbox && meta.allowedValues && meta.allowedValues.length > 0 && (
+        <span className="mapping-cb-values" title="Allowed AMD checkbox values">
+          {meta.allowedValues.join(" · ")}
         </span>
       )}
     </div>
@@ -601,13 +633,22 @@ function SectionRow({
             <span className="row-push-error-msg">{pushIssue.msg}</span>
           </div>
           <div className="row-push-error-actions">
-            {(pushIssue.type === "mapping_broken") && hasOutputSettings && (
-              <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
-            )}
-            {pushIssue.selfServe
-              ? <button className="row-push-error-dismiss">Got it</button>
-              : <button className="row-push-error-support">Contact support</button>
-            }
+            {(() => {
+              const actions = (window.pushIssueActions || (() => ({})))(pushIssue);
+              return (
+                <>
+                  {actions.remap && hasOutputSettings && (
+                    <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
+                  )}
+                  {actions.gotIt && (
+                    <button className="row-push-error-dismiss">Got it</button>
+                  )}
+                  {actions.support && (
+                    <button className="row-push-error-support">Contact support</button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

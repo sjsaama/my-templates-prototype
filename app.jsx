@@ -70,10 +70,13 @@ const ERROR_SCENARIOS = {
     { id: "pi2", section: "Assessment & Plan", error: "AMD template updated", type: "template_changed", msg: "Your AMD template was updated and some field mappings are no longer valid. Support has been notified.", selfServe: false },
   ],
   amd_too_long: [
-    { id: "pi1", section: "History of Present Illness", error: "Content too long", type: "too_long", msg: "'History of Present Illness' is too long for this field (max 1,000 chars). Shorten your note and push again.", selfServe: true },
+    { id: "pi1", section: "History of Present Illness", error: "Content too long", type: "too_long", msg: "'History of Present Illness' is too long for this field (max 2,000 chars). Shorten your note and push again.", selfServe: true },
   ],
   amd_no_permission: [
     { id: "pi1", section: "History of Present Illness", error: "Permission denied", type: "permission", msg: "Marvix doesn't have permission to write to AMD. Ask your practice admin to check account permissions.", selfServe: false },
+  ],
+  amd_invalid_value: [
+    { id: "pi1", section: "Chief Complaint Enable", error: "Invalid field value", type: "invalid_value", msg: "'Chief Complaint Enable' contains a value AMD doesn't accept for this checkbox field. Contact support.", selfServe: false },
   ],
   veradigm_chart: [
     { id: "pi1", section: "History of Present Illness", error: "Chart not open", type: "chart_closed", msg: "Veradigm requires the patient's chart to be open before pushing. Open the chart and try again.", selfServe: true },
@@ -388,17 +391,23 @@ function App() {
                   </div>
                   <div className="push-issues-msg">{pushIssues[0].msg}</div>
                   <div className="push-issues-list">
-                    {pushIssues.map(issue => (
-                      <div key={issue.id} className="push-issues-item">
-                        <span className="push-issues-section">• {issue.section}</span>
-                        {(issue.type === "mapping_broken" || issue.selfServe) && (
-                          <button className="push-issues-remap" onClick={() => setRemapTarget(issue.section)}>Remap</button>
-                        )}
-                        {!issue.selfServe && (
-                          <button className="push-issues-support">Contact support</button>
-                        )}
-                      </div>
-                    ))}
+                    {pushIssues.map(issue => {
+                      const actions = (window.pushIssueActions || (() => ({})))(issue);
+                      return (
+                        <div key={issue.id} className="push-issues-item">
+                          <span className="push-issues-section">• {issue.section}</span>
+                          {actions.remap && (
+                            <button className="push-issues-remap" onClick={() => setRemapTarget(issue.section)}>Remap</button>
+                          )}
+                          {actions.gotIt && (
+                            <button className="push-issues-remap" onClick={() => setPushIssuesDismissed(true)}>Got it</button>
+                          )}
+                          {actions.support && (
+                            <button className="push-issues-support">Contact support</button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -522,7 +531,7 @@ function App() {
         )}
         <TweakSection label="Simulate push error" />
         <TweakSelect label="Error scenario" value={t.errorScenario}
-          options={["none","amd_template_changed","amd_too_long","amd_no_permission"]}
+          options={["none","amd_template_changed","amd_too_long","amd_no_permission","amd_invalid_value"]}
           onChange={(v) => setTweak("errorScenario", v)} />
         <TweakSection label="Advanced mapping demos" />
         <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}

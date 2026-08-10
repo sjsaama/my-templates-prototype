@@ -55,6 +55,20 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     defaultNegative: "Patient reports primary concern as documented in transcript.",
   },
   {
+    id: "s_cc_enable",
+    name: "Chief Complaint Enable",
+    ehr: "Office Visit > Chief Complaint Enable",
+    config: "Replace",
+    enabled: true,
+    macros: [],
+    summarizers: [],
+    staticStart: "",
+    staticEnd: "",
+    expanded: false,
+    defaultNegative: "No",
+    stylePrompt: "Output exactly one of the AMD checkbox allowed values: Yes or No — whether a chief complaint was documented for this visit.",
+  },
+  {
     id: "s_hpi",
     name: "History of Present Illness",
     ehr: "Office Visit > History of Present Illness",
@@ -386,8 +400,10 @@ const EHR_FIELDS_BY_SYSTEM = {
   AMD: [
     { group: "Office Visit", fields: [
       "Office Visit > Chief Complaint",
+      "Office Visit > Chief Complaint Enable",
       "Office Visit > History of Present Illness",
       "Office Visit > Review of Systems",
+      "Office Visit > ROS Complete",
       "Office Visit > Physical Exam",
       "Office Visit > Assessment & Plan",
       "Office Visit > Past Medical History",
@@ -653,6 +669,41 @@ const AMD_CHAR_LIMITS = {
   "Administrative > Follow-up Instructions": 1000,
 };
 
+// AMD field-type metadata. Checkbox fields are distinct AMD control types returned
+// by the template API alongside text fields — same picker, different push value rules.
+const AMD_FIELD_META = {
+  "Office Visit > Chief Complaint Enable": {
+    type: "checkbox",
+    allowedValues: ["Yes", "No"],
+    hint: "AMD checkbox control — prompt must output one of the allowed values",
+  },
+  "Office Visit > ROS Complete": {
+    type: "checkbox",
+    allowedValues: ["Y", "N"],
+    hint: "AMD checkbox control — prompt must output one of the allowed values",
+  },
+};
+
+function amdFieldMeta(path) {
+  if (!path) return { type: "text" };
+  return AMD_FIELD_META[path] || { type: "text" };
+}
+
+/** Which actions to show for a push-error issue (banner + row strip). */
+function pushIssueActions(issue) {
+  const type = (issue && issue.type) || "";
+  // Remap: mapping is wrong / stale — doctor can pick another field.
+  // Got it: doctor fixes outside My Templates (shorten note, finish check-in, open chart).
+  // Contact support: ops / practice admin must act.
+  if (type === "too_long" || type === "checkin" || type === "chart_closed") {
+    return { remap: false, gotIt: true, support: false };
+  }
+  if (type === "mapping_broken" || type === "template_changed") {
+    return { remap: true, gotIt: false, support: true };
+  }
+  return { remap: false, gotIt: false, support: true };
+}
+
 const SAMPLE_TRANSCRIPT = `Doctor: Good morning, Mrs. Chen. What brings you in today?
 Patient: Hi doctor. I've been having this chest tightness for about three days now. It's worse when I climb stairs.
 Doctor: Any shortness of breath or palpitations?
@@ -668,6 +719,7 @@ Patient: Okay, thank you doctor.`;
 
 const SAMPLE_OUTPUT = {
   s_cc:          "Chest tightness × 3 days, exertional, worse with stair climbing.",
+  s_cc_enable:   "Yes",
   s_hpi:         "Mrs. Chen is a patient presenting with a 3-day history of chest tightness that is exacerbated by exertion, specifically stair climbing. She also reports associated shortness of breath. No palpitations reported. No prior episodes of similar symptoms documented at this visit.",
   s_ros:         "Cardiovascular: Chest tightness, exertional dyspnea. Denies palpitations.\nRespiratory: Mild shortness of breath with exertion. Denies cough, wheezing.\nAll other systems reviewed and negative.",
   s_ros_general: "Denies fever, chills, fatigue, or unintentional weight change.",
@@ -790,6 +842,9 @@ Object.assign(window, {
   EHR_FIELDS_BY_SYSTEM,
   EHR_CATEGORY,
   AMD_CHAR_LIMITS,
+  AMD_FIELD_META,
+  amdFieldMeta,
+  pushIssueActions,
   EHR_TEMPLATES_BY_SYSTEM,
   SAMPLE_TRANSCRIPT,
   SAMPLE_OUTPUT,
