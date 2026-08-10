@@ -90,13 +90,13 @@ Raised per field when `SaveXNote` returns an error for a specific field. Bubbles
 
 - Token refresh failure → `ValueError` → retry
 - Note push failure → bare `Exception` (`"Note push failed: ..."`) → retry
-- **Cat 3 note:** No section→field remap UX. Destination template/document connection is still required — missing connection is ops-facing today (see [CATEGORY_3.md](CATEGORY_3.md)).
+- **Cat 3 note:** No section→field remap. Destination connection required; self-serve Connect EHR UI open question ([CATEGORY_3.md](CATEGORY_3.md)#open-questions).
 
 ### ModMed
 
 - Binary / S3 / DocumentReference failures → detectable via `response.ok` → ops
 - Encounter lookup from appointment can fail silently — push continues without encounter link
-- **Cat 3 note:** Same as Cerner — no field remap; template/document connection still required ([CATEGORY_3.md](CATEGORY_3.md)).
+- **Cat 3 note:** Same as Cerner ([CATEGORY_3.md](CATEGORY_3.md)#open-questions).
 
 ### ECW (main / HL7)
 
