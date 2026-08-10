@@ -49,22 +49,9 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 const EHR_OPTIONS = ["AMD"];
 const EHR_LOCKED = true;
 
+// AMD-scoped branch — only AMD push-error demos are wired into Tweaks.
 const ERROR_SCENARIOS = {
   none: [],
-  athena_checkin: [
-    { id: "pi1", section: "History of Present Illness", error: "Check-in not complete", type: "checkin", msg: "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again.", selfServe: true },
-    { id: "pi2", section: "Assessment & Plan", error: "Check-in not complete", type: "checkin", msg: "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again.", selfServe: true },
-  ],
-  athena_section: [
-    { id: "pi1", section: "History of Present Illness", error: "Field mapping broken", type: "mapping_broken", msg: "One or more sections failed to push. Support has been notified.", selfServe: false },
-    { id: "pi2", section: "Assessment & Plan", error: "Field mapping broken", type: "mapping_broken", msg: "One or more sections failed to push. Support has been notified.", selfServe: false },
-  ],
-  athena_transient: [
-    { id: "pi1", section: "History of Present Illness", error: "Athena API error", type: "transient", msg: "Something went wrong on Athena's end — we'll retry automatically. If this keeps happening, contact support.", selfServe: false },
-  ],
-  athena_auth: [
-    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to an authentication issue. Contact support.", selfServe: false },
-  ],
   amd_template_changed: [
     { id: "pi1", section: "History of Present Illness", error: "AMD template updated", type: "template_changed", msg: "Your AMD template was updated and some field mappings are no longer valid. Support has been notified.", selfServe: false },
     { id: "pi2", section: "Assessment & Plan", error: "AMD template updated", type: "template_changed", msg: "Your AMD template was updated and some field mappings are no longer valid. Support has been notified.", selfServe: false },
@@ -94,13 +81,26 @@ const ERROR_SCENARIOS = {
   amd_auth: [
     { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to an authentication issue. Contact support.", selfServe: false },
   ],
-  veradigm_chart: [
-    { id: "pi1", section: "History of Present Illness", error: "Chart not open", type: "chart_closed", msg: "Veradigm requires the patient's chart to be open before pushing. Open the chart and try again.", selfServe: true },
-  ],
-  veradigm_locked: [
-    { id: "pi1", section: "Assessment & Plan", error: "Encounter locked", type: "locked", msg: "This encounter is locked in Veradigm and can't be edited.", selfServe: false },
-  ],
 };
+
+const ERROR_SCENARIO_OPTIONS = Object.keys(ERROR_SCENARIOS);
+
+function PushIssueActionButtons({ issue, remapClass, gotItClass, supportClass, onRemap, onGotIt, showRemap }) {
+  const actions = (window.pushIssueActions || (() => ({})))(issue);
+  return (
+    <>
+      {actions.remap && showRemap !== false && onRemap && (
+        <button className={remapClass} onClick={onRemap}>Remap</button>
+      )}
+      {actions.gotIt && (
+        <button className={gotItClass} onClick={onGotIt || undefined}>Got it</button>
+      )}
+      {actions.support && (
+        <button className={supportClass}>Contact support</button>
+      )}
+    </>
+  );
+}
 
 function mapSectionTree(list, id, fn) {
   return list.map((s) => {
@@ -185,6 +185,7 @@ function App() {
   const [addSectionOpen, setAddSectionOpen] = useStateA(null); // { parentId: string|null } | null
 
   const tpl = activeTpl ? templates.find((x) => x.id === activeTpl) : null;
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
   const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
   const pendingCount = pendingRequests.length;
@@ -196,6 +197,12 @@ function App() {
     : [];
   const templatePushMode = (activeTpl && pushModeByTpl[activeTpl]) || "Prepend";
   const templateCharLimit = (activeTpl && charLimitByTpl[activeTpl]) || 2000;
+  const pushModeLabels = window.PUSH_MODE_LABELS || {
+    Prepend: "Insert before",
+    Append: "Insert after",
+    Replace: "Overwrite",
+  };
+  const showTemplateSettings = caps.hasPushMode || caps.hasCharLimit;
 
   const setSections = (fn) => {
     if (!activeTpl) return;
@@ -416,11 +423,11 @@ function App() {
                   )}
                 </div>
               </header>
-              {/* Connected AMD note template (self-serve Cat 2) */}
-              {tpl.userCreated && ehr === "AMD" && (
+              {/* Connected note template (self-serve Cat 2) */}
+              {tpl.userCreated && caps.needsConnectEhr && (
                 <div className="ehr-tpl-banner">
                   <div className="ehr-tpl-banner-left">
-                    <span className="ehr-tpl-banner-label">Connected AMD note template</span>
+                    <span className="ehr-tpl-banner-label">Connected {caps.label} note template</span>
                     {tpl.ehrTemplateName
                       ? <span className="ehr-tpl-banner-value">{tpl.ehrTemplateName}</span>
                       : <span className="ehr-tpl-banner-unset">Not connected — map fields from the list, or reconnect later</span>}
@@ -428,51 +435,55 @@ function App() {
                 </div>
               )}
 
-              {/* AMD global settings — Push setting + Character limit */}
-              {ehr === "AMD" && ehrCat.cat <= 2 && (
+              {/* Template-level settings driven by EHR capabilities */}
+              {showTemplateSettings && caps.hasOutputSettings && (
                 <div className="tpl-settings-stack">
-                  <div className="tpl-settings-bar">
-                    <span className="tpl-settings-label">Push setting</span>
-                    <div className="tpl-settings-seg" role="group" aria-label="Template push setting">
-                      {["Prepend", "Append", "Replace"].map((mode) => (
-                        <button
-                          key={mode}
-                          type="button"
-                          className={"tpl-settings-seg-btn" + (templatePushMode === mode ? " tpl-settings-seg-btn--on" : "")}
-                          onClick={() => applyTemplatePushMode(mode)}
-                        >
-                          {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
-                        </button>
-                      ))}
+                  {caps.hasPushMode && (
+                    <div className="tpl-settings-bar">
+                      <span className="tpl-settings-label">Push setting</span>
+                      <div className="tpl-settings-seg" role="group" aria-label="Template push setting">
+                        {["Prepend", "Append", "Replace"].map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            className={"tpl-settings-seg-btn" + (templatePushMode === mode ? " tpl-settings-seg-btn--on" : "")}
+                            onClick={() => applyTemplatePushMode(mode)}
+                          >
+                            {pushModeLabels[mode]}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="tpl-settings-hint">
+                        Template default — applies to every section. Override per section in output settings.
+                      </span>
                     </div>
-                    <span className="tpl-settings-hint">
-                      Template default — applies to every section. Override per section in output settings.
-                    </span>
-                  </div>
-                  <div className="tpl-settings-bar">
-                    <span className="tpl-settings-label">Character limit</span>
-                    <input
-                      className="tpl-settings-input"
-                      type="number"
-                      min="0"
-                      step="100"
-                      value={templateCharLimit}
-                      onChange={(e) => applyTemplateCharLimit(e.target.value)}
-                      aria-label="Template character limit"
-                    />
-                    <span className="tpl-settings-hint">
-                      Global only — applies to the whole template (no per-section override). AMD field max still informs too-long errors when mapped.
-                    </span>
-                  </div>
+                  )}
+                  {caps.hasCharLimit && (
+                    <div className="tpl-settings-bar">
+                      <span className="tpl-settings-label">Character limit</span>
+                      <input
+                        className="tpl-settings-input"
+                        type="number"
+                        min="0"
+                        step="100"
+                        value={templateCharLimit}
+                        onChange={(e) => applyTemplateCharLimit(e.target.value)}
+                        aria-label="Template character limit"
+                      />
+                      <span className="tpl-settings-hint">
+                        Global only — applies to the whole template (no per-section override). AMD field max still informs too-long errors when mapped.
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Cat 4 — no push integration notice */}
-              {ehrCat.cat === 4 && (
+              {caps.showCat4Notice && (
                 <div className="cat4-notice">
                   <span className="cat4-notice-icon">ℹ</span>
                   <span className="cat4-notice-text">
-                    <strong>{ehrCat.label}</strong> doesn't have a push integration — notes are copied manually after each visit. Section mapping isn't needed, but you can still configure content and style.
+                    <strong>{caps.label}</strong> doesn't have a push integration — notes are copied manually after each visit. Section mapping isn't needed, but you can still configure content and style.
                   </span>
                 </div>
               )}
@@ -492,23 +503,19 @@ function App() {
                   </div>
                   <div className="push-issues-msg">{pushIssues[0].msg}</div>
                   <div className="push-issues-list">
-                    {pushIssues.map(issue => {
-                      const actions = (window.pushIssueActions || (() => ({})))(issue);
-                      return (
-                        <div key={issue.id} className="push-issues-item">
-                          <span className="push-issues-section">• {issue.section}</span>
-                          {actions.remap && (
-                            <button className="push-issues-remap" onClick={() => setRemapTarget(issue.section)}>Remap</button>
-                          )}
-                          {actions.gotIt && (
-                            <button className="push-issues-remap" onClick={() => setPushIssuesDismissed(true)}>Got it</button>
-                          )}
-                          {actions.support && (
-                            <button className="push-issues-support">Contact support</button>
-                          )}
-                        </div>
-                      );
-                    })}
+                    {pushIssues.map(issue => (
+                      <div key={issue.id} className="push-issues-item">
+                        <span className="push-issues-section">• {issue.section}</span>
+                        <PushIssueActionButtons
+                          issue={issue}
+                          remapClass="push-issues-remap"
+                          gotItClass="push-issues-remap"
+                          supportClass="push-issues-support"
+                          onRemap={() => setRemapTarget(issue.section)}
+                          onGotIt={() => setPushIssuesDismissed(true)}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -633,7 +640,7 @@ function App() {
         )}
         <TweakSection label="Simulate push error" />
         <TweakSelect label="Error scenario" value={t.errorScenario}
-          options={["none","amd_template_changed","amd_template_deleted","amd_too_long","amd_no_permission","amd_invalid_value","amd_locked","amd_provider_not_found","amd_prev_note_fetch","amd_auth"]}
+          options={ERROR_SCENARIO_OPTIONS}
           onChange={(v) => setTweak("errorScenario", v)} />
         <TweakSection label="Advanced mapping demos" />
         <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}
@@ -644,4 +651,5 @@ function App() {
   );
 }
 
+Object.assign(window, { PushIssueActionButtons });
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
