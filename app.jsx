@@ -213,6 +213,7 @@ function App() {
       styleDetail: "Standard",
       styleFormat: "Prose",
       stylePrompt: data.prompt,
+      codeSource: data.codeSource || "none", // none | icd | em
     };
     const parentId = addSectionOpen.parentId;
     if (parentId) {
@@ -227,7 +228,11 @@ function App() {
       setSections((arr) => [...arr, newSection]);
     }
     setAddSectionOpen(null);
-    flash("Section added");
+    flash(data.codeSource === "icd"
+      ? "Section added — ICD codes absorbed"
+      : data.codeSource === "em"
+      ? "Section added — EM codes absorbed"
+      : "Section added");
   };
 
   const handleCreateTemplate = (data) => {

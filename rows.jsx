@@ -417,6 +417,8 @@ function SectionRow({
               onClick={(e) => e.stopPropagation()}
               aria-label="Section header"
             />
+            {s.codeSource === "icd" && <span className="mapping-type-tag" title="ICD codes absorbed into this section">ICD</span>}
+            {s.codeSource === "em" && <span className="mapping-type-tag" title="EM codes absorbed into this section">EM</span>}
             <div className="name-icons" style={{position:"relative"}}>
               {/* Macros icon */}
               <button type="button"

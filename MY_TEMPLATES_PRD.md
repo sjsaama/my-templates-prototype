@@ -97,7 +97,7 @@ Setting is **template-level**, not user-level. Whether content is pushed as a no
 | Mechanism | What it is |
 |---|---|
 | Append other derivative | A section can pull content from a derivative template (e.g. a summary template) and append it to the main note on push. Mechanism TBD — needs clarification from Vignesh. |
-| ICD / EM code mapping | Uses template ID in the mapping editor — a **separate mechanism** from append-other-derivative. ICD/CPT fields are not in the standard mapping table. |
+| **ICD / EM codes (Add Section)** | **Self-serve only.** On **+ Add section**, doctor chooses content type: **Nothing** (normal free-text), **ICD codes**, or **EM codes**. If ICD/EM, those codes are absorbed into that section; doctor writes the prompt and maps to a field in **this template’s field list**. Ops-managed: section already exists — doctor can **remap only** (no add / no prompt edit). **Open with ops:** can mapping reach other sub-templates, or only fields on the connected template? |
 | One section → two EHR fields | A single logical section (e.g. chief complaint) may map to two separate EHR destination fields — confirmed for AMD (checkbox field + text field). Both fields are mapped independently. For non-checkbox pairs, ordering may matter for how the EHR renders them — handling TBD. See open questions. |
 | Two sections → same EHR field | Multiple Marvix sections can share the same EHR destination field. This is valid and supported. Content from all mapped sections is combined in section order. The UI shows a neutral "Shared" label on the mapping chip (not a warning). |
 | First-line heading omit | Whether the first line (section heading) is stripped before push. Configurability unconfirmed — see open questions. |

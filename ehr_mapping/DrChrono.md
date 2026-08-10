@@ -21,14 +21,18 @@ No `ordinal` / `page_name` / per-field `max_character_length` (those are AMD).
 
 ---
 
-## Mapping (DrChrono-specific)
+## Mapping
 
-Standard section → free-text EHR field mapping applies here like other Cat 2 EHRs.
+Standard section → free-text EHR field mapping (general Cat 2). DrChrono field IDs are snake_case with human labels in the picker.
 
-| DrChrono delta | Detail |
+### ICD / EM codes — Add Section (general, not DrChrono-only)
+
+| Who | What they can do |
 | --- | --- |
-| Field ID format | Snake_case (`history_of_present_illness`), shown with human labels in the picker |
-| ICD / CPT | **Not** in the mapping picker. Routed by `ehr_field_name` (`icd10_codes` / `cpt_codes`) via `sub_template_ids` — separate mechanism; doctor UI not prototyped |
+| **Self-serve** | **+ Add section** → content type **Nothing / ICD codes / EM codes** → Header → Prompt → Map to a field on **this template**. ICD/EM codes are absorbed into that section. |
+| **Ops-managed** | Section already exists. Doctor **remaps only** (no add section, no prompt edit). |
+
+**Check with ops:** Mapping stays within this template’s field list — can ICD/EM also target other sub-templates?
 
 ---
 
@@ -37,7 +41,7 @@ Standard section → free-text EHR field mapping applies here like other Cat 2 E
 | Why | Effect | Needs ops? |
 | --- | --- | --- |
 | Field archived / template restructured in DrChrono | `ehr_field_id` stale — push fails **silently** | Yes — new IDs from template file |
-| Remap to another free-text field | Points at a different `ehr_field_id` | No — if list is current |
+| Remap to another field on this template | Points at a different `ehr_field_id` | No — if list is current |
 
 No AMD-style auto-remap. Remap in UI (or ops) once someone notices.
 
@@ -86,9 +90,9 @@ Branch `cursor/drchrono-ehr-9d4d` — EHR locked to DrChrono. Entry: `index.html
 | --- | --- | --- |
 | Remap, output settings, global Character limit | ✅ | ✅ |
 | Reset / Request New Section | ✅ | ❌ |
-| Add section / Prompt edit | ❌ | ✅ |
+| Add section (Nothing / ICD / EM) + Prompt | ❌ | ✅ |
 | Create → Connect EHR | ❌ | ✅ |
 
-**DrChrono deltas vs AMD:** snake_case free-text picker (no ICD/CPT, no checkboxes); Character limit global-only; no Push setting; Connect EHR uses `EHR_TEMPLATES_BY_SYSTEM.DrChrono`.
+**DrChrono deltas vs AMD:** snake_case picker (no checkboxes); Character limit global-only; no Push setting; Connect EHR uses `EHR_TEMPLATES_BY_SYSTEM.DrChrono`.
 
-**Open:** Lambda field-failure visibility; ICD/CPT doctor UX; push live status (Vignesh).
+**Open:** Lambda field-failure visibility; ICD/EM sub-template reach (ops); push live status (Vignesh).
