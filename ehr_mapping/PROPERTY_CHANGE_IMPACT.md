@@ -110,9 +110,20 @@ These live in the `templates` table and `json_template` JSON.
 
 | Property | Changed by | Impact |
 |---|---|---|
-| `ehr_template_id` | Not used — no field mapping | ✅ No impact |
-| `ehr_template_name` | Ops | ⚠️ Used as the PDF filename attached to the chart (`file_name` param) — affects the document name visible in Cerner, not routing |
+| `ehr_template_id` | Not used for field routing | ✅ No field-routing impact — template **connection** still required for destination document |
+| `ehr_template_name` | Ops | ⚠️ Used as the PDF filename attached to the chart (`file_name` param) — affects the document name visible in Cerner, not section routing |
 | Section structure | N/A — whole note pushed as one PDF | ✅ No per-section impact |
+
+---
+
+### ModMed
+
+| Property | Changed by | Impact |
+|---|---|---|
+| EHR template / document connection | Ops | ⚠️ Required so the PDF attaches to the right chart destination — exact id/name fields **confirm with tech** |
+| `ehr_template_name` / `ehr_template_id` | Ops | ⚠️ Usage less documented than Cerner — may affect document identity; not used for section field routing |
+| Section structure | N/A — whole note pushed as one PDF | ✅ No per-section impact |
+| Encounter lookup from appointment | Runtime | ⚠️ Failure is caught silently — PDF may land without encounter link |
 
 ---
 
@@ -120,13 +131,12 @@ These live in the `templates` table and `json_template` JSON.
 
 | Property | Changed by | Impact |
 |---|---|---|
-| `ehr_template_id` | Not used | ✅ No impact |
-| `ehr_template_name` | Not used | ✅ No impact |
-| Marvix section `key_name` | Ops (rename) | ❌ Nereg auto-maps using `key_name` as `ehr_field_name` — rename silently breaks the field mapping for that section |
+| `ehr_template_id` / `ehr_template_name` | Ops | ⚠️ Not used for *field* routing historically; EHR template **connection** still required for note context — confirm exact fields with tech |
+| Marvix section `key_name` | Ops (rename) / doctor | ❌ Nereg auto-maps using `key_name` as `ehr_field_name` — rename silently breaks the field mapping for that section |
 
 ---
 
-### Category 4 EHRs (Athena legacy, ECW FHIR, Greenway, ModMed, Tebra)
+### Category 4 EHRs (Athena legacy, ECW FHIR, Greenway, Tebra)
 
 No push — property changes have no mapping impact. Doctor copies note manually.
 

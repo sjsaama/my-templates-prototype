@@ -5,6 +5,7 @@ Per-EHR docs for the Extra Fields YAML used in the ops portal (`/v5/update_ehr_m
 See [SHARED_CONFIG.md](SHARED_CONFIG.md) for config keys and `append_other_derivatives_v2` that apply to all EHRs.
 See [PROPERTY_CHANGE_IMPACT.md](PROPERTY_CHANGE_IMPACT.md) for what breaks when template or section properties change, per EHR.
 See [ERROR_UX.md](ERROR_UX.md) for the error detection, popup, and self-service remap UX spec.
+See [CATEGORY_3.md](CATEGORY_3.md) for Cat 3 shared model (no field mapping, template connection required) and Cerner / ModMed / Nereg nuances.
 
 ---
 
@@ -28,13 +29,13 @@ Fields come from the doctor's EHR template. Portal needs a "fetch template" step
 | CharmHealth | [CharmHealth.md](CharmHealth.md) | `ehr_field_id` |
 
 ## Category 3 — Auto push, no field mapping
-Note pushed automatically. No mapping rows or dropdown. Ops may define section names in YAML but no template fetch is needed.
+No per-section field mapping / dropdown. **EHR template connection is still required** (destination document or note template). See [CATEGORY_3.md](CATEGORY_3.md) for shared model and per-EHR nuances.
 
-| EHR | File | How note is pushed |
-|---|---|---|
-| Cerner | [Cerner.md](Cerner.md) | Whole note as PDF via FHIR `DocumentReference` |
-| ModMed | [ModMed.md](ModMed.md) | Whole note as PDF via FHIR `DocumentReference` |
-| Nereg | [Nereg.md](Nereg.md) | Auto-mapped from section `key_name` at push time |
+| EHR | File | How note is pushed | Subtle difference |
+|---|---|---|---|
+| Cerner | [Cerner.md](Cerner.md) | Whole note as PDF via FHIR `DocumentReference` | `ehr_template_name` → PDF filename in chart |
+| ModMed | [ModMed.md](ModMed.md) | Whole note as PDF via FHIR `Binary` + S3 + `DocumentReference` | Same PDF outcome as Cerner; encounter lookup can silently omit encounter link |
+| Nereg | [Nereg.md](Nereg.md) | Auto-mapped from section `key_name` at push time | **Not** a PDF — structured fields; renaming `key_name` silently drops content |
 
 ## Category 4 — No push capability
 Marvix generates the note but cannot push it. Doctor copies manually. App should show "Copy Note" prompt.

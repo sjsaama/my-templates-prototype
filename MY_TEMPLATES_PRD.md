@@ -54,7 +54,7 @@ If a push fails because the EHR field mapping is wrong, the doctor can pick a di
 | Cat 1 — AthenaOne, ECW, Veradigm, Centricity (AthenaFlow) | Open mapping picker, select from hardcoded field list. No API call. Field names shown with human-readable labels. |
 | Cat 2 — AMD, DrChrono | Open mapping picker, select from the field list fetched at template creation. |
 | Cat 2 — CharmHealth | Open mapping picker, select from existing field list. Cannot re-fetch — automation blocked until CharmHealth templates API is available (confirm with KJ). If EHR template changed, doctor uses "Contact support" in picker. |
-| Cat 3 — ModMed (PDF), Cerner (PDF), Tebra (integration TBD) | No mapping to remap. Remap button not shown. |
+| Cat 3 — ModMed (PDF), Cerner (PDF), Nereg (auto `key_name`) | No field mapping to remap. Remap button not shown. EHR template/document connection is still required — see Cat 3 section. |
 | Cat 4 | No push capability. Remap button not shown. |
 
 ### Adjust section output settings
@@ -184,17 +184,23 @@ Fields come from the doctor's EHR note template. The field list is populated at 
 
 > **Design decision:** EHR field fetching is not part of the creation flow. After a Cat 2 template is created, the doctor opens it in the editor and fetches fields there — a "Fetch fields from [EHR]" action inside the template editor, not a creation step. The creation flow is identical for all EHR categories. CharmHealth cannot re-fetch — the editor shows an amber notice explaining this, with a "Contact support" button.
 
-### Cat 3 — Auto push
+### Cat 3 — Auto push (no field mapping; template connection required)
 
 EHRs: Cerner, ModMed, Nereg
 
-Note is pushed automatically — no mapping rows shown, no doctor action needed after onboarding. The output settings panel (sliders button) is hidden for Cat 3 — there are no field-level settings to configure.
+**Shared:** No mapping rows / field picker. Output settings (sliders) hidden. Remap button not shown on push errors.
 
-| EHR | How it pushes | Label shown in mapping column |
-|---|---|---|
-| Cerner | Whole note as PDF via FHIR | "Whole note pushed as PDF" |
-| ModMed | Whole note as PDF | "Whole note pushed as PDF" |
-| Nereg | Section content matched by `key_name` | "Auto-mapped from section names" |
+**Also shared (corrected):** Marvix must still be **connected to a template / document target in the final EHR**. Earlier drafts said Cat 3 skips Connect EHR entirely — that was wrong. There is no section→field mapping, but there is still an EHR-side destination to attach.
+
+Per-EHR push behavior and subtle differences are documented in [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md). Summary:
+
+| EHR | How it pushes | Label shown in mapping column | Subtle difference |
+|---|---|---|---|
+| Cerner | Whole note as PDF via FHIR | "Whole note pushed as PDF" | `ehr_template_name` → PDF filename in chart |
+| ModMed | Whole note as PDF (Binary → S3 → DocumentReference) | "Whole note pushed as PDF" | Same PDF outcome as Cerner; encounter lookup can silently omit encounter link |
+| Nereg | Section content matched by `key_name` | "Auto-mapped from section names" | **Not** a PDF — structured auto-routing; renaming `key_name` silently drops content |
+
+**UX incorporation TBD:** Whether self-serve creation shows a Connect EHR picker for Cat 3 (destination only, no field fetch), or connection stays ops-provisioned with a read-only label in the editor.
 
 ### Cat 4 — No push
 
@@ -332,24 +338,30 @@ The section-level inline strip is the primary action surface — the banner is a
 
 ### Cat 3 — Cerner, Nereg, ModMed
 
+No field-level remap. Template/document connection failures and push infra errors are ops-facing today. See [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md).
+
 **Cerner**
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
 | Token refresh failure / push rejection | Infra / auth | ✅ Yes | — | Ops |
+| Wrong / missing template connection (`ehr_template_name` for PDF name) | Ops config | ⚠️ Partial — wrong name is cosmetic; missing destination may fail push | — | Ops reconnects template |
 
 **Nereg**
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
-| Wrong `key_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Ops updates `key_name` in YAML |
+| Wrong `key_name` (auto-map miss) | Ops / doctor rename | ❌ Silent skip | Nothing | Ops updates `key_name`; future: rename warning in editor |
+| Missing EHR template connection | Ops config | ⚠️ Needs confirm | — | Ops |
 | Auth failure | Infra | ✅ Yes | — | Ops |
 
 **ModMed**
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
-| Push errors | Infra | ✅ Yes (assumed) | — | Ops |
+| Push errors (Binary / S3 / DocumentReference) | Infra | ✅ Yes (assumed) | — | Ops |
+| Encounter lookup from appointment fails | Runtime | ⚠️ Silent — push continues without encounter link | Nothing | Ops if note missing from chart |
+| Missing EHR template / document connection | Ops config | ⚠️ Needs confirm | — | Ops |
 
 ### Summary — doctor self-serve vs. ops
 
@@ -386,6 +398,10 @@ The section-level inline strip is the primary action surface — the banner is a
 | CharmHealth push activation status | Is CharmHealth push currently live? Automation blocked until templates API available — confirm timeline with KJ. | KJ |
 | DrChrono push activation status | Is DrChrono push currently active for any practices? | Vignesh |
 | Athena rate-limit scope | Is the quota per-practice, per-doctor, or per-API-key? Affects how the error copy is worded. | Vignesh |
+| Cat 3 — what object is connected today? | For Cerner / ModMed / Nereg: exact ops fields (`ehr_template_id`, name, document type, other). Needed before Connect EHR UX. | Tech / Vignesh |
+| Cat 3 — self-serve Connect EHR? | Destination-only picker in creation flow vs ops-provisioned + read-only label. No field fetch either way. | Product |
+| ModMed `ehr_template_name` parity with Cerner | Does ModMed use template name as PDF/document identity like Cerner’s `file_name`? | Tech |
+| Nereg template id vs key_name only | Is an EHR note template required at connection time, or only matching `key_name`s? | Tech |
 
 ---
 
@@ -393,7 +409,7 @@ The section-level inline strip is the primary action surface — the banner is a
 
 | Area | Notes |
 |---|---|
-| Doctor picks their EHR template | Ops sets this during onboarding. Doctor-facing template picker is future scope. |
+| Doctor picks their EHR template | Ops sets this during onboarding for most EHRs. Doctor-facing template picker is future scope for Cat 2. **Cat 3 exception to revisit:** destination template/document connection is required even without field mapping — self-serve Connect EHR TBD ([`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)). |
 | Derivatives | Customization of derivative templates is a known gap. Needs a scoping session with Vignesh + Nandini before it can be planned. |
 
 ## Preview output (dry run)
@@ -422,7 +438,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 | Step | What happens |
 |---|---|
 | 1 — Describe | Doctor enters template name, description, and document type (Clinical Note / Letter / Other). Optionally copies sections from an existing template. |
-| 2 — Connect EHR | Cat 2 only (AMD, DrChrono, CharmHealth) — doctor picks which EHR note template to connect. This is where EHR fields are fetched. Cat 1, 3, and 4 skip this step entirely. |
+| 2 — Connect EHR | **Cat 2** (AMD, DrChrono, CharmHealth): doctor picks EHR note template and fields are fetched. **Cat 3** (Cerner, ModMed, Nereg): no field fetch / mapping, but an EHR template or document destination connection is still required — exact self-serve UX TBD (see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)). Cat 1 and Cat 4 skip this step (Cat 1 uses a fixed field list; Cat 4 has no push). |
 | 3 — Review | Summary of name, type, EHR system, and whether sections were copied. Doctor confirms to create. |
 
 **Copy from existing template (step 1, optional):** Doctor selects any of their existing templates from a dropdown. The new template inherits a deep copy of the source section tree — including order, enabled/disabled state, and EHR mappings. If no template is selected, the new template starts from Marvix defaults (Cat 1/3/4) or an empty section list (Cat 2).
@@ -476,16 +492,20 @@ This is separate from template management (the core v1 feature). Doctors who wan
 **What the doctor does:**
 1. Click "+ Create template"
 2. Enter name, description, document type. Optionally copy sections.
-3. Step 2 (Connect EHR) is skipped — a notice explains that this EHR uses automatic push and no field mapping is needed. Doctor clicks through to Review.
+3. Step 2 (Connect EHR): **Not a field-mapping step.** Destination template / document connection in the EHR is still required. Whether the doctor picks it here or ops provisions it is **TBD** (see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)). Until UX is decided, treat connection as required and do not imply “skip Connect EHR = no EHR attachment.”
 4. Template is created with the default Marvix section set (or copied sections).
-5. In the editor, mapping column shows the auto-push label for every section ("Auto-mapped from section names" or "Whole note pushed as PDF" depending on the EHR). No mapping action needed.
+5. In the editor, mapping column shows the auto-push label for every section ("Auto-mapped from section names" or "Whole note pushed as PDF" depending on the EHR). No per-section field picker.
 
 **What's different from ops-managed templates:**
 - Doctor can edit per-section prompts
 - Doctor can add or delete sections
 - Output settings panel (sliders) is hidden — nothing to configure for auto-push
 
-**Key constraint:** Section names matter for Nereg — the auto-mapping is keyed on section `key_name`. If the doctor renames a section, it may break the push mapping. This should be surfaced as a warning when a doctor renames a section in a Cat 3 template. *(Not yet implemented in prototype.)*
+**Subtle differences (do not collapse these three in UX copy):**
+- **Cerner / ModMed** — whole note as one PDF; Cerner uses `ehr_template_name` as the PDF filename; ModMed’s encounter lookup can silently drop encounter context
+- **Nereg** — structured auto-routing by `key_name`, not a PDF
+
+**Key constraint (Nereg):** Section `key_name`s must match Nereg fields. If the doctor renames a section, it may break the push mapping. Surface a warning on rename in Cat 3 Nereg templates. *(Not yet implemented in prototype.)*
 
 ---
 

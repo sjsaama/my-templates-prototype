@@ -1,13 +1,28 @@
 # EHR Mapping — ModMed
 
 ## Category
-**Category 3 — Auto push, no field mapping.** Marvix converts the full note to a PDF and pushes it to ModMed via FHIR. No section-level mapping is needed — the entire note goes as one document.
+**Category 3 — Auto push, no field mapping.** Full note → one PDF via FHIR. No section-level mapping.
+
+See [CATEGORY_3.md](CATEGORY_3.md) for shared Cat 3 model and how ModMed differs from Cerner / Nereg.
 
 ---
 
 ## Status
 
 Active. Note push is implemented via FHIR `DocumentReference`.
+
+---
+
+## Template connection (required)
+
+No per-section field mapping, but the Marvix template still must be **connected to a destination in ModMed** (document / encounter attachment target).
+
+| Property | Role |
+|---|---|
+| Destination template / document target | Required so the PDF lands on the right chart artifact |
+| `ehr_template_name` / `ehr_template_id` | Exact usage less documented than Cerner — **confirm with tech** whether ModMed mirrors Cerner’s PDF filename behavior |
+
+How this connection is exposed in My Templates self-serve is TBD — see CATEGORY_3.md.
 
 ---
 
@@ -20,6 +35,8 @@ Active. Note push is implemented via FHIR `DocumentReference`.
 
 If an encounter ID is not provided directly, Marvix attempts to look it up from the appointment ID first.
 
+**Nuance vs Cerner:** Same outcome (one PDF in chart), different FHIR path (`Binary` + S3 vs inline base64 `DocumentReference`).
+
 ---
 
 ## Extra Fields YAML
@@ -30,7 +47,7 @@ None — no section mapping needed. The whole note is pushed as a single PDF.
 
 ## App UX
 
-No mapping column shown in My Templates. The template page shows: *"Whole note pushed as PDF."*
+No mapping column picker in My Templates. The template page shows: *"Whole note pushed as PDF."*
 
 ---
 
