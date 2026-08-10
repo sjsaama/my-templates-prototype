@@ -178,26 +178,15 @@ Branch `cursor/drchrono-ehr-9d4d` — visual / UX only. EHR locked to DrChrono. 
 
 ### Subtle UI elements
 
+DrChrono-specific only. Cross-EHR rules (Shared chip, parent whole/individual mapping, Character limit scope) live in the PRD / Settings sections — not repeated here.
+
 | Element | Behaviour |
 | ------- | --------- |
 | Field format | Snake_case with human labels in picker/chips |
 | Mapping table | Free-text clinical fields only |
 | ICD / CPT | **Excluded** from picker — separate `sub_template_ids` mechanism (not prototyped) |
-| Character limit | **Template bar only** — global; never in section output settings |
-| Push setting | **Template bar + section override** — same model as AMD (`append` / `prepend` / overwrite) |
-| No checkbox fields | AMD-only control type |
+| No checkbox fields | AMD-only control type — not in DrChrono picker |
 | Connect EHR at create | Self-serve + Cat 2 — `EHR_TEMPLATES_BY_SYSTEM.DrChrono` |
-| Shared field | Neutral **Shared** chip when 2+ sections map to one field |
-| Parent mapping | Whole vs map subsections individually |
-
-### Gaps / open product questions
-
-| Gap | Why it matters | Status |
-| --- | -------------- | ------ |
-| **Field-level push visibility** | `save_note` swallows exceptions → no real push-issues banner | Needs Lambda change |
-| **ICD / CPT doctor UX** | Supported in backend via `sub_template_ids`; no My Templates UI | Needs design + template API access |
-| **DrChrono push activation** | Is push live for any practices? | Confirm with Vignesh |
-| **Stale field detection** | No auto-remap; silent drop | Remap + ops until API surfaces failures |
 
 ### Changelog
 
@@ -205,8 +194,9 @@ Branch `cursor/drchrono-ehr-9d4d` — visual / UX only. EHR locked to DrChrono. 
 | ---- | ------ |
 | 2026-08-10 | Branch from AMD Cat 2; lock EHR to DrChrono |
 | 2026-08-10 | Snake_case fields; drop ICD/CPT from mapping picker |
-| 2026-08-10 | Remove AMD checkbox UI and Push setting from doctor UI |
-| 2026-08-10 | Character limit restored as **global only** (never local) |
-| 2026-08-10 | Config keys → same global/local settings model as AMD; Push setting restored (global + local) |
+| 2026-08-10 | Remove AMD checkbox UI from doctor UI |
+| 2026-08-10 | Character limit = **global only** (never local); Push setting = global + local (same as AMD) |
+| 2026-08-10 | Config keys → same global/local settings model as AMD |
 | 2026-08-10 | Doc: mapping table vs naked free-text vs ICD/CPT; gaps table |
+| 2026-08-10 | Subtle UI trimmed to DrChrono-only deltas (drop Shared / parent mapping / char-limit repeats) |
 | 2026-08-10 | Push-error tweaks: auth + field-gap mock only |
