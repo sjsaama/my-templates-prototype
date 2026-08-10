@@ -43,7 +43,9 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "ehr": "AMD"
 }/*EDITMODE-END*/;
 
-const EHR_OPTIONS = ["AMD", "AthenaOne", "Athena", "eCW", "Charm", "DrChrono"];
+// This branch is scoped to AMD only — other EHR systems live on their own branches.
+const EHR_OPTIONS = ["AMD"];
+const EHR_LOCKED = true;
 
 function mapSectionTree(list, id, fn) {
   return list.map((s) => {
@@ -78,6 +80,7 @@ function Toast({ msg }) {
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const ehr = EHR_LOCKED ? "AMD" : t.ehr;
   const templates = window.TEMPLATES;
   const [activeTpl, setActiveTpl] = useStateA("gen3");
   const [sectionRequestOpen, setSectionRequestOpen] = useStateA(false);
@@ -220,7 +223,7 @@ function App() {
               </div>
               <window.SectionTable
                 sections={sections}
-                ehr={t.ehr}
+                ehr={ehr}
                 onToggle={handlers.onToggle}
                 onExpand={handlers.onExpand}
                 onToggleDetails={handlers.onToggleDetails}
@@ -286,9 +289,18 @@ function App() {
           options={["compact", "regular", "comfy"]}
           onChange={(v) => setTweak("density", v)} />
         <TweakSection label="EHR" />
-        <TweakSelect label="EHR system" value={t.ehr}
-          options={EHR_OPTIONS}
-          onChange={(v) => setTweak("ehr", v)} />
+        {EHR_LOCKED ? (
+          <TweakRadio
+            label="EHR system (AMD branch)"
+            value="AMD"
+            options={["AMD"]}
+            onChange={() => setTweak("ehr", "AMD")}
+          />
+        ) : (
+          <TweakSelect label="EHR system" value={t.ehr}
+            options={EHR_OPTIONS}
+            onChange={(v) => setTweak("ehr", v)} />
+        )}
       </TweaksPanel>
     </div>
   );
