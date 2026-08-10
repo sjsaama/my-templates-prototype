@@ -139,16 +139,49 @@ Branch `cursor/amd-ehr-34b9` — visual / UX only. EHR locked to AMD. Entry: `in
 
 #### Checkbox fields
 
-Distinct AMD control type in the **same** field picker as text.
+Distinct AMD control type in the **same** field picker as text. Mapping a Marvix section to a checkbox EHR field is allowed on **both** ops-managed and self-serve (remap is available on both).
+
+**What we know today**
 
 | Detail | Behaviour |
 | ------ | --------- |
-| Tag | `checkbox` on picker rows + mapping chips |
-| Allowed values | Shown in picker foot / under chip (`Yes`/`No` vs `Y`/`N` — per field from AMD) |
-| Dual mapping | e.g. `Chief Complaint` (text) + `Chief Complaint Enable` (checkbox) = two sections |
-| Prompt | Must output exactly one allowed value — else `"Value is not valid"` |
+| Same picker | Checkbox destinations appear alongside text fields |
+| Tag / values | `checkbox` tag; allowed values on picker + chip (`Yes`/`No` vs `Y`/`N` — per field from AMD) |
+| Dual mapping | Common: `Chief Complaint` (text) + `Chief Complaint Enable` (checkbox) = **two sections** |
+| Invalid push | Wrong value → AMD `"Value is not valid"` → Contact support |
 
-Open: surface allowed values in prompt editor; vs YAML `extract_boolean_value` (SHARED_CONFIG). Tweaks: `amd_checkbox`, `amd_invalid_value`.
+**How is the pushed value chosen?** — **open**
+
+Two mechanisms exist in docs/code; product has not chosen:
+
+| Mechanism | Source | Idea |
+| --------- | ------ | ---- |
+| A. Prompt output | PRD | Section AI prompt must emit exactly one allowed value |
+| B. `extract_boolean_value` | SHARED_CONFIG / YAML | If section has content → push configured “checked” value; if empty → `""` |
+
+Until decided: treat value selection as an open question for both ownership modes.
+
+**Cases — ops-managed**
+
+| Case | What happens today / risk | Open |
+| ---- | ------------------------- | ---- |
+| Ops maps section → checkbox at onboarding | Ops can author a checkbox-aware prompt (or YAML). Doctor remaps + output settings only — **no Prompt edit** | Who owns the checkbox prompt long-term — ops only? |
+| Doctor remaps a **text** section → checkbox field | Mapping chip shows `checkbox` + allowed values, but the section prompt is still prose → likely `"Value is not valid"` | Block remap? Force ops? Auto-switch to `extract_boolean_value`? |
+| Dual CC Text + CC Enable | Two independent mappings | Does Enable derive from Text having content, or is it a separate AI judgment? |
+| Default negative on checkbox section | Default negative is free text today | Must it be an allowed value? What does empty mean (unchecked vs invalid)? |
+
+**Cases — self-serve**
+
+| Case | What happens today / risk | Open |
+| ---- | ------------------------- | ---- |
+| Doctor maps section → checkbox | Same picker; doctor **can** edit Prompt | Should prompt editor **surface allowed values** (and validate)? |
+| Doctor writes wrong prompt | Invalid value on push | Inline validation vs only push-error Contact support? |
+| Doctor adds a new section mapped to checkbox | Prompt authored at add-section time | Show allowed values in Add section / Prompt UI? |
+| Uses `extract_boolean_value`-style rule instead of AI | Not in prototype UI | Expose as output setting (“If section has content, push: Yes”)? |
+
+**Prototype**
+
+Tweaks: `amd_checkbox` (dual chip), `amd_invalid_value` (push error). Seeded `Chief Complaint Enable` with a Yes/No prompt. Picker shows allowed values; **prompt editor does not**.
 
 #### Other
 
@@ -163,9 +196,9 @@ Open: surface allowed values in prompt editor; vs YAML `extract_boolean_value` (
 
 *(Push setting + push-error actions — see Settings and Push errors. Character limit is global-only.)*
 
-### Gaps
+### Gaps / open product questions
 
-1. Prompt editor: surface checkbox allowed values
+1. **AMD checkbox value selection** — prompt output vs `extract_boolean_value` (and UI for both ownership modes). See Subtle UI → Checkbox fields.
 2. More fatal mocks if needed (`Template not found`, provider not found)
 
 ### Changelog
@@ -179,6 +212,7 @@ Open: surface allowed values in prompt editor; vs YAML `extract_boolean_value` (
 | 2026-08-10 | Character limit = **global only** (no per-section override) |
 | 2026-08-10 | **Reset to default = ops-managed only** (not on self-serve) |
 | 2026-08-10 | Self-serve create: Cat 2 **Connect EHR** step (AMD note template picker) |
+| 2026-08-10 | Checkbox management: ops + self-serve cases; value-selection left as open Q |
 
 ### Footnotes
 

@@ -383,7 +383,11 @@ The section-level inline strip is the primary action surface — the banner is a
 | Derivatives | Definition and scope unclear. Needs a session with Vignesh + Nandini before this can be added to the PRD. Known gap. | Vignesh + Nandini |
 | ECW selective copy — user-level vs. practice-level | Which fields in ECW are owned at the user level vs. practice level? Affects whether remap UI is per-doctor or per-practice. | Vignesh |
 | First-line heading omit — is it configurable? | Whether the section heading is stripped before push. Currently unconfirmed. | Vignesh |
-| AMD checkbox — prompt authoring for allowed values | Checkbox fields have predefined allowed values (from the AMD template fetch). The section prompt must be written to output one of those values. Who authors this prompt (ops vs. doctor) and whether allowed values are surfaced in the prompt editor is unresolved. | TBD |
+| AMD checkbox — how is the push value chosen? | Two mechanisms conflict: (A) PRD — AI prompt must output an allowed value; (B) YAML `extract_boolean_value` — if section has content push configured value, else empty. Need one product rule. | TBD |
+| AMD checkbox — prompt authoring for allowed values | Who authors the prompt (ops vs doctor)? Should allowed values be surfaced in the prompt editor (self-serve) and/or blocked when remapping without a checkbox-aware setup (ops-managed — doctor cannot edit prompt)? | TBD |
+| AMD checkbox — remap text section → checkbox (ops-managed) | Doctor can remap to a checkbox field but cannot edit the prompt. Prose prompt will fail push. Block, warn, or route to ops? | TBD |
+| AMD checkbox — empty / default negative | What is pushed when the section is empty — `""`, an allowed “No”, or default negative? Must default negative be an allowed value? | TBD |
+| AMD checkbox — dual field coupling | For CC Text + CC Enable: is Enable independent AI output, or derived from whether Text has content? | TBD |
 | One section → two EHR fields — ordering conflict | For non-checkbox dual-field cases: if one Marvix section maps to two EHR text fields, does order matter? How is conflict handled at push time? | Vignesh |
 | One section → two EHR fields — is it actually used beyond AMD checkbox? | Confirm with ops whether non-checkbox dual-field mapping is in use before designing a general solution. | Ops |
 | CharmHealth push activation status | Is CharmHealth push currently live? Automation blocked until templates API available — confirm timeline with KJ. | KJ |
