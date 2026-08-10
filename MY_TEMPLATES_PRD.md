@@ -257,10 +257,19 @@ Per-section, configured in the output settings panel (sliders button). See "Adju
 Today all push failures go to ops email only. Doctors are not notified in-app. Below is the full picture of what can fail, who caused it, and what the resolution is.
 
 **In-app error surface (decided):** Errors appear at two levels simultaneously:
-1. A summary banner at the top of My Templates listing which sections failed, with a Remap shortcut
-2. Inline on the broken section row — a red strip with the error message + Remap + Contact support buttons
+1. A summary banner at the top of My Templates listing which sections failed
+2. Inline on the broken section row — strip with the error **copy** + actions
 
-The section-level inline strip is the primary action surface — the banner is a summary for awareness. "Contact support" is shown when the error is not doctor-recoverable (mapping broken by EHR template change, etc.). To enumerate what real error messages should say, pull 3 months of note-push failure logs before implementation.
+The section-level strip is the primary action surface; the banner is awareness.
+
+**Actions (show only what applies):**
+| Action | When | What happens |
+|---|---|---|
+| **Remap** | Mapping wrong/stale (Cat 1 / Cat 2) | Opens field picker → doctor picks valid field → Save → retry push |
+| **Got it** | Doctor fixes outside My Templates (too long, check-in, chart closed) | Dismisses strip; doctor fixes in note/EHR → **retry push** |
+| **Contact support** | Not doctor-recoverable in-app (auth, permissions, template deleted, invalid value on ops-managed, etc.) | Escalates; ops already emailed on fatal Lambda failures |
+
+Amber = doctor-fixable. Red = needs ops/admin. Full AMD copy + per-error resolution flows: `ehr_mapping/AMD.md` → Push errors. Cross-EHR mechanism notes: `ehr_mapping/ERROR_UX.md`.
 
 ### Cat 1 — AthenaOne, ECW, Veradigm
 
@@ -293,18 +302,19 @@ The section-level inline strip is the primary action surface — the banner is a
 
 ### Cat 2 — AMD, DrChrono, CharmHealth
 
-**AMD**
+**AMD** — see `ehr_mapping/AMD.md` for full resolution flows. Summary:
 
-| Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
-|---|---|---|---|---|
-| EHR template changed / archived / replaced (field IDs invalidated) | EHR admin | ✅ Yes — Lambda auto-recovers; ops email if recovery fails | "Your AMD template was updated and some field mappings are no longer valid. Support has been notified." | Ops remaps against updated template |
-| EHR template deleted | EHR admin | ✅ Yes | "Your AMD template was removed. Support has been notified to reconnect your template." | Ops picks new template, remaps all sections |
-| Previous-note fetch failure | AMD / infra | ✅ Yes | "Couldn't retrieve your previous note from AMD. Push was stopped — contact support." | Ops |
-| Invalid field value | Content / mapping | ✅ Yes | "'[Section name]' contains a value AMD doesn't accept for this field. Contact support." | Ops reviews field constraints |
-| Section text too long | Doctor (note content) | ✅ Yes | "'[Section name]' is too long for this field (max N chars). Shorten your note and push again." | Self-serve — edit note, retry |
-| Note locked | Doctor / EHR state | ✅ Yes | "This note is locked in AMD and can't be edited. Contact support if this is unexpected." | Ops or doctor unlocks in AMD |
-| Provider not found | EHR config / ops | ✅ Yes | "Your provider account wasn't found in AMD. Contact support." | Ops |
-| Permission level insufficient | EHR admin | ✅ Yes | "Marvix doesn't have permission to write to AMD. Ask your practice admin to check account permissions." | Practice admin fixes MA account permissions in AMD |
+| Scenario | Triggered by | Detectable? | Doctor sees | Actions | Resolution flow |
+|---|---|---|---|---|---|
+| EHR template changed (IDs invalid) | EHR admin | ✅ Auto-recover first; surface if fail | "Your AMD template was updated and some field mappings are no longer valid. Support has been notified." | Remap + Contact support | Remap against live fields **or** ops remaps → retry push |
+| EHR template deleted | EHR admin | ✅ | "Your AMD template was removed. Support has been notified to reconnect your template." | Contact support | Ops reconnects template + remaps all → retry |
+| Previous-note fetch failure | AMD / infra | ✅ | "Couldn't retrieve your previous note from AMD. Push was stopped — contact support." | Contact support | Ops fixes API/creds; push was aborted on purpose → retry |
+| Invalid field value | Content / mapping | ✅ | "'[Section name]' contains a value AMD doesn't accept for this field. Contact support." | Contact support (+ Prompt on self-serve) | Fix prompt/allowed value or mapping type → retry |
+| Section text too long | Doctor | ✅ | "'[Section name]' is too long for this field (max N chars). Shorten your note and push again." | Got it | Shorten note → retry push (no Remap) |
+| Note locked | Doctor / EHR | ✅ | "This note is locked in AMD and can't be edited. Contact support if this is unexpected." | Contact support | Unlock in AMD → retry |
+| Provider not found | EHR config / ops | ✅ | "Your provider account wasn't found in AMD. Contact support." | Contact support | Ops links provider → retry |
+| Permission insufficient | EHR admin | ✅ | "Marvix doesn't have permission to write to AMD. Ask your practice admin to check account permissions." | Contact support | Practice admin grants Create Pt Notes → retry |
+| Auth / credentials | Creds | ✅ | "Push failed due to an authentication issue. Contact support." | Contact support | Ops refreshes creds → retry |
 
 **DrChrono**
 

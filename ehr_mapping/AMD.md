@@ -89,28 +89,249 @@ One control (not three toggles). AMD can read existing note content, so all thre
 
 ## Push errors
 
+### Surface (in-app)
+
+Errors appear at **two levels** at once:
+
+1. **Template banner** — summary of how many sections failed (+ shared message)
+2. **Section row strip** — primary action surface (copy + buttons for that section)
+
+| Severity | When | Banner tone | Strip tone |
+| -------- | ---- | ----------- | ---------- |
+| Doctor-fixable | Doctor can fix outside or inside My Templates without ops | Amber — “Action needed — N section(s) couldn't be pushed” | Amber ⚠ |
+| Needs ops / admin | Remap alone won’t fix, or practice/ops must act | Red — “Push failed — N section(s) didn't reach your EHR” | Red ✕ |
+
+**Actions (only show what applies):**
+
+| Action | Meaning |
+| ------ | ------- |
+| **Remap** | Open field picker for that section → pick a valid AMD field → Save. Clears issue when mapping is fixed (next successful push or optimistic clear). |
+| **Got it** | Dismiss awareness only. Doctor still must fix the underlying cause (shorten note, unlock chart, etc.) then **retry push** from the note / consult flow. |
+| **Contact support** | Opens support path (ticket / chat). Ops is already emailed for fatal failures; this is the doctor’s explicit escalate. |
+
+> Too-long / check-in-style errors must **not** offer Remap — the mapping is fine.
+
 ### Backend (today)
 
-No `push_errors` DB table — failures go to ops email + CloudWatch only.
+No `push_errors` DB table — failures go to ops email + CloudWatch only. In-app surface needs Lambda → `push_errors` (or equivalent) before production.
 
-| Error | Exception | Doctor-actionable? |
-| ----- | --------- | ------------------ |
-| Field control gone | `EhrTemplateChangeException` → auto-recovery; else `FatalException` | Yes — remap if recovery fails |
-| Template deleted | `FatalException`: `"Template not found."` | Yes — ops picks new template |
-| Content too long | `FatalException`: `"Value is too long."` | Yes — doctor shortens note |
-| Missing Create Pt Notes | `FatalException`: permission | Yes — practice admin |
-| Provider not found | `FatalException` | No — ops/tech |
-| Invalid field value | `FatalException`: `"Value is not valid"` | No — ops / prompt fix |
+| Backend signal | Exception path | Maps to UI type |
+| -------------- | -------------- | --------------- |
+| `"Control [X] not found"` | `EhrTemplateChangeException` → auto-recovery; fail → `FatalException` | `template_changed` |
+| `"Template not found."` | `FatalException` | `template_deleted` |
+| `"Value is too long."` | `FatalException` | `too_long` |
+| permission / Create Pt Notes | `FatalException` | `permission` |
+| `"Provider not found."` | `FatalException` | `provider_not_found` |
+| `"Value is not valid"` | `FatalException` | `invalid_value` |
+| Note locked / not editable | `FatalException` | `locked` |
+| Previous-note fetch fail (read-before-write) | `FatalException` | `prev_note_fetch` |
+| Auth / credentials | `FatalException` / auth path | `auth` |
 
-### Doctor UI actions (prototype)
+### Error states — copy, actions, resolution flow
 
-| Type | Tweaks | Remap | Got it | Contact support |
-| ---- | ------ | ----- | ------ | --------------- |
-| `too_long` | `amd_too_long` | ❌ | ✅ | ❌ |
-| `template_changed` / `mapping_broken` | `amd_template_changed` | ✅ | ❌ | ✅ |
-| `permission` / `invalid_value` / auth / locked | `amd_no_permission`, `amd_invalid_value` | ❌ | ❌ | ✅ |
+#### 1. Content too long — `too_long`
 
-Too-long must not offer Remap — mapping is fine. Amber = doctor-fixable (`selfServe`); red = ops-needed.
+| | |
+| --- | --- |
+| **Cause** | Pushed text exceeds AMD field `max_character_length` (or template Character limit) |
+| **Triggered by** | Doctor note content |
+| **Severity** | Doctor-fixable (amber) |
+| **Tweaks** | `amd_too_long` |
+| **Copy** | `'[Section name]' is too long for this field (max N chars). Shorten your note and push again.` |
+| **Actions** | **Got it** only |
+
+**Resolution flow**
+
+1. Doctor sees amber banner + strip on the long section.
+2. Doctor dismisses with **Got it** (optional) and opens the note / consult.
+3. Shortens that section’s content (or raises AMD field limit in AMD if practice owns the limit — rare).
+4. **Retries push** from the normal push path.
+5. Issue clears on successful push.
+
+---
+
+#### 2. EHR template changed (field control gone) — `template_changed`
+
+| | |
+| --- | --- |
+| **Cause** | AMD note template updated; control IDs no longer match mapping |
+| **Triggered by** | EHR admin |
+| **Backend first** | Lambda auto-recovers (re-fetch template → rebuild mapping → retry). Only surfaces in-app if **auto-recovery fails** |
+| **Severity** | Needs ops / doctor remap (red) |
+| **Tweaks** | `amd_template_changed` |
+| **Copy** | `Your AMD template was updated and some field mappings are no longer valid. Support has been notified.` |
+| **Actions** | **Remap** + **Contact support** |
+
+**Resolution flow**
+
+1. Lambda tries auto-recovery silently; ops emailed on success-with-remap or on hard fail.
+2. If still broken → red banner + strip on affected sections.
+3. **Doctor path (self-serve or ops-managed):** **Remap** → Connect/refresh field list from current AMD template → pick correct field → Save → retry push (or wait for next push).
+4. **If Remap isn’t enough** (many fields broken, unclear targets): **Contact support** → ops remaps practice template in ops tooling.
+5. Issue clears when mapping matches live AMD controls and a push succeeds.
+
+---
+
+#### 3. EHR template deleted — `template_deleted`
+
+| | |
+| --- | --- |
+| **Cause** | `ehr_template_id` removed in AMD |
+| **Triggered by** | EHR admin |
+| **Severity** | Needs ops (red) |
+| **Copy** | `Your AMD template was removed. Support has been notified to reconnect your template.` |
+| **Actions** | **Contact support** (Remap alone is insufficient — no field list without a template) |
+
+**Resolution flow**
+
+1. Doctor sees red banner (template-level; may list all sections).
+2. **Contact support** → ops picks a new AMD note template for the practice / self-serve template.
+3. Ops (or doctor on self-serve create/reconnect) reconnects template → all sections remapped against new field list.
+4. Retry push.
+
+---
+
+#### 4. Permission insufficient — `permission`
+
+| | |
+| --- | --- |
+| **Cause** | MA / integration account missing “Create Pt Notes” (or equivalent) |
+| **Triggered by** | EHR admin / practice setup |
+| **Severity** | Needs admin (red) |
+| **Tweaks** | `amd_no_permission` |
+| **Copy** | `Marvix doesn't have permission to write to AMD. Ask your practice admin to check account permissions.` |
+| **Actions** | **Contact support** |
+
+**Resolution flow**
+
+1. Doctor sees red strip (often all sections failing the same way).
+2. Doctor asks practice admin **or** uses **Contact support**.
+3. Admin grants Create Pt Notes (or correct role) in AMD for the Marvix integration user.
+4. Ops confirms → doctor **retries push**.
+
+---
+
+#### 5. Invalid field value — `invalid_value`
+
+| | |
+| --- | --- |
+| **Cause** | AMD rejects value (common for **checkbox** fields: not in allowed Yes/No / Y/N set) |
+| **Triggered by** | Prompt / content / wrong field type mapping |
+| **Severity** | Needs ops or self-serve prompt fix (red) |
+| **Tweaks** | `amd_invalid_value` |
+| **Copy** | `'[Section name]' contains a value AMD doesn't accept for this field. Contact support.` |
+| **Actions** | **Contact support** — on **self-serve**, doctor may also fix via **Prompt** edit (no Remap unless field type was wrong) |
+
+**Resolution flow**
+
+1. Doctor sees red strip on the section (e.g. checkbox Enable).
+2. **Ops-managed:** **Contact support** → ops fixes prompt / YAML (`extract_boolean_value` TBD) / mapping type → retry.
+3. **Self-serve:** Doctor edits **Prompt** so output is exactly an allowed value (picker shows allowed values) → Save → **retry push**. If field type is wrong, **Remap** to a text field or correct checkbox.
+4. Optional later: prompt-editor validation of allowed values (open question).
+
+---
+
+#### 6. Note locked — `locked`
+
+| | |
+| --- | --- |
+| **Cause** | Note not editable in AMD |
+| **Triggered by** | Doctor / EHR state |
+| **Severity** | Needs unlock (red; may be doctor-actionable outside My Templates) |
+| **Copy** | `This note is locked in AMD and can't be edited. Contact support if this is unexpected.` |
+| **Actions** | **Contact support** (and/or **Got it** if we treat unlock as doctor-owned — prefer Contact support when unexpected) |
+
+**Resolution flow**
+
+1. Doctor unlocks / opens the note in AMD (if they can), **or** Contact support.
+2. **Retry push**.
+
+---
+
+#### 7. Provider not found — `provider_not_found`
+
+| | |
+| --- | --- |
+| **Cause** | Doctor not found in AMD provider directory for this practice |
+| **Triggered by** | EHR config / ops onboarding |
+| **Severity** | Needs ops (red) |
+| **Copy** | `Your provider account wasn't found in AMD. Contact support.` |
+| **Actions** | **Contact support** |
+
+**Resolution flow**
+
+1. Doctor → **Contact support**.
+2. Ops / tech links provider ID in AMD integration config.
+3. Retry push.
+
+---
+
+#### 8. Previous-note fetch failure — `prev_note_fetch`
+
+| | |
+| --- | --- |
+| **Cause** | Read-before-write (Insert before/after) couldn’t load existing AMD note text |
+| **Triggered by** | AMD / infra |
+| **Severity** | Needs ops (red) |
+| **Copy** | `Couldn't retrieve your previous note from AMD. Push was stopped — contact support.` |
+| **Actions** | **Contact support** |
+
+**Resolution flow**
+
+1. Push aborted intentionally (avoid overwrite/corrupt merge).
+2. Doctor → **Contact support**.
+3. Ops checks AMD API / credentials / note ID.
+4. Optional interim: doctor sets Push setting to **Overwrite** only if clinically safe (product may disallow this as self-serve escape hatch — TBD).
+5. Retry push when fetch works again.
+
+---
+
+#### 9. Auth / credentials — `auth`
+
+| | |
+| --- | --- |
+| **Cause** | Integration auth failed |
+| **Triggered by** | Creds / token expiry |
+| **Severity** | Needs ops (red) |
+| **Copy** | `Push failed due to an authentication issue. Contact support.` |
+| **Actions** | **Contact support** |
+
+**Resolution flow**
+
+1. Doctor → **Contact support**.
+2. Ops refreshes AMD credentials / OAuth.
+3. Retry push (may auto-recover for later consults).
+
+---
+
+### Action matrix (prototype + product)
+
+| Type | Remap | Got it | Contact support | Who resolves |
+| ---- | ----- | ------ | --------------- | ------------ |
+| `too_long` | ❌ | ✅ | ❌ | Doctor (edit note → retry push) |
+| `template_changed` | ✅ | ❌ | ✅ | Doctor remap **or** ops |
+| `template_deleted` | ❌ | ❌ | ✅ | Ops reconnect template |
+| `permission` | ❌ | ❌ | ✅ | Practice admin (+ support) |
+| `invalid_value` | ❌* | ❌ | ✅ | Ops / self-serve Prompt |
+| `locked` | ❌ | ❌ | ✅ | Doctor unlock in AMD / ops |
+| `provider_not_found` | ❌ | ❌ | ✅ | Ops / tech |
+| `prev_note_fetch` | ❌ | ❌ | ✅ | Ops |
+| `auth` | ❌ | ❌ | ✅ | Ops |
+
+\* Remap only if the section was mapped to the wrong control type (e.g. text↔checkbox); not the default action for bad prompt output.
+
+### End-to-end resolve loop (all types)
+
+```
+Push fails (async Lambda)
+    → write push_errors (planned) + email ops if fatal
+    → My Templates: banner + section strip
+    → Doctor takes action:
+         Remap → save mapping → retry push
+         Got it → fix outside My Templates → retry push
+         Contact support → ops/admin fixes → doctor retries push
+    → Successful push clears push_errors for those sections
+```
 
 ---
 
