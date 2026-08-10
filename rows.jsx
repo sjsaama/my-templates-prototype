@@ -410,8 +410,10 @@ function SectionRow({
   const hasKids = !!(s.children && s.children.length);
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
-  const ehrRowCat = ((window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {}).cat;
-  const hasOutputSettings = ehrRowCat === 1 || ehrRowCat === 2;
+  const ehrCatMeta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
+  const ehrRowCat = ehrCatMeta.cat;
+  // Nereg is Cat 2 but locked auto-map — no per-section output settings / remap.
+  const hasOutputSettings = (ehrRowCat === 1 || ehrRowCat === 2) && ehrCatMeta.canRemap !== false && ehrCatMeta.fieldSource !== "auto";
   const promptOpen = !!s.promptOpen;
 
   // Dual-mapping demo override — applies to "Assessment & Plan" only
