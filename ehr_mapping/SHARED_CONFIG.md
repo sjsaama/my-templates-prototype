@@ -2,7 +2,9 @@
 
 Per-section config options. Every key here lives in the Extra Fields YAML for a mapping row — one row = one section. Some keys go inside the `config:` sub-object; the rest are top-level in the YAML. Both are read by `section_text_builder.py` at push time.
 
-> **Category 3 (Cerner, ModMed, Nereg):** These EHRs have **no** per-section Extra Fields YAML / field mapping rows, so most keys below do not apply in My Templates. That does **not** mean skip Connect EHR — Cat 3 still requires the Marvix template connected to a destination template (or document target) in the EHR. See [CATEGORY_3.md](CATEGORY_3.md). Nereg hardcodes several formatting keys in push logic rather than reading doctor/ops YAML.
+> **Category 3 (Cerner, ModMed):** These EHRs have **no** per-section Extra Fields YAML / field mapping rows, so most keys below do not apply in My Templates. That does **not** mean skip Connect EHR — Cat 3 still requires the Marvix template connected to a destination template (or document target) in the EHR. See [CATEGORY_3.md](CATEGORY_3.md).
+>
+> **Nereg (Category 2, locked auto-mapping):** No doctor-editable Extra Fields YAML; formatting keys are hardcoded in push logic. Connect EHR template like other Cat 2 EHRs, but doctors cannot change mapping — see [Nereg.md](Nereg.md).
 
 ---
 

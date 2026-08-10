@@ -106,7 +106,18 @@ These live in the `templates` table and `json_template` JSON.
 
 ---
 
-## Category 3 — Cerner, ModMed, Nereg
+## Category 2 — Nereg (locked auto-mapping)
+
+> Nereg is Cat 2 (connected EHR note template) but doctors **cannot** remap. Mapping is auto from `key_name`. See [Nereg.md](Nereg.md).
+
+| Property | Changed by | Impact |
+|---|---|---|
+| `ehr_template_id` / `ehr_template_name` | Ops | ⚠️ EHR template **connection** required for note context — confirm exact fields with tech |
+| Marvix section `key_name` | Ops (rename) / doctor | ❌ Nereg auto-maps using `key_name` as `ehr_field_name` — rename silently breaks that section; **no doctor remap UI** — fix `key_name` / template alignment |
+
+---
+
+## Category 3 — Cerner, ModMed
 
 > **Correction:** Earlier wording treated “no field list to fetch” as “skip Connect EHR entirely.” Cat 3 does **not** need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR. See [CATEGORY_3.md](CATEGORY_3.md).
 
@@ -128,15 +139,6 @@ These live in the `templates` table and `json_template` JSON.
 | `ehr_template_name` / `ehr_template_id` | Ops | ⚠️ Usage less documented than Cerner — may affect document identity; not used for section field routing |
 | Section structure | N/A — whole note pushed as one PDF | ✅ No per-section impact |
 | Encounter lookup from appointment | Runtime | ⚠️ Failure is caught silently — PDF may land without encounter link |
-
----
-
-### Nereg
-
-| Property | Changed by | Impact |
-|---|---|---|
-| `ehr_template_id` / `ehr_template_name` | Ops | ⚠️ Not used for *field* routing historically; EHR template **connection** still required for note context — confirm exact fields with tech |
-| Marvix section `key_name` | Ops (rename) / doctor | ❌ Nereg auto-maps using `key_name` as `ehr_field_name` — rename silently breaks the field mapping for that section |
 
 ---
 

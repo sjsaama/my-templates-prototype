@@ -514,12 +514,12 @@ function SectionRow({
             </div>
           </div>
         </div>
-        {/* EHR Mapping — Cat 3 shows auto-push label (no section→field picker).
-            Template/document connection is template-level, not this cell — see CATEGORY_3.md. */}
+        {/* EHR Mapping — Cat 3 PDF auto-label, or Cat 2 locked auto-map (Nereg).
+            Template/document connection is template-level, not this cell. */}
         <div className="row-mapping">
           {(() => {
             const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
-            if (cat && cat.cat === 3) return (
+            if (cat && (cat.cat === 3 || cat.fieldSource === "auto" || cat.canRemap === false) && cat.autoMsg) return (
               <span className="mapping-auto-label" title={cat.autoMsg}>{cat.autoMsg}</span>
             );
             if (cat && cat.cat === 4) return (

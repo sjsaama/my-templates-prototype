@@ -561,10 +561,12 @@ const EHR_CATEGORY = {
   Charm:      { cat: 2, label: "CharmHealth",             fieldSource: "fetch", canReFetch: false },
   DrChrono:   { cat: 2, label: "DrChrono",                fieldSource: "fetch" },
   Centricity: { cat: 1, label: "Centricity",              fieldSource: "fixed" },
+  // Cat 2 Nereg: connect EHR template like other Cat 2, but mapping is locked/auto from key_name —
+  // doctors cannot remap (fieldSource "auto", canRemap false). See ehr_mapping/Nereg.md.
+  Nereg:      { cat: 2, label: "Nereg",                   fieldSource: "auto",  canRemap: false, autoMsg: "Auto-mapped from section names", requiresEhrTemplateConnection: true },
   // Cat 3: fieldSource "none" = no section→field mapping. Template/document connection in the
   // EHR is still required — do not treat as "skip Connect EHR." See ehr_mapping/CATEGORY_3.md.
   Cerner:     { cat: 3, label: "Cerner",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF", requiresEhrTemplateConnection: true },
-  Nereg:      { cat: 3, label: "Nereg",                   fieldSource: "none",  autoMsg: "Auto-mapped from section names", requiresEhrTemplateConnection: true },
   ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF", requiresEhrTemplateConnection: true },
   Athena:     { cat: 4, label: "Athena (Legacy)",         fieldSource: "none",  noPushMsg: "Athena" },
   "ECW FHIR": { cat: 4, label: "ECW FHIR",               fieldSource: "none",  noPushMsg: "ECW" },
@@ -590,6 +592,10 @@ const EHR_TEMPLATES_BY_SYSTEM = {
     { id: "charm_t1", name: "SOAP Note" },
     { id: "charm_t2", name: "Progress Note" },
     { id: "charm_t3", name: "Initial Evaluation" },
+  ],
+  Nereg: [
+    { id: "nereg_t1", name: "Progress Note" },
+    { id: "nereg_t2", name: "Office Visit" },
   ],
 };
 
