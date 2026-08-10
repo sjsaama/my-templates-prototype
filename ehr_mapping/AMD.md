@@ -201,25 +201,54 @@ Header shows an ownership badge + short hint for the active template.
 | Push setting (append/prepend/overwrite) | **One control** — set globally on the template, applied to each section, overridable per section |
 
 
-### Subtle cases (prototype)
+### Subtle UI elements
 
-#### Checkbox fields (same picker, different push rules)
+AMD-specific UI details that are easy to miss. Keep this list current as the prototype evolves.
 
-AMD returns checkbox controls as **separate fields** in the template API — not merged into the adjacent text field. Doctors pick them from the **same** field list as text fields.
+#### 1. Checkbox fields
 
-| Detail | Behavior |
+AMD checkbox controls are **real fields** from the template API — not a Marvix toggle bolted onto a text field.
+
+| UI detail | What to notice |
 | --- | --- |
-| Examples in mock | `Office Visit > Chief Complaint Enable` (Yes/No), `Office Visit > ROS Complete` (Y/N) |
-| Seeded dual mapping | `Chief Complaint` (text) + `Chief Complaint Enable` (checkbox) as **two sections** |
-| Chip / picker UX | Checkbox rows show a `checkbox` tag; picker foot shows allowed values when selected |
-| Prompt rule | Section prompt must output **exactly one** of the field's allowed values |
-| Allowed values | Come from the AMD template fetch; values differ per field (`Yes`/`No` vs `Y`/`N`) |
-| Tweaks dual demo | `amd_checkbox` still shows the CC Text + CC Enable pair as a visual one-to-two chip |
-| Open (PRD) | Who authors checkbox prompts (ops vs doctor); whether UI surfaces allowed values in the prompt editor; relationship to YAML `extract_boolean_value` (see SHARED_CONFIG) |
+| Same picker as text | Checkbox destinations appear in the **same** field list; doctor picks one like any other field |
+| `checkbox` tag | Picker rows and mapping chips show a `checkbox` type tag (and ☑ affordance) |
+| Allowed values | Selecting a checkbox field shows allowed values in the picker foot (`Yes`/`No`, `Y`/`N`, …) — values come from AMD and **differ per field** |
+| Dual mapping | Common pattern: **two sections** for one clinical idea — e.g. `Chief Complaint` (text) + `Chief Complaint Enable` (checkbox) |
+| Prompt constraint | Section prompt must output **exactly one** allowed value, or AMD rejects with `"Value is not valid"` |
+| Chip under mapping | Mapped checkbox chips also surface allowed values under the chip |
 
-Invalid checkbox output → AMD `"Value is not valid"` → Contact support (ops reviews constraints / prompt). Tweaks: `amd_invalid_value`.
+Open: whether the prompt editor surfaces allowed values; relationship to YAML `extract_boolean_value` (see SHARED_CONFIG). Tweaks: `amd_checkbox`, `amd_invalid_value`.
 
-#### Push-error action matrix
+#### 2. Push setting — Insert before / Insert after / Overwrite
+
+Former `append` / `prepend` / replace are **one control**, not three toggles.
+
+| UI detail | What to notice |
+| --- | --- |
+| Labels | **Insert before** · **Insert after** · **Overwrite** (not raw Prepend/Append/Replace in the doctor UI) |
+| Global bar | Template **Push setting** bar at the top of the editor — AMD only |
+| Apply-all | Changing the template bar **applies that mode to every section** |
+| Local override | Section output settings (sliders) can diverge; shows “template default” vs “section override” |
+| Reset | Overridden sections can “Use template default” |
+| Why AMD | AMD can read existing note content before write — all three modes are valid |
+
+#### 3. Other AMD-specific UI subtleties
+
+| Element | Subtlety |
+| --- | --- |
+| **No Configuration column** | AMD does not show a Config/Prepend-Append column in the section table — Push setting lives in the template bar + output settings |
+| **Path style** | Mapping chips, picker, and limits use **`Office Visit > Title Case`** only (not `Clinical Notes > snake_case`) |
+| **AMD field limit** | Read-only amber callout in output settings from `max_character_length` — doctor cannot edit the limit |
+| **Shared field** | Two+ sections mapped to the same EHR field get a neutral **Shared** chip label (valid, not a warning); content combines in section list order |
+| **Push-error actions** | Buttons depend on error type — too-long → **Got it** only (no Remap); template changed → **Remap** + Contact support; permission / invalid value → Contact support only |
+| **Too-long copy** | Message includes section name + AMD char limit (e.g. HPI max 2,000) — mapping is fine; content is the problem |
+| **Self-serve vs ops styling** | Doctor-fixable errors use amber; ops-needed failures use red — driven by `selfServe` on the issue |
+| **Ownership chrome** | Ops-managed: Request New Section. Self-serve: + Add section + Prompt. Remap / output settings / Push setting on both |
+| **Parent mapping modes** | Whole section vs map subsections individually — Shared / remap still apply to the active mapping target |
+| **Dropped chrome** | No STATIC section badge; no EHR Pull / File Upload ghost rows † |
+
+#### Push-error action matrix (reference)
 
 Banner + row strip share `pushIssueActions(type)`:
 
@@ -230,9 +259,6 @@ Banner + row strip share `pushIssueActions(type)`:
 | `checkin` / `chart_closed` | (other EHRs) | ❌ | ✅ | ❌ | Doctor acts in EHR, then re-push |
 | `template_changed` / `mapping_broken` | `amd_template_changed` | ✅ | ❌ | ✅ | Doctor remaps; ops if auto-recovery failed |
 | `permission` / `auth` / `locked` / `transient` / `invalid_value` | `amd_no_permission`, `amd_invalid_value` | ❌ | ❌ | ✅ | Ops / practice admin |
-
-
-Subtle: **too-long must not offer Remap** — the mapping is fine; the content is over the AMD char limit (HPI mock uses max **2,000**). Self-serve styling (amber) vs ops-needed (red) still follows `selfServe` on the issue.
 
 ### Still to align
 
@@ -272,6 +298,7 @@ Subtle: **too-long must not offer Remap** — the mapping is fine; the content i
 | 2026-08-10 | **Request New Section = ops-managed only** †††; refreshed ownership matrix in this doc     |
 | 2026-08-10 | Checkbox fields in picker + seeded CC Enable; push-error action matrix; subtle-cases notes |
 | 2026-08-10 | Config keys → **Global / Local settings**; Push setting = append+prepend+overwrite (global default, per-section override) |
+| 2026-08-10 | Added **Subtle UI elements** section (checkbox, Push setting, other AMD UI subtleties) |
 
 
 ### Footnotes — dropped / superseded / product calls
