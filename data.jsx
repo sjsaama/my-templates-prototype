@@ -564,8 +564,6 @@ const EHR_CATEGORY = {
   Nereg:      { cat: 3, label: "Nereg",                   fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
   ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
   // Cat 4 reserved for confirmed no-push EHRs — none assigned yet.
-  // Athena legacy, Greenway, Tebra: push status TBD (not Cat 4 until confirmed).
-  // ECW FHIR: not Cat 4 (push unimplemented, not a copy-only category).
 };
 
 // Mock EHR templates per Cat 2 system — shown in the template-level picker.

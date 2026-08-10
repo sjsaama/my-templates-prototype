@@ -130,8 +130,6 @@ These live in the `templates` table and `json_template` JSON.
 
 No push — property changes have no mapping impact. Doctor copies note manually.
 
-> Cat 4 membership is TBD. Do not treat Athena legacy, ECW FHIR, Greenway, ModMed, or Tebra as Cat 4 until reconfirmed. (**ModMed pushes as PDF — Cat 3. ECW FHIR is not Cat 4.**)
-
 ---
 
 ## Quick reference — most dangerous changes

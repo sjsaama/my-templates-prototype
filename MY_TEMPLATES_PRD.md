@@ -202,8 +202,6 @@ EHRs: *(none assigned yet — confirmed no-push EHRs will be listed here)*
 
 No push capability. Doctor copies the note and pastes into EHR manually. The output settings panel (sliders button) is hidden — there is no mapping to configure.
 
-**ECW FHIR is not Cat 4** — push is unimplemented, but it is not classified as a copy-only / no-push product category.
-
 **Upfront notice:** When a doctor views or creates a template with a Cat 4 EHR, a blue info banner appears at the top of the section table: *"[EHR name] doesn't have a push integration — notes are copied manually after each visit. Section mapping isn't needed, but you can still configure content and style."* This sets expectations before they see "No push" across all section rows.
 
 | EHR | Why no push |
@@ -505,7 +503,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 **Value for Cat 4 doctors:** Even without push, the template still controls which sections are generated and in what order — the note is copied manually but its shape is fully controlled here.
 
-> Flow applies once EHRs are assigned to Cat 4. **ECW FHIR is not Cat 4.**
+> Flow applies once EHRs are assigned to Cat 4.
 
 ---
 

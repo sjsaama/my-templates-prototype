@@ -40,5 +40,3 @@ Note pushed automatically. No mapping rows or dropdown. Ops may define section n
 Marvix generates the note but cannot push it. Doctor copies manually. App should show "Copy Note" prompt.
 
 No EHRs are assigned here yet. EHRs confirmed to have **no push capability** will be listed in this section.
-
-> Previously listed candidates (Athena legacy, ECW FHIR, Greenway, Tebra) were cleared pending a fresh pass over which systems truly have no push. **ECW FHIR is not Cat 4.** See individual EHR docs for current technical status.
