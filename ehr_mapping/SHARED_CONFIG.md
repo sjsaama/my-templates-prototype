@@ -22,7 +22,7 @@ These three work together: first decide whether to include subsections, then whe
 ### Content shaping
 | Key | Where in YAML | Type | Default | What it does | Doctor-facing? |
 |---|---|---|---|---|---|
-| `keep_bullet_points` | top-level | Boolean | false | Keep bullet characters in pushed text. By default bullets are stripped before push. | Yes — all push EHRs |
+| `keep_bullet_points` | top-level | Boolean | false | Keep bullet characters in pushed text. By default bullets are stripped before push. | Yes — all push EHRs. **→ Moving to Template Settings (global)** |
 | `pre_literal` | top-level | Text | — | Fixed text prepended before section content on push (supports unicode escapes e.g. `•` for `•`). Skipped if already present in target field. | Yes — all push EHRs |
 | `post_literal` | top-level | Text | — | Fixed text appended after section content on push. Planned — not yet in codebase. | Yes — all push EHRs |
 | `default_negative` | top-level | Text | — | Text pushed when the section has no generated content (e.g. "Not reported"). Without this, empty sections push nothing. | Yes — all push EHRs |
