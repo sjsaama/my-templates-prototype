@@ -128,6 +128,28 @@ design/                 # Figma + screenshots (not runtime)
 ### Still to align
 
 1. Template list tabs: **Self-serve** vs **Ops-managed** (PRD: Request New Section / Add section only on self-serve; ops-managed structure is ops-controlled)
+2. Cat 2 create: **Connect EHR** step (pick AMD note template / field list) — `EHR_TEMPLATES_BY_SYSTEM.AMD` exists but unused
+3. AMD **checkbox** fields in the real picker (today: tweak demo only)
+4. Push-error polish: too-long should not offer Remap; cover more AMD fatal cases if needed for the mock
+
+### PRD vs prototype (AMD) — 2026-08-10
+
+Sources: [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md), this file, [ERROR_UX.md](ERROR_UX.md).
+
+| Area | Status | Notes |
+|---|---|---|
+| Self-serve vs ops gating (Request / Add / Prompt edit) | **Present** | Gated by `userCreated`; seeded AMD templates act as ops-managed |
+| Self-serve vs Ops-managed **list tabs** | **Missing** | List is Clinical Notes / Other Documents / My Templates only |
+| `Office Visit > Title Case` mapping + picker | **Present** | Chips, picker, char limits aligned |
+| Cat 2 Connect EHR / fetch at create | **Missing** | Create is Starting point → Describe → Review; no EHR template pick |
+| Remap from field list | **Present** | Mocked static AMD field list (no live fetch) |
+| Output settings (push mode, additional text, default negative, char limit) | **Present** | Sliders panel; Configuration column correctly omitted |
+| AMD checkbox fields in picker | **Partial** | Dual-mapping demo via Tweaks only |
+| Push errors: template changed / too long / permission | **Partial** | Three scenarios in Tweaks; Remap affordance on too-long banner is wrong |
+| Preview output | **Present** | Header; enabled sections + default negatives |
+| M / S indicators + popovers | **Present** | |
+| Parent As one / Each separately | **Present** | |
+| Shared field when two sections map to same destination | **Present** | |
 
 ### Changelog
 
@@ -140,6 +162,7 @@ design/                 # Figma + screenshots (not runtime)
 | 2026-08-10 | Merged `main` (PRD, `ehr_mapping/`, error-scenario + dual-mapping demos). Kept AMD lock; STATIC/ghost stay dropped |
 | 2026-08-10 | Consolidated prototype notes into this file; removed standalone AMD branch docs |
 | 2026-08-10 | Cleaned branch layout: removed stale `My Templates.html` + junk; moved design assets to `design/` |
+| 2026-08-10 | Compared branch vs PRD for AMD; logged scoreboard above |
 
 ### Footnotes — dropped / superseded
 
