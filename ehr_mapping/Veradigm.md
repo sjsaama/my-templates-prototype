@@ -1,5 +1,10 @@
 # EHR Mapping — Veradigm
 
+## Category
+**Category 1 — Fixed field list.** Field names from Veradigm's Unity API / tech-provided list. No template fetch for the mapping dropdown.
+
+---
+
 ## Extra Fields YAML keys
 
 | YAML key | Required? | Type | Purpose | Example | Source |

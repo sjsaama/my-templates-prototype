@@ -58,7 +58,7 @@ This is the primary product split. Template list tabs: **Ops-managed** / **Self-
 | **Request New Section**                                   | ✅            | ❌ — use **+ Add section**           |
 | **+ Add section** / delete custom section                 | ❌            | ✅                                   |
 | **Prompt** edit                                           | ❌            | ✅                                   |
-| **Create template**                                       | ❌            | ✅ (Connect EHR step only for Cat 2) |
+| **Create template**                                       | ❌            | ✅ (Connect EHR / field fetch for Cat 2; Cat 3 may still need destination connection) |
 
 
 ### Flow 1 — Ops-operated
@@ -103,13 +103,13 @@ No Reset and no Request New Section — the doctor owns structure.
 If a push fails because the EHR field mapping is wrong, the doctor can pick a different field:
 
 
-| EHR type                                                    | How remap works                                                                                                                                                                                                              |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cat 1 — AthenaOne, ECW, Veradigm, Centricity (Athena Flow)  | Open mapping picker, select from hardcoded field list. No API call. Field names shown with human-readable labels. Centricity and Athena Flow are the same product.                                                           |
-| Cat 2 — AMD, DrChrono                                       | Open mapping picker, select from the field list fetched at template creation.                                                                                                                                                |
-| Cat 2 — CharmHealth                                         | Open mapping picker, select from existing field list. Cannot re-fetch — automation blocked until CharmHealth templates API is available (confirm with KJ). If EHR template changed, doctor uses "Contact support" in picker. |
-| Cat 2 — Nereg                                               | Mapping is locked / auto from section `key_name`. Doctor connects an EHR note template like other Cat 2 EHRs, but cannot remap sections — Remap button not shown. Fix via `key_name` + connected template (ops / rename).   |
-| Cat 3 — Cerner (PDF), ModMed (PDF)                          | No mapping to remap. Remap button not shown.                                                                                                                                                                                 |
+| EHR type                                                   | How remap works                                                                                                                                                                                                              |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cat 1 — AthenaOne, ECW, Veradigm, Centricity (Athena Flow) | Open mapping picker, select from hardcoded field list. No API call. Field names shown with human-readable labels. Centricity and Athena Flow are the same product.                                                           |
+| Cat 2 — AMD, DrChrono                                      | Open mapping picker, select from the field list fetched at template creation.                                                                                                                                                |
+| Cat 2 — CharmHealth                                        | Open mapping picker, select from existing field list. Cannot re-fetch — automation blocked until CharmHealth templates API is available (confirm with KJ). If EHR template changed, doctor uses "Contact support" in picker. |
+| Cat 2 — Nereg                                              | Mapping is locked / auto from section `key_name`. Doctor connects an EHR note template like other Cat 2 EHRs, but cannot remap sections — Remap button not shown. Fix via `key_name` + connected template (ops / rename).    |
+| Cat 3 — Cerner (PDF), ModMed (PDF)                         | No mapping to remap. Remap button not shown.                                                                                                                                                                                 |
 
 
 ### Adjust section output settings
@@ -216,12 +216,12 @@ EHRs: AthenaOne, ECW, Veradigm, Centricity (Athena Flow)
 Field names are hardcoded — no API call needed to populate the dropdown. What the doctor sees in the mapping column:
 
 
-| EHR                          | Format                                                              | Display                                                                                      |
-| ---------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| AthenaOne                    | Snake_case identifiers (`hpi`, `assessment_with_problems`)          | Shown as human-readable labels: "History of Present Illness", "Assessment & Problem List"    |
-| ECW                          | Shortcut command names (`HPI:`, `Assessment:`, `Chief Complaints:`) | Shown as-is — these are the literal commands eCW recognizes                                  |
-| Veradigm                     | camelCase (`historySections`, `reviewOfSystem`, `assessmentPlanHP`) | Shown as human-readable labels: "History Sections", "Review of Systems", "Assessment & Plan" |
-| Centricity (Athena Flow)     | Snake_case identifiers (`hpi`, `assessment_plan`, …)                | Shown as human-readable labels. **Centricity and Athena Flow are the same product**          |
+| EHR                      | Format                                                              | Display                                                                                      |
+| ------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| AthenaOne                | Snake_case identifiers (`hpi`, `assessment_with_problems`)          | Shown as human-readable labels: "History of Present Illness", "Assessment & Problem List"    |
+| ECW                      | Shortcut command names (`HPI:`, `Assessment:`, `Chief Complaints:`) | Shown as-is — these are the literal commands eCW recognizes                                  |
+| Veradigm                 | camelCase (`historySections`, `reviewOfSystem`, `assessmentPlanHP`) | Shown as human-readable labels: "History Sections", "Review of Systems", "Assessment & Plan" |
+| Centricity (Athena Flow) | Snake_case identifiers (`hpi`, `assessment_plan`, …)                | Shown as human-readable labels. **Centricity and Athena Flow are the same product**          |
 
 
 **ECW — Scribe-it secondary destination:** ECW is the only Cat 1 EHR with a secondary push destination. The mapping picker has two columns: Primary (shortcut commands like `HPI:`, `Assessment:`) and Scribe-it (a separate destination in eCW's Scribe-it note panel — different field set, e.g. `ScribeIt > HPI`, `ScribeIt > Physical Exam`). Both are optional; Scribe-it is surfaced as "optional" in the picker.
@@ -233,15 +233,15 @@ EHRs: AMD, DrChrono, CharmHealth, Nereg
 Fields come from the doctor's EHR note template. The field list is populated at template creation time when the doctor selects their EHR note template — **there is no separate "Fetch fields" step** in the template editor. If fields need to be refreshed after the initial setup, the flows below apply.
 
 
-| EHR         | Format                                                   | Remap / refresh behavior                                                                                                                                                                           |
-| ----------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AMD         | `Page Name > Field Name`                                 | Push mode (prepend/append/replace) and character limit shown in output settings. Doctor can remap freely from the field list.                                                                      |
-| DrChrono    | Snake_case field names                                   | ICD/CPT fields handled separately — not in mapping table. Doctor can remap.                                                                                                                        |
-| CharmHealth | `entry_chart_section` value if set, otherwise field name | Field list cannot be re-fetched. Doctor can remap from the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh. |
+| EHR         | Format                                                   | Remap / refresh behavior                                                                                                                                                                                                      |
+| ----------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AMD         | `Page Name > Field Name`                                 | Push mode (prepend/append/replace) and character limit shown in output settings. Doctor can remap freely from the field list.                                                                                                 |
+| DrChrono    | Snake_case field names                                   | ICD/CPT fields handled separately — not in mapping table. Doctor can remap.                                                                                                                                                   |
+| CharmHealth | `entry_chart_section` value if set, otherwise field name | Field list cannot be re-fetched. Doctor can remap from the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh.                            |
 | Nereg       | Auto from section `key_name`                             | Doctor still **connects an EHR note template** (like other Cat 2). Mapping is **locked** — no picker / no remap. Label: "Auto-mapped from section names". Fix mismatches by correcting `key_name` / connected template (ops). |
 
 
-> **Design decision:** EHR field fetching is not part of the creation flow. After a Cat 2 template is created, the doctor opens it in the editor and fetches fields there — a "Fetch fields from [EHR]" action inside the template editor, not a creation step. The creation flow is identical for all EHR categories. CharmHealth cannot re-fetch — the editor shows an amber notice explaining this, with a "Contact support" button. Nereg connects a template but does not expose a field picker.
+> **Design decision:** For Cat 2, the **Connect EHR** step at creation is where the doctor picks their EHR note template (and fields are fetched for AMD / DrChrono / CharmHealth). Cat 1 and Cat 3 do not fetch a field list at create — Cat 1 uses a hardcoded list; Cat 3 is whole-note PDF (destination document connection may still be required separately). CharmHealth cannot re-fetch after creation — the editor shows an amber notice with "Contact support". Nereg connects a template but does not expose a field picker (locked auto from `key_name`).
 
 ### Cat 3 — Auto push (PDF)
 
@@ -257,7 +257,6 @@ Note is pushed automatically as a whole-note PDF — no mapping rows shown, no d
 
 
 > **No Category 4.** Athena legacy, ECW FHIR, Greenway, and Tebra are **not** in the My Templates taxonomy (no doctor-facing Cat 4 / "No push" EHRs). Backend stub docs under `ehr_mapping/` may remain for engineering reference only.
-
 
 ## Settings hierarchy
 
@@ -409,7 +408,7 @@ The section-level inline strip is the primary action surface — the banner is a
 
 | Scenario                 | Triggered by | Detectable?          | Doctor sees | Resolution                     |
 | ------------------------ | ------------ | -------------------- | ----------- | ------------------------------ |
-| Wrong `key_name` in YAML | Ops mapping  | ❌ Silent wrong field | Nothing     | Ops updates `key_name` in YAML |
+| Wrong section `key_name` | Ops / rename | ❌ Silent wrong field | Nothing     | Ops / doctor corrects section `key_name` + connected template |
 | Auth failure             | Infra        | ✅ Yes                | —           | Ops                            |
 
 
@@ -508,11 +507,11 @@ This is the **create** path for Flow 2 — Self-serve. Ops-operated templates ar
 ### Creation flow — all EHRs
 
 
-| Step            | What happens                                                                                                                                                              |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 — Describe    | Doctor enters template name, description, and document type (Clinical Note / Letter / Other). Optionally copies sections from an existing template.                       |
-| 2 — Connect EHR | Cat 2 only (AMD, DrChrono, CharmHealth, Nereg) — doctor picks which EHR note template to connect. For AMD/DrChrono/Charm this is where EHR fields are fetched; for Nereg the connection is required but mapping stays locked/auto from `key_name`. Cat 1 and Cat 3 skip this step. |
-| 3 — Review      | Summary of name, type, EHR system, and whether sections were copied. Doctor confirms to create.                                                                           |
+| Step            | What happens                                                                                                                                                                                                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 — Describe    | Doctor enters template name, description, and document type (Clinical Note / Letter / Other). Optionally copies sections from an existing template.                                                                                                                                |
+| 2 — Connect EHR | **Cat 2** (AMD, DrChrono, CharmHealth, Nereg) — doctor picks which EHR note template to connect. For AMD/DrChrono/Charm this is where EHR fields are fetched; for Nereg the connection is required but mapping stays locked/auto from `key_name`. **Cat 1** skips field Connect (fixed list). **Cat 3** skips field Connect but still requires destination document / note-template connection where the product needs it (not a field picker). |
+| 3 — Review      | Summary of name, type, EHR system, and whether sections were copied. Doctor confirms to create.                                                                                                                                                                                    |
 
 
 **Copy from existing template (step 1, optional):** Doctor selects any of their existing templates from a dropdown. The new template inherits a deep copy of the source section tree — including order, enabled/disabled state, and EHR mappings. If no template is selected, the new template starts from Marvix defaults (Cat 1 / Cat 3) or an empty section list (Cat 2).

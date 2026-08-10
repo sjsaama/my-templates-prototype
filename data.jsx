@@ -526,6 +526,7 @@ const EHR_FIELDS_BY_SYSTEM = {
     ]}
   ],
   Cerner: [],
+  ModMed: [],
   Nereg: [],
   default: [
     { group: "Clinical Notes", fields: [

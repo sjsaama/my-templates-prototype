@@ -1,7 +1,7 @@
 # EHR Mapping — ModMed
 
 ## Category
-**Category 3 — Auto push, no field mapping.** Marvix converts the full note to a PDF and pushes it to ModMed via FHIR. No section-level mapping is needed — the entire note goes as one document.
+**Category 3 — Auto push (PDF).** Marvix converts the full note to a PDF and pushes it to ModMed via FHIR. No section-level field mapping / Remap. **EHR template / destination document connection is still required.**
 
 ---
 
@@ -30,7 +30,7 @@ None — no section mapping needed. The whole note is pushed as a single PDF.
 
 ## App UX
 
-No mapping column shown in My Templates. The template page shows: *"Whole note pushed as PDF."*
+Mapping column shows the auto-push label *"Whole note pushed as PDF"* on every section row (no Remap / no field picker). Output settings (sliders) are hidden.
 
 ---
 
