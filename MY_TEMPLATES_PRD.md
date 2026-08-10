@@ -84,11 +84,11 @@ Per-section settings opened via the sliders (⊟) button on each section row. On
 | ECW | Uses a non-standard line-break character — content must be formatted accordingly before push |
 | Veradigm | Requires `\r\n` (CRLF) line endings — plain `\n` will render incorrectly in the EHR |
 
-**Write mode** — AMD only
+**Push setting** — AMD only (global + local)
 
 | Setting | What it does |
 |---|---|
-| Prepend / Replace / Append | How Marvix content relates to text already in the EHR field |
+| Insert before / Insert after / Overwrite | How Marvix content relates to text already in the EHR field. **Set globally on the template**, applied to each section, and **changeable per section** in output settings. One control — not separate append/prepend toggles. |
 
 **Veradigm — push as note vs. push as document**
 
@@ -241,6 +241,7 @@ Apply to the whole template — not per section. Doctor can set these.
 
 | Setting | EHR | What it controls |
 |---|---|---|
+| **Push setting** (Insert before / Insert after / Overwrite) | AMD (and other read-before-write EHRs) | How Marvix content relates to text already in the EHR field. **Set globally → applied to each section → overridable per section.** Combines former append / prepend / replace toggles into one control. |
 | Default line separator | Veradigm | Separator used for all line breaks in pushed content. |
 | Section separator | Veradigm | Separator inserted between top-level sections on push. |
 | Subsection separator | Veradigm | Separator inserted between child subsections on push. |
@@ -248,7 +249,7 @@ Apply to the whole template — not per section. Doctor can set these.
 
 ### Section-level settings
 
-Per-section, configured in the output settings panel (sliders button). See "Adjust section output settings" above for the full list.
+Per-section, configured in the output settings panel (sliders button). See "Adjust section output settings" above for the full list. Includes an optional **Push setting** override when the section should differ from the template default.
 
 ---
 
@@ -467,7 +468,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 **CharmHealth exception:** Field list cannot be re-fetched after creation. Doctor can remap to any field in the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh.
 
-**AMD-specific:** Push mode (Prepend / Append / Replace) and character limit are shown in the output settings per section. AMD is the only EHR where these are configurable by the doctor.
+**AMD-specific:** **Push setting** (Insert before / Insert after / Overwrite) is set globally on the template and applied to each section; doctors can override it per section in output settings. Character limit is shown per mapped field (read-only from AMD). AMD is the only EHR where Push setting is doctor-configurable in the prototype.
 
 ---
 

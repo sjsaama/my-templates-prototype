@@ -6,7 +6,7 @@ Per-section config options. Every key here lives in the Extra Fields YAML for a 
 
 ## Common — applies to all push EHRs
 
-> **Planned — Template Settings:** The keys `separator`, `char_limit`, `push_subsections`, `retain_headings`, `skip_empty_subsections`, and `line_separator` are being promoted from per-section YAML to a global **Template Settings** level. Doctors will set them once per template rather than per mapping row. The per-section YAML path remains the source of truth until migration is complete.
+> **Planned — Template Settings:** The keys `separator`, `char_limit`, `push_subsections`, `retain_headings`, `skip_empty_subsections`, and `line_separator` are being promoted from per-section YAML to a global **Template Settings** level. **Push setting** (`append` / `prepend` / overwrite) is also a template-level default that is applied to each section and can be overridden locally. Doctors will set globals once per template rather than only per mapping row. The per-section YAML path remains the source of truth until migration is complete.
 
 ### How subsections are combined into one EHR field
 These three work together: first decide whether to include subsections, then whether to label them, then what to put between them.
@@ -28,11 +28,17 @@ These three work together: first decide whether to include subsections, then whe
 | `default_negative` | top-level | Text | — | Text pushed when the section has no generated content (e.g. "Not reported"). Without this, empty sections push nothing. | Yes — all push EHRs |
 | `char_limit` | `config.char_limit` | Number | — | Truncates pushed text to N characters. Limit is set by the EHR field, not the doctor. **→ Moving to Template Settings** | Read-only display only |
 
-### Write mode (where EHR supports read-before-write)
+### Push setting / write mode (where EHR supports read-before-write)
+
+Doctor-facing UI combines these into **one Push setting**: Insert before / Insert after / Overwrite.
+
+**Hierarchy (AMD):** set globally on the template → applied to each section as the default → any section can override locally.
+
 | Key | Where in YAML | Type | Default | What it does | Doctor-facing? |
 |---|---|---|---|---|---|
-| `append` | `config.append` | Boolean | false | Append Marvix content after existing content already in the EHR field | Yes — AMD, AthenaOne, DrChrono only |
-| `prepend` | `config.prepend` | Boolean | false | Prepend Marvix content before existing content already in the EHR field | Yes — AMD, AthenaOne, DrChrono only |
+| `append` | `config.append` | Boolean | false | Append Marvix content after existing content already in the EHR field (= Insert after) | Yes — AMD, AthenaOne, DrChrono — part of Push setting |
+| `prepend` | `config.prepend` | Boolean | false | Prepend Marvix content before existing content already in the EHR field (= Insert before) | Yes — AMD, AthenaOne, DrChrono — part of Push setting |
+| *(neither)* | — | — | — | Overwrite / replace existing EHR field content | Yes — same Push setting control |
 
 ---
 

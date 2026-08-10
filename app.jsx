@@ -93,6 +93,13 @@ function mapSectionTree(list, id, fn) {
     return { ...s, children: mapSectionTree(s.children, id, fn) };
   });
 }
+function mapAllSections(list, fn) {
+  return list.map((s) => {
+    const next = fn(s);
+    if (!s.children) return next;
+    return { ...next, children: mapAllSections(s.children, fn) };
+  });
+}
 function findSection(sections, id) {
   for (const s of sections) {
     if (s.id === id) return s;
@@ -146,6 +153,7 @@ function App() {
     window.INITIAL_PENDING_REQUESTS.map((r) => ({ ...r }))
   );
   const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
+  const [pushModeByTpl, setPushModeByTpl] = useStateA({});
   const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
   const [disableTarget, setDisableTarget] = useStateA(null);
   const [toast, setToast] = useStateA("");
@@ -169,10 +177,18 @@ function App() {
   const sections = activeTpl
     ? (sectionsByTpl[activeTpl] || (sectionsByTpl[activeTpl] = window.makeSections()))
     : [];
+  const templatePushMode = (activeTpl && pushModeByTpl[activeTpl]) || "Prepend";
 
   const setSections = (fn) => {
     if (!activeTpl) return;
     setSectionsByTpl((m) => ({ ...m, [activeTpl]: fn(m[activeTpl] || window.makeSections()) }));
+  };
+
+  const applyTemplatePushMode = (mode) => {
+    if (!activeTpl) return;
+    setPushModeByTpl((m) => ({ ...m, [activeTpl]: mode }));
+    setSections((arr) => mapAllSections(arr, (s) => (s.ghost ? s : { ...s, config: mode })));
+    flash("Push setting applied to all sections — change any section to override");
   };
 
   const flash = (msg) => { setToast(msg); clearTimeout(window.__tt); window.__tt = setTimeout(() => setToast(""), 2600); };
@@ -215,7 +231,7 @@ function App() {
       name: data.name,
       custom: true,
       ehr: data.field || "",
-      config: "Prepend",
+      config: templatePushMode || "Prepend",
       enabled: true,
       macros: [],
       summarizers: [],
@@ -366,6 +382,28 @@ function App() {
                   )}
                 </div>
               </header>
+              {/* AMD global Push setting — applied to each section, overridable locally */}
+              {ehr === "AMD" && ehrCat.cat <= 2 && (
+                <div className="tpl-settings-bar">
+                  <span className="tpl-settings-label">Push setting</span>
+                  <div className="tpl-settings-seg" role="group" aria-label="Template push setting">
+                    {["Prepend", "Append", "Replace"].map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        className={"tpl-settings-seg-btn" + (templatePushMode === mode ? " tpl-settings-seg-btn--on" : "")}
+                        onClick={() => applyTemplatePushMode(mode)}
+                      >
+                        {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="tpl-settings-hint">
+                    Template default — applies to every section. Change any section in output settings to override.
+                  </span>
+                </div>
+              )}
+
               {/* Cat 4 — no push integration notice */}
               {ehrCat.cat === 4 && (
                 <div className="cat4-notice">
@@ -415,6 +453,7 @@ function App() {
               <window.SectionTable
                 sections={sections}
                 ehr={ehr}
+                templatePushMode={templatePushMode}
                 pushIssues={pushIssues}
                 dualMappingDemo={t.dualMappingDemo}
                 remapTarget={remapTarget}

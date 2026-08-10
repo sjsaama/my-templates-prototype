@@ -56,22 +56,57 @@ This survives field reordering and ID reassignment. It **fails** if `page_name` 
 
 ---
 
-## Relevant `config` keys
+## Settings — global (template) and local (section)
+
+Doctor-facing settings for AMD push. Today these still live as per-row YAML `config` keys; the product model is **global template defaults** with **optional per-section overrides**.
+
+### Push setting (combined write mode)
+
+`append` / `prepend` / overwrite are **one control**, not three separate toggles:
+
+| UI label | YAML today | Behaviour |
+| -------- | ---------- | --------- |
+| **Insert before** | `prepend: true` | Marvix content before existing EHR field text |
+| **Insert after** | `append: true` | Marvix content after existing EHR field text |
+| **Overwrite** | neither (replace) | Marvix content replaces the field |
+
+AMD can read existing note content before writing, so all three modes work.
+
+**Hierarchy**
+
+1. **Global (template)** — doctor sets Push setting once on the template
+2. **Applied to each section** — that value becomes the default for every section on the template
+3. **Local override** — any section can change Push setting in its output settings (sliders) without affecting other sections
+
+Prototype: template bar sets/applies the mode to all sections; section panel can diverge afterward.
+
+### Global — template settings
+
+Set once per template. Apply as defaults across sections.
 
 
-| Key                      | Useful? | Notes                                                                                                            |
-| ------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------- |
-| `append`                 | ✅ Yes   | AMD fetches existing note content before pushing — append works                                                  |
-| `prepend`                | ✅ Yes   | Same as above                                                                                                    |
-| `separator`              | ✅ Yes   | Joins text when multiple sections map to one field. **→ Moving to Template Settings**                            |
-| `char_limit`             | ✅ Yes   | AMD enforces `max_character_length` per field — set this to avoid push errors. **→ Moving to Template Settings** |
-| `push_subsections`       | ✅ Yes   | **→ Moving to Template Settings**                                                                                |
-| `retain_headings`        | ✅ Yes   | **→ Moving to Template Settings**                                                                                |
-| `skip_empty_subsections` | ✅ Yes   | **→ Moving to Template Settings**                                                                                |
-| `line_separator`         | ❌ No    | ECW HL7 only                                                                                                     |
+| Setting | YAML today | AMD notes |
+| ------- | ---------- | --------- |
+| **Push setting** | `append` / `prepend` (or neither = overwrite) | Combined control above. Global default → applied to each section → overridable locally. |
+| Subsection join / headings | `push_subsections`, `retain_headings`, `skip_empty_subsections`, `separator` | How parent + child text is combined into one EHR field. **Template Settings** (not per mapping row). |
+| Character limit display | `char_limit` / AMD `max_character_length` | Limit comes from the AMD field. Shown for reference; not doctor-authored. |
 
 
-> `separator`, `char_limit`, `push_subsections`, `retain_headings`, and `skip_empty_subsections` are being promoted to a global **Template Settings** level. Doctors will configure them once per template rather than per mapping row.
+`line_separator` — ❌ not used for AMD (ECW HL7 only).
+
+### Local — section output settings
+
+Opened via the sliders button on a section row (Cat 1 / Cat 2).
+
+
+| Setting | Scope | Notes |
+| ------- | ----- | ----- |
+| **Push setting** | Section override | Same Insert before / Insert after / Overwrite control. Overrides the template default for this section only. |
+| Additional text | Section | Fixed text before/after section body on push |
+| Default negative | Section | Text pushed when the section has no generated content |
+| AMD field limit | Read-only | From `max_character_length` on the mapped field |
+
+> YAML migration: keep writing `config.append` / `config.prepend` per row until Template Settings lands; the UI presents one Push setting with global → local inheritance.
 
 ---
 
@@ -163,6 +198,7 @@ Header shows an ownership badge + short hint for the active template.
 | EHR Pull / File Upload ghost rows | **Dropped** †                                            |
 | AMD checkbox fields               | Same picker as text; distinct control type + allowed values |
 | Push-error Remap                  | Only when mapping is wrong/stale — not for too-long / permission |
+| Push setting (append/prepend/overwrite) | **One control** — set globally on the template, applied to each section, overridable per section |
 
 
 ### Subtle cases (prototype)
@@ -213,7 +249,7 @@ Subtle: **too-long must not offer Remap** — the mapping is fine; the content i
 | `Office Visit > Title Case` mapping + picker                               | **Present** | Chips, picker, char limits aligned                     |
 | Cat 2 Connect EHR / fetch at create                                        | **Missing** | Create is Starting point → Describe → Review           |
 | Remap from field list                                                      | **Present** | Mocked static AMD field list (no live fetch)           |
-| Output settings (push mode, additional text, default negative, char limit) | **Present** | Sliders panel; no Configuration column                 |
+| Output settings (push setting, additional text, default negative, char limit) | **Present** | Global Push setting bar + per-section override; no Configuration column |
 | AMD checkbox fields in picker                                              | **Present** | Tagged in picker + chip; CC Enable seeded; allowed-values hint |
 | Push errors: template changed / too long / permission / invalid value      | **Present** | Action matrix by type; too-long → Got it only          |
 | Preview / M·S / parent modes / Shared field                                | **Present** |                                                        |
@@ -235,6 +271,7 @@ Subtle: **too-long must not offer Remap** — the mapping is fine; the content i
 | 2026-08-10 | Ops-managed / Self-serve list tabs + ownership badge/hint; seeded two self-serve templates |
 | 2026-08-10 | **Request New Section = ops-managed only** †††; refreshed ownership matrix in this doc     |
 | 2026-08-10 | Checkbox fields in picker + seeded CC Enable; push-error action matrix; subtle-cases notes |
+| 2026-08-10 | Config keys → **Global / Local settings**; Push setting = append+prepend+overwrite (global default, per-section override) |
 
 
 ### Footnotes — dropped / superseded / product calls

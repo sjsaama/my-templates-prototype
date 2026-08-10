@@ -358,8 +358,10 @@ function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, eh
 }
 
 // ── Soft-hidden details panel — 4 tabs ────────────────────────────────────
-function InlineAdvPanel({ s, onUpdate, ehr }) {
+function InlineAdvPanel({ s, onUpdate, ehr, templatePushMode }) {
   const I = window.Icons;
+  const pushMode = s.config || templatePushMode || "Prepend";
+  const usesTemplateDefault = !s.config || s.config === (templatePushMode || "Prepend");
   return (
     <div className="adv">
 
@@ -398,20 +400,31 @@ function InlineAdvPanel({ s, onUpdate, ehr }) {
           })()}
 
           {ehr === "AMD" && (
-            <>
-              <div className="adv-field adv-field--push-mode">
-                <label className="adv-field-label">Push mode</label>
-                <div className="adv-seg-row">
-                  {["Prepend", "Append", "Replace"].map(mode => (
-                    <button key={mode}
-                      className={"seg-btn" + ((s.config || "Prepend") === mode ? " seg-btn--on" : "")}
-                      onClick={() => onUpdate(s.id, { config: mode })}>
-                      {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
-                    </button>
-                  ))}
-                </div>
+            <div className="adv-field adv-field--push-mode">
+              <label className="adv-field-label">
+                Push setting
+                <span className="adv-field-optional">{usesTemplateDefault ? "· template default" : "· section override"}</span>
+              </label>
+              <div className="adv-seg-row">
+                {["Prepend", "Append", "Replace"].map(mode => (
+                  <button key={mode}
+                    className={"seg-btn" + (pushMode === mode ? " seg-btn--on" : "")}
+                    onClick={() => onUpdate(s.id, { config: mode })}>
+                    {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
+                  </button>
+                ))}
               </div>
-            </>
+              {!usesTemplateDefault && (
+                <button
+                  type="button"
+                  className="adv-reset-link"
+                  style={{ marginTop: 6 }}
+                  onClick={() => onUpdate(s.id, { config: templatePushMode || "Prepend" })}
+                >
+                  Use template default ({({ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" })[templatePushMode || "Prepend"]})
+                </button>
+              )}
+            </div>
           )}
 
         </div>
@@ -428,7 +441,7 @@ function SectionRow({
   onOpenMapping, onSetMappingMode, onUpdate,
   onDragStart, onDragEnd, onDragOver, onDrop,
   isDragging, dropBefore, dropAfter, isDuplicate,
-  parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo,
+  parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo, templatePushMode,
 }) {
   const I = window.Icons;
   const [popover, setPopover] = useStateR(null);
@@ -667,7 +680,7 @@ function SectionRow({
           />
         </div>
       )}
-      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} ehr={ehr} />}
+      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} ehr={ehr} templatePushMode={templatePushMode} />}
     </div>
   );
 
@@ -695,7 +708,7 @@ function AddSubsectionGhostRow({ depth, onClick }) {
 
 // ── Render tree recursively ────────────────────────────────────────────────
 function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
-  const { handlers, dragId, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo } = ctx;
+  const { handlers, dragId, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo, templatePushMode } = ctx;
   const isDragging = dragId === s.id;
   const dropBefore = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'before');
   const dropAfter = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'after');
@@ -717,6 +730,7 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
       pushIssue={pushIssuesByName ? pushIssuesByName[s.name] : null}
       canEditPrompt={canEditPrompt}
       dualMappingDemo={dualMappingDemo}
+      templatePushMode={templatePushMode}
       {...handlers}
     />,
   ];
@@ -735,7 +749,7 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
 
 // ── Section table (manages drag state + mapping panel) ────────────────────
 function SectionTable({
-  sections, ehr, pushIssues,
+  sections, ehr, pushIssues, templatePushMode,
   onToggle, onExpand, onToggleDetails, onTogglePrompt, onDeleteSection,
   onReorder, onRemap, onSetMappingMode, onUpdate, remapTarget, onRemapTargetHandled,
   onAddSection, canEditPrompt, dualMappingDemo,
@@ -804,7 +818,7 @@ function SectionTable({
 
   const pushIssuesByName = {};
   (pushIssues || []).forEach(pi => { pushIssuesByName[pi.section] = pi; });
-  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo };
+  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo, templatePushMode };
 
   // ── Add Section availability — varies by EHR category ──
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
