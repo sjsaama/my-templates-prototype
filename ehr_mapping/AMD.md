@@ -177,6 +177,7 @@ Open: surface allowed values in prompt editor; vs YAML `extract_boolean_value` (
 | 2026-08-10 | Checkbox picker + CC Enable; push-error action matrix |
 | 2026-08-10 | Settings → global/local; Push setting + Character limit; Subtle UI section; doc cleanup |
 | 2026-08-10 | Character limit = **global only** (no per-section override) |
+| 2026-08-10 | **Reset to default = ops-managed only** (not on self-serve) |
 
 ### Footnotes
 
