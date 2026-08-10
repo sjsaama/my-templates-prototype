@@ -40,49 +40,25 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "density": "regular",
   "showAdvancedInline": true,
   "monoMapping": true,
-  "ehr": "AMD",
+  "ehr": "DrChrono",
   "errorScenario": "none",
   "dualMappingDemo": "none"
 }/*EDITMODE-END*/;
 
-// This branch is scoped to AMD only — other EHR systems live on their own branches.
-const EHR_OPTIONS = ["AMD"];
+// This branch is scoped to DrChrono only — other EHR systems live on their own branches.
+const EHR_OPTIONS = ["DrChrono"];
 const EHR_LOCKED = true;
 
+// DrChrono field-level push failures are undetectable today (save_note swallows exceptions).
+// Only auth / credentials errors surface. Remap is still available in the editor for stale fields.
 const ERROR_SCENARIOS = {
   none: [],
-  athena_checkin: [
-    { id: "pi1", section: "History of Present Illness", error: "Check-in not complete", type: "checkin", msg: "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again.", selfServe: true },
-    { id: "pi2", section: "Assessment & Plan", error: "Check-in not complete", type: "checkin", msg: "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again.", selfServe: true },
+  drchrono_auth: [
+    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to a DrChrono authentication issue. Contact support to reconnect the integration.", selfServe: false },
   ],
-  athena_section: [
-    { id: "pi1", section: "History of Present Illness", error: "Field mapping broken", type: "mapping_broken", msg: "One or more sections failed to push. Support has been notified.", selfServe: false },
-    { id: "pi2", section: "Assessment & Plan", error: "Field mapping broken", type: "mapping_broken", msg: "One or more sections failed to push. Support has been notified.", selfServe: false },
-  ],
-  athena_transient: [
-    { id: "pi1", section: "History of Present Illness", error: "Athena API error", type: "transient", msg: "Something went wrong on Athena's end — we'll retry automatically. If this keeps happening, contact support.", selfServe: false },
-  ],
-  athena_auth: [
-    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to an authentication issue. Contact support.", selfServe: false },
-  ],
-  amd_template_changed: [
-    { id: "pi1", section: "History of Present Illness", error: "AMD template updated", type: "template_changed", msg: "Your AMD template was updated and some field mappings are no longer valid. Support has been notified.", selfServe: false },
-    { id: "pi2", section: "Assessment & Plan", error: "AMD template updated", type: "template_changed", msg: "Your AMD template was updated and some field mappings are no longer valid. Support has been notified.", selfServe: false },
-  ],
-  amd_too_long: [
-    { id: "pi1", section: "History of Present Illness", error: "Content too long", type: "too_long", msg: "'History of Present Illness' is too long for this field (max 2,000 chars). Shorten your note and push again.", selfServe: true },
-  ],
-  amd_no_permission: [
-    { id: "pi1", section: "History of Present Illness", error: "Permission denied", type: "permission", msg: "Marvix doesn't have permission to write to AMD. Ask your practice admin to check account permissions.", selfServe: false },
-  ],
-  amd_invalid_value: [
-    { id: "pi1", section: "Chief Complaint Enable", error: "Invalid field value", type: "invalid_value", msg: "'Chief Complaint Enable' contains a value AMD doesn't accept for this checkbox field. Contact support.", selfServe: false },
-  ],
-  veradigm_chart: [
-    { id: "pi1", section: "History of Present Illness", error: "Chart not open", type: "chart_closed", msg: "Veradigm requires the patient's chart to be open before pushing. Open the chart and try again.", selfServe: true },
-  ],
-  veradigm_locked: [
-    { id: "pi1", section: "Assessment & Plan", error: "Encounter locked", type: "locked", msg: "This encounter is locked in Veradigm and can't be edited.", selfServe: false },
+  // Hypothetical — needs Lambda change to surface field failures (PRD gap).
+  drchrono_field_gap: [
+    { id: "pi1", section: "History of Present Illness", error: "Field push failed (undetectable today)", type: "mapping_broken", msg: "DrChrono field-level failures are not surfaced yet — save_note swallows exceptions. This mock shows the future banner once Lambda reports failures.", selfServe: false },
   ],
 };
 
@@ -91,13 +67,6 @@ function mapSectionTree(list, id, fn) {
     if (s.id === id) return fn(s);
     if (!s.children) return s;
     return { ...s, children: mapSectionTree(s.children, id, fn) };
-  });
-}
-function mapAllSections(list, fn) {
-  return list.map((s) => {
-    const next = fn(s);
-    if (!s.children) return next;
-    return { ...next, children: mapAllSections(s.children, fn) };
   });
 }
 function findSection(sections, id) {
@@ -144,7 +113,7 @@ function Toast({ msg }) {
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const ehr = EHR_LOCKED ? "AMD" : t.ehr;
+  const ehr = EHR_LOCKED ? "DrChrono" : t.ehr;
   const [templates, setTemplates] = useStateA(window.TEMPLATES);
   const [createTemplateOpen, setCreateTemplateOpen] = useStateA(false);
   const [activeTpl, setActiveTpl] = useStateA("gen3");
@@ -153,8 +122,6 @@ function App() {
     window.INITIAL_PENDING_REQUESTS.map((r) => ({ ...r }))
   );
   const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
-  const [pushModeByTpl, setPushModeByTpl] = useStateA({});
-  const [charLimitByTpl, setCharLimitByTpl] = useStateA({});
   const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
   const [disableTarget, setDisableTarget] = useStateA(null);
   const [toast, setToast] = useStateA("");
@@ -173,31 +140,15 @@ function App() {
   const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
   const pendingCount = pendingRequests.length;
   const visibleTemplates = EHR_LOCKED
-    ? templates.filter((t) => !t.ehrSystem || t.ehrSystem === "AMD")
+    ? templates.filter((t) => !t.ehrSystem || t.ehrSystem === "DrChrono")
     : templates;
   const sections = activeTpl
     ? (sectionsByTpl[activeTpl] || (sectionsByTpl[activeTpl] = window.makeSections()))
     : [];
-  const templatePushMode = (activeTpl && pushModeByTpl[activeTpl]) || "Prepend";
-  const templateCharLimit = (activeTpl && charLimitByTpl[activeTpl]) || 2000;
 
   const setSections = (fn) => {
     if (!activeTpl) return;
     setSectionsByTpl((m) => ({ ...m, [activeTpl]: fn(m[activeTpl] || window.makeSections()) }));
-  };
-
-  const applyTemplatePushMode = (mode) => {
-    if (!activeTpl) return;
-    setPushModeByTpl((m) => ({ ...m, [activeTpl]: mode }));
-    setSections((arr) => mapAllSections(arr, (s) => (s.ghost ? s : { ...s, config: mode })));
-    flash("Push setting applied to all sections — change any section to override");
-  };
-
-  const applyTemplateCharLimit = (limit) => {
-    if (!activeTpl) return;
-    const n = Math.max(0, parseInt(limit, 10) || 0);
-    setCharLimitByTpl((m) => ({ ...m, [activeTpl]: n }));
-    flash("Character limit updated for this template");
   };
 
   const flash = (msg) => { setToast(msg); clearTimeout(window.__tt); window.__tt = setTimeout(() => setToast(""), 2600); };
@@ -240,7 +191,7 @@ function App() {
       name: data.name,
       custom: true,
       ehr: data.field || "",
-      config: templatePushMode || "Prepend",
+      config: "Prepend",
       enabled: true,
       macros: [],
       summarizers: [],
@@ -278,9 +229,9 @@ function App() {
       name: data.name,
       derivative: data.type,
       ehr: connectedName
-        ? ((ehr || "AMD") + "_" + connectedName.replace(/\s+/g, "_"))
-        : ((ehr || "AMD") + "_Unconnected"),
-      ehrSystem: ehr || "AMD",
+        ? ((ehr || "DrChrono") + "_" + connectedName.replace(/\s+/g, "_"))
+        : ((ehr || "DrChrono") + "_Unconnected"),
+      ehrSystem: ehr || "DrChrono",
       ehrTemplateId: data.ehrTemplateId || "",
       ehrTemplateName: connectedName,
       group: "My Templates",
@@ -400,53 +351,14 @@ function App() {
                   )}
                 </div>
               </header>
-              {/* Connected AMD note template (self-serve Cat 2) */}
-              {tpl.userCreated && ehr === "AMD" && (
+              {/* Connected DrChrono note template (self-serve Cat 2) */}
+              {tpl.userCreated && ehr === "DrChrono" && (
                 <div className="ehr-tpl-banner">
                   <div className="ehr-tpl-banner-left">
-                    <span className="ehr-tpl-banner-label">Connected AMD note template</span>
+                    <span className="ehr-tpl-banner-label">Connected DrChrono note template</span>
                     {tpl.ehrTemplateName
                       ? <span className="ehr-tpl-banner-value">{tpl.ehrTemplateName}</span>
                       : <span className="ehr-tpl-banner-unset">Not connected — map fields from the list, or reconnect later</span>}
-                  </div>
-                </div>
-              )}
-
-              {/* AMD global settings — Push setting + Character limit */}
-              {ehr === "AMD" && ehrCat.cat <= 2 && (
-                <div className="tpl-settings-stack">
-                  <div className="tpl-settings-bar">
-                    <span className="tpl-settings-label">Push setting</span>
-                    <div className="tpl-settings-seg" role="group" aria-label="Template push setting">
-                      {["Prepend", "Append", "Replace"].map((mode) => (
-                        <button
-                          key={mode}
-                          type="button"
-                          className={"tpl-settings-seg-btn" + (templatePushMode === mode ? " tpl-settings-seg-btn--on" : "")}
-                          onClick={() => applyTemplatePushMode(mode)}
-                        >
-                          {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
-                        </button>
-                      ))}
-                    </div>
-                    <span className="tpl-settings-hint">
-                      Template default — applies to every section. Override per section in output settings.
-                    </span>
-                  </div>
-                  <div className="tpl-settings-bar">
-                    <span className="tpl-settings-label">Character limit</span>
-                    <input
-                      className="tpl-settings-input"
-                      type="number"
-                      min="0"
-                      step="100"
-                      value={templateCharLimit}
-                      onChange={(e) => applyTemplateCharLimit(e.target.value)}
-                      aria-label="Template character limit"
-                    />
-                    <span className="tpl-settings-hint">
-                      Global only — applies to the whole template (no per-section override). AMD field max still informs too-long errors when mapped.
-                    </span>
                   </div>
                 </div>
               )}
@@ -500,7 +412,6 @@ function App() {
               <window.SectionTable
                 sections={sections}
                 ehr={ehr}
-                templatePushMode={templatePushMode}
                 pushIssues={pushIssues}
                 dualMappingDemo={t.dualMappingDemo}
                 remapTarget={remapTarget}
@@ -605,10 +516,10 @@ function App() {
         <TweakSection label="EHR" />
         {EHR_LOCKED ? (
           <TweakRadio
-            label="EHR system (AMD branch)"
-            value="AMD"
-            options={["AMD"]}
-            onChange={() => setTweak("ehr", "AMD")}
+            label="EHR system (DrChrono branch)"
+            value="DrChrono"
+            options={["DrChrono"]}
+            onChange={() => setTweak("ehr", "DrChrono")}
           />
         ) : (
           <TweakSelect label="EHR system" value={t.ehr}
@@ -617,11 +528,11 @@ function App() {
         )}
         <TweakSection label="Simulate push error" />
         <TweakSelect label="Error scenario" value={t.errorScenario}
-          options={["none","amd_template_changed","amd_too_long","amd_no_permission","amd_invalid_value"]}
+          options={["none","drchrono_auth","drchrono_field_gap"]}
           onChange={(v) => setTweak("errorScenario", v)} />
         <TweakSection label="Advanced mapping demos" />
         <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}
-          options={["none","one_to_two","amd_checkbox"]}
+          options={["none","one_to_two"]}
           onChange={(v) => setTweak("dualMappingDemo", v)} />
       </TweaksPanel>
     </div>

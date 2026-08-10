@@ -454,7 +454,7 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
           <h2>Create a template</h2>
           <span className="modal-sub">
             {needsConnectEhr
-              ? "Self-serve — pick an AMD note template so field mapping uses your EHR fields"
+              ? "Self-serve — pick a DrChrono note template so field mapping uses your EHR fields"
               : "You'll configure sections and EHR mapping after creation"}
           </span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
