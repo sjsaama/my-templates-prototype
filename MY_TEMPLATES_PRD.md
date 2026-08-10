@@ -72,8 +72,8 @@ Per-section settings opened via the sliders (⊟) button on each section row. On
 | Default negative | Text pushed when section has no generated content (e.g. "Not reported") | Output settings panel |
 | Character limit | **AMD: global template setting only** (`char_limit` / `max_character_length`) — no per-section value | Template settings (global) |
 | AMD checkbox fields | Distinct AMD field type in the **same** picker as text. Section maps to one checkbox destination (allowed values from AMD fetch). Dual mapping (e.g. CC Enable + CC Text) = two sections. **How the pushed value is chosen is open** — see Open questions. | Field picker (AMD) |
-| Section separator | Separator character/string inserted between sections on push | Output settings panel (Veradigm) |
-| Subsection separator | Separator character/string inserted between subsections on push | Output settings panel (Veradigm) |
+| Section separator | Separator between top-level / parent sections when joined (e.g. two parents → one EHR field) | Template settings (global); Veradigm also surfaces in output settings |
+| Subsection separator | Separator between child subsections when a parent is joined into one field | Template settings (global); Veradigm also surfaces in output settings |
 | Default line separator | Default separator used for all line breaks in pushed content | Output settings panel (Veradigm) |
 
 **EHR-specific line-break requirements**
@@ -100,7 +100,7 @@ Setting is **template-level**, not user-level. Whether content is pushed as a no
 | Append other derivative | A section can pull content from a derivative template (e.g. a summary template) and append it to the main note on push. Mechanism TBD — needs clarification from Vignesh. |
 | ICD / EM code mapping | Uses template ID in the mapping editor — a **separate mechanism** from append-other-derivative. ICD/CPT fields are not in the standard mapping table. |
 | One section → two EHR fields | A single logical section (e.g. chief complaint) may map to two separate EHR destination fields — confirmed for AMD (checkbox field + text field). Both fields are mapped independently. For non-checkbox pairs, ordering may matter for how the EHR renders them — handling TBD. See open questions. |
-| Two sections → same EHR field | Multiple Marvix sections can share the same EHR destination field. This is valid and supported. Content from all mapped sections is combined in section order. The UI shows a neutral "Shared" label on the mapping chip (not a warning). |
+| Two sections → same EHR field | Multiple Marvix **parent** sections can share one EHR destination. Valid. Content is combined in **Marvix UI section list order** (reorder parents in the list to change push order). Neutral **Shared** chip — not a warning. |
 | First-line heading omit | Whether the first line (section heading) is stripped before push. Configurability unconfirmed — see open questions. |
 
 ### Request a new section
@@ -138,7 +138,7 @@ Doctor can discard customizations on an **ops-managed** template and restore the
 ### Section row
 
 - **Macro / summarizer icons:** Labeled `M` and `S`. Dot indicator when at least one item is connected.
-- **Prompt:** Inline on each row — **self-serve only**. `!` if no prompt written yet.
+- **Prompt:** Inline on each row — **self-serve only** (editable). Hidden on ops-managed. `!` if no prompt written yet.
 - **Output settings (sliders):** Cat 1 and Cat 2 only. Hidden for Cat 3 and Cat 4.
 - **Push-error strip actions:** Depend on error type (Remap / Got it / Contact support). Remap only when mapping is wrong/stale (Cat 1 / Cat 2).
 

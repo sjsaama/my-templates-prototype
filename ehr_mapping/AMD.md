@@ -58,7 +58,12 @@ YAML today still stores some values per row (`config.*`) until Template Settings
 | ------- | ---------- | ----- |
 | **Push setting** | `append` / `prepend` / neither (= overwrite) | One control — see below. Global default → applied to sections → **overridable locally** |
 | **Character limit** | `char_limit` | **Global only — no per-section value.** Informed by AMD `max_character_length` when fields are mapped; used for truncation / too-long guidance |
-| Subsection join | `push_subsections`, `retain_headings`, `skip_empty_subsections`, `separator` | How parent + children combine into one EHR field |
+| Subsection join | `push_subsections`, `retain_headings`, `skip_empty_subsections` | Whether / how parent + children combine into one EHR field |
+| **Section separator** | `separator` (between top-level / sibling sections sharing a field) | Joins content when **two+ parent sections** map to the same EHR field |
+| **Subsection separator** | `separator` (between children under one parent) | Joins child subsection text when a parent is pushed as one field |
+
+> Separators for subsection join may be **section separator** or **subsection separator** depending on what is being joined (parents sharing a field vs children under one parent).
+
 
 ### Local (section output settings)
 
@@ -132,8 +137,9 @@ Branch `cursor/amd-ehr-34b9` — visual / UX only. EHR locked to AMD. Entry: `in
 | Preview / Save | ✅ | ✅ |
 | **Reset to default** | ✅ only | ❌ — no ops default to restore |
 | **Request New Section** | ✅ only ††† | ❌ |
-| **+ Add section** / **Prompt** edit | ❌ | ✅ |
+| **+ Add section** / **Prompt** edit | ❌ | ✅ — Prompt editable on self-serve only |
 | **Create → Connect EHR** (Cat 2) | ❌ | ✅ — pick AMD note template (or skip) |
+| **2+ parents → one EHR field** | ✅ | ✅ — **Shared** chip; **Marvix UI section order = push order** |
 
 ### Subtle UI elements
 
@@ -188,11 +194,10 @@ Tweaks: `amd_checkbox` (dual chip), `amd_invalid_value` (push error). Seeded `Ch
 | Element | Subtlety |
 | ------- | -------- |
 | No Configuration column | Push setting: template bar + section override. Character limit: **template bar only** (global) |
+| Prompt edit | **Self-serve only** — ops-managed templates do not expose Prompt on the row |
+| Shared field (2+ parents → one EHR) | Neutral **Shared** chip. Content is combined in **Marvix UI section list order** (drag to reorder parents → changes push order) |
+| Section vs subsection separator | Subsection join can use a **section separator** (between parents sharing a field) or **subsection separator** (between children under one parent) |
 | Reset to default | **Ops-managed only** — restores ops default; absent on self-serve |
-| Connect EHR at create | **Self-serve + Cat 2 only** — Starting point → Describe → **Connect EHR** → Review. Uses `EHR_TEMPLATES_BY_SYSTEM.AMD`. Skip allowed. |
-| Shared field | Neutral **Shared** chip when 2+ sections map to one field — content joins in list order |
-| Parent mapping | Whole vs map subsections individually |
-| Dropped chrome | No STATIC badge; no EHR Pull / File Upload ghost rows † |
 
 *(Push setting + push-error actions — see Settings and Push errors. Character limit is global-only.)*
 
