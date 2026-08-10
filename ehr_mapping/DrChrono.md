@@ -188,6 +188,15 @@ DrChrono-specific only. Cross-EHR rules (Shared chip, parent whole/individual ma
 | No checkbox fields | AMD-only control type — not in DrChrono picker |
 | Connect EHR at create | Self-serve + Cat 2 — `EHR_TEMPLATES_BY_SYSTEM.DrChrono` |
 
+### Gaps / open product questions
+
+| Gap | Why it matters | Status |
+| --- | -------------- | ------ |
+| **Field-level push visibility** | `save_note` swallows exceptions → no real push-issues banner | Needs Lambda change |
+| **ICD / CPT doctor UX** | Supported in backend via `sub_template_ids`; no My Templates UI | Needs design + template API access |
+| **DrChrono push activation** | Is push live for any practices? | Confirm with Vignesh |
+| **Stale field detection** | No auto-remap; silent drop | Remap + ops until API surfaces failures |
+
 ### Changelog
 
 | Date | Change |
