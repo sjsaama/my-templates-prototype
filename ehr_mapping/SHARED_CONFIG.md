@@ -11,11 +11,18 @@ Per-section config options. Every key here lives in the Extra Fields YAML for a 
 ### How subsections are combined into one EHR field
 These three work together: first decide whether to include subsections, then whether to label them, then what to put between them.
 
+Product UI distinguishes two separator roles (both may map to `config.separator` / Template Settings today; naming may split later):
+
+| UI label | Used when |
+|---|---|
+| **Section separator** | Two+ **parent** sections map to the same EHR field (shared-field join). Order of parents in the Marvix UI list is push order. |
+| **Subsection separator** | **Child** sections under one parent are joined into one field. |
+
 | Key | Where in YAML | Type | Default | What it does | Doctor-facing? |
 |---|---|---|---|---|---|
 | `push_subsections` | `config.push_subsections` | Boolean | true | Include child subsections in the pushed text. If false, only the parent section's own text is pushed — subsections are ignored. | Yes — Cat 1 + Cat 2, parent sections. **→ Moving to Template Settings** |
 | `retain_headings` | `config.retain_headings` | Boolean | false | Prefix each subsection's content with its name (e.g. "Onset: …"). Only applies when `push_subsections` is true. | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings** |
-| `separator` | `config.separator` | Text | `\n` | Text inserted between subsections when joined into one block. Only applies when `push_subsections` is true. | Yes — Cat 1 + Cat 2, parent sections. **→ Moving to Template Settings** |
+| `separator` | `config.separator` | Text | `\n` | Text inserted between joined blocks. Role depends on join type: **section separator** (parents sharing a field) or **subsection separator** (children under one parent). Only applies when joining is on (`push_subsections` / shared field). | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings** |
 | `skip_separator_between_children` | top-level | Boolean | false | Use no separator between child subsections — tighter spacing. Overrides `separator` at the child level. | Yes — Cat 1 + Cat 2, parent sections |
 | `skip_empty_subsections` | `config.skip_empty_subsections` | Boolean | false | Exclude subsections that have no generated content from the joined output. | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings** |
 
