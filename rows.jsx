@@ -47,10 +47,10 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
   const [pendingEhr, setPendingEhr] = useStateR(currentEhr);
   const [pendingScribeIt, setPendingScribeIt] = useStateR(currentScribeIt || "");
   const I = window.Icons;
-  const isEcw = ehr === "eCW";
-  const ehrCat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
-  const isFixedList = ehrCat && ehrCat.fieldSource === "fixed";
-  const isCharm = ehr === "Charm";
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
+  const isEcw = !!caps.hasScribeIt;
+  const isFixedList = !!caps.isFixedList;
+  const isCharm = !!caps.showCharmRemapNotice;
 
   const confirm = () => {
     onSelect(sectionId, pendingEhr, isEcw ? pendingScribeIt : undefined);
@@ -410,11 +410,10 @@ function SectionRow({
   const hasKids = !!(s.children && s.children.length);
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
-  const ehrCatMeta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
-  const ehrRowCat = ehrCatMeta.cat;
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
   // Nereg is Cat 2 but locked auto-map — no per-section output settings / remap.
-  const lockedAutoMap = ehrCatMeta.fieldSource === "auto" || ehrCatMeta.canRemap === false;
-  const hasOutputSettings = (ehrRowCat === 1 || ehrRowCat === 2) && !lockedAutoMap;
+  const lockedAutoMap = !!caps.lockedAutoMap;
+  const hasOutputSettings = !!caps.hasOutputSettings;
   const promptOpen = !!s.promptOpen;
   const [nameDraft, setNameDraft] = useStateR(s.name);
   const [showRenameWarn, setShowRenameWarn] = useStateR(false);
@@ -541,14 +540,14 @@ function SectionRow({
             Template/document connection is template-level, not this cell. */}
         <div className="row-mapping">
           {(() => {
-            const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
-            if (cat && (cat.cat === 3 || cat.fieldSource === "auto" || cat.canRemap === false) && cat.autoMsg) return (
-              <span className="mapping-auto-label" title={cat.autoMsg}>{cat.autoMsg}</span>
+            const meta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
+            if (caps.showAutoMappingLabel && caps.autoMsg) return (
+              <span className="mapping-auto-label" title={caps.autoMsg}>{caps.autoMsg}</span>
             );
-            if (cat && cat.cat === 4) return (
+            if (caps.showCat4Notice) return (
               <span className="mapping-no-push-label">No push</span>
             );
-            if (cat && cat.fieldsPending) return (
+            if (meta.fieldsPending) return (
               <span className="mapping-pending-label" title="Field list not yet confirmed — ops will configure this">Field list pending</span>
             );
             // cat 1 or 2 — normal mapping cell
@@ -568,7 +567,7 @@ function SectionRow({
           })()}
         </div>
         {/* eCW secondary column — Scribe-it destination */}
-        {ehr === "eCW" && (
+        {caps.hasScribeIt && (
           <div className="row-ehr-secondary">
             <button className="ehr-scribeit-btn" onClick={() => onOpenMapping(s.id)} title="Edit Scribe-it mapping">
               {s.scribeIt
@@ -626,7 +625,7 @@ function SectionRow({
             <span className="row-push-error-msg">{pushIssue.msg}</span>
           </div>
           <div className="row-push-error-actions">
-            {(pushIssue.type === "mapping_broken") && hasOutputSettings && !lockedAutoMap && (
+            {(pushIssue.type === "mapping_broken") && caps.canRemap && (
               <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
             )}
             {pushIssue.selfServe
@@ -791,9 +790,10 @@ function SectionTable({
   const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo };
 
   // ── Add Section availability — varies by EHR category ──
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
-  const isCat1 = ehrCat.cat === 1;
-  const isCat2 = ehrCat.cat === 2;
+  const isCat1 = caps.category === 1;
+  const isCat2 = caps.category === 2;
   // Only count fields actually in *this* EHR's field list — sections mapped under a
   // previously-selected EHR (or seeded demo data) shouldn't count against a different EHR's cap.
   const validFieldSet = new Set(
@@ -804,8 +804,8 @@ function SectionTable({
   const capReached = (isCat1 || isCat2) && (totalFieldCount === 0 || usedFieldCount >= totalFieldCount);
 
   let addDisabledReason = "";
-  if (capReached && ehrCat.fieldsPending) addDisabledReason = (ehrCat.label || ehr) + "'s field list isn't confirmed yet — check with ops";
-  else if (capReached) addDisabledReason = "All available " + (ehrCat.label || ehr) + " fields are already used";
+  if (capReached && ehrCat.fieldsPending) addDisabledReason = (caps.label || ehr) + "'s field list isn't confirmed yet — check with ops";
+  else if (capReached) addDisabledReason = "All available " + (caps.label || ehr) + " fields are already used";
 
   return (
     <div className={"table table-edit" + (ehr ? " table--" + ehr.toLowerCase() : "")}>
@@ -822,7 +822,7 @@ function SectionTable({
           </button>
         )}
         {isCat1 && totalFieldCount > 0 && (
-          <span className="section-toolbar-hint">{usedFieldCount}/{totalFieldCount} {ehrCat.label || ehr} fields used</span>
+          <span className="section-toolbar-hint">{usedFieldCount}/{totalFieldCount} {caps.label || ehr} fields used</span>
         )}
       </div>
       <div className="thead">
@@ -831,7 +831,7 @@ function SectionTable({
           EHR Mapping
           {ehr && <span className="th-ehr-badge">{ehr}</span>}
         </div>
-        {ehr === "eCW" && <div className="th">Scribe-it</div>}
+        {caps.hasScribeIt && <div className="th">Scribe-it</div>}
         <div className="th th-enable">Enable</div>
       </div>
       <div className="tbody">
