@@ -134,17 +134,6 @@ Branch `cursor/amd-ehr-34b9` — visual / UX only. EHR locked to AMD. Entry: `in
 | **+ Add section** / **Prompt** edit | ❌ | ✅ |
 | Seeded | General 1–3, First Visit, Follow Up, Neuro, AVS, Letters, DDx | `General 3 — Custom`, `Follow Up — My Push` |
 
-### Decisions
-
-| Topic | Decision |
-| ----- | -------- |
-| Configuration column | Not needed for AMD |
-| Path style | `Office Visit > Title Case` everywhere †† |
-| STATIC badge / EHR Pull ghost rows | Dropped † |
-| Checkbox fields | Same picker as text; distinct type + allowed values |
-| Push setting | Global → apply to sections → local override |
-| Character limit | **Global only** — template bar; no local / per-section value |
-
 ### Subtle UI elements
 
 #### Checkbox fields
