@@ -82,7 +82,7 @@ Per-section settings opened via the sliders (⊟) button on each section row. On
 | ECW | Uses a non-standard line-break character — content must be formatted accordingly before push |
 | Veradigm | Requires `\r\n` (CRLF) line endings — plain `\n` will render incorrectly in the EHR |
 
-**Push setting** — AMD only (global + local)
+**Push setting** — AMD and DrChrono (global + local)
 
 | Setting | What it does |
 |---|---|
@@ -175,7 +175,7 @@ Fields come from the doctor's EHR note template. The field list is populated at 
 | EHR | Format | Remap / refresh behavior |
 |---|---|---|
 | AMD | `Page Name > Field Name` (Title Case) | **Push setting** (global + per-section override) and **Character limit** (global only). Doctor remaps from the field list fetched at Connect EHR (self-serve create) or set by ops. |
-| DrChrono | Snake_case field names | **Character limit** (global only). ICD/CPT fields handled separately — not in mapping table. Doctor can remap. |
+| DrChrono | Snake_case field names | **Push setting** (global + per-section override) and **Character limit** (global only). ICD/CPT fields handled separately — not in mapping table. Doctor can remap. |
 | CharmHealth | `entry_chart_section` value if set, otherwise field name | Field list cannot be re-fetched. Doctor can remap from the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh. |
 
 > **Self-serve Cat 2:** EHR note template is chosen at **create** (Connect EHR step); fields come from that template. There is no separate "Fetch fields" action in the editor. If fields go stale after an EHR template change, remap (or Contact support for CharmHealth) is the recovery path.  
@@ -239,7 +239,7 @@ Apply to the whole template — not per section. Doctor can set these.
 
 | Setting | EHR | What it controls |
 |---|---|---|
-| **Push setting** (Insert before / Insert after / Overwrite) | AMD (and other read-before-write EHRs) | How Marvix content relates to text already in the EHR field. **Set globally → applied to each section → overridable per section.** Combines former append / prepend / replace toggles into one control. |
+| **Push setting** (Insert before / Insert after / Overwrite) | AMD, DrChrono (read-before-write EHRs) | How Marvix content relates to text already in the EHR field. **Set globally → applied to each section → overridable per section.** Combines former append / prepend / replace toggles into one control. |
 | **Character limit** | AMD, DrChrono (and other EHRs that enforce limits) | Truncates / guides pushed length. **Global only — no per-section override.** AMD may still auto-fetch per-field `max_character_length` for error copy / guidance. |
 | Default line separator | Veradigm | Separator used for all line breaks in pushed content. |
 | Section separator | Veradigm | Separator inserted between top-level sections on push. |
@@ -468,9 +468,9 @@ Doctors who want a template beyond what ops provides can create one themselves.
 
 **CharmHealth exception:** Field list cannot be re-fetched after creation. Doctor can remap from the existing list; Contact support if the list is stale.
 
-**AMD-specific:** **Push setting** — global with per-section override. Per-field `max_character_length` from AMD informs too-long errors.
+**AMD-specific:** Per-field `max_character_length` from AMD informs too-long errors.
 
-**DrChrono + AMD:** **Character limit** — global only (never per-section). DrChrono has no per-field max from the API in the prototype.
+**DrChrono + AMD:** **Push setting** — global with per-section override. **Character limit** — global only (never per-section). DrChrono has no per-field max from the API in the prototype.
 
 ---
 

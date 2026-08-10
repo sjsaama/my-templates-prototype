@@ -76,40 +76,53 @@ DrChrono does **not** raise `EhrTemplateChangeException` / re-fetch / rematch by
 
 ## Settings — global and local
 
-Product model: **template defaults**, with **per-section overrides only where noted**.  
-YAML may still store some values per row (`config.*`) until Template Settings migration lands.
+Same product model as AMD: **template defaults**, with **per-section overrides only where noted**.  
+YAML today still stores some values per row (`config.*`) until Template Settings migration lands.
+
+**Hierarchy (where override is allowed):** Global (template) → applied to each section → optional local override in output settings.
 
 ### Global (template only)
 
 | Setting | YAML today | Notes |
 | ------- | ---------- | ----- |
-| **Character limit** | `char_limit` | **Global only — never per-section.** Truncates / guides pushed length for the template |
+| **Push setting** | `append` / `prepend` / neither (= overwrite) | One control — see below. Global default → applied to sections → **overridable locally**. DrChrono can read existing note content, so all three work |
+| **Character limit** | `char_limit` | **Global only — no per-section value.** Truncates / guides pushed length |
 | Subsection join | `push_subsections`, `retain_headings`, `skip_empty_subsections`, `separator` | How parent + children combine into one EHR field → Template Settings |
 
 ### Local (section output settings)
 
 | Setting | Notes |
 | ------- | ----- |
+| **Push setting** | Override template default for this section only |
 | Additional text | Fixed text before/after section body |
 | Default negative | Pushed when section has no generated content |
 
-> **Character limit is never shown in section output settings.**  
-> **Push setting** (Insert before / after / Overwrite) is **AMD-only** in My Templates. Backend still supports `append` / `prepend` for DrChrono via YAML — not doctor UI on this branch.
+> Character limit is **not** shown or edited per section — template bar only.  
+> `line_separator` is **not** used for DrChrono (ECW HL7 only).
 
----
+### Push setting options
 
-## Relevant `config` keys (backend)
+One control (not three toggles). Maps former backend `append` / `prepend` flags.
 
-| Key | Useful? | Notes |
+| UI label | YAML | Behaviour |
+| -------- | ---- | --------- |
+| Insert before | `prepend: true` | Marvix content before existing field text |
+| Insert after | `append: true` | Marvix content after existing field text |
+| Overwrite | neither | Replaces field content |
+
+### Config key → settings map
+
+Former flat “Relevant config keys” table, now owned by global/local settings:
+
+| Key | Becomes | Scope |
 | --- | ------- | ----- |
-| `append` | ✅ Yes | DrChrono fetches existing note content before pushing |
-| `prepend` | ✅ Yes | Same as above |
-| `separator` | ✅ Yes | **→ Template Settings** |
-| `char_limit` | ✅ Yes | **→ Global Template Setting only** |
-| `push_subsections` | ✅ Yes | **→ Template Settings** |
-| `retain_headings` | ✅ Yes | **→ Template Settings** |
-| `skip_empty_subsections` | ✅ Yes | **→ Template Settings** |
-| `line_separator` | ❌ No | ECW HL7 only |
+| `append` / `prepend` | **Push setting** | Global default + local override |
+| `char_limit` | **Character limit** | Global only |
+| `separator` | Subsection join | Global (Template Settings) |
+| `push_subsections` | Subsection join | Global (Template Settings) |
+| `retain_headings` | Subsection join | Global (Template Settings) |
+| `skip_empty_subsections` | Subsection join | Global (Template Settings) |
+| `line_separator` | — | ❌ Not used (ECW only) |
 
 ---
 
@@ -156,7 +169,7 @@ Branch `cursor/drchrono-ehr-9d4d` — visual / UX only. EHR locked to DrChrono. 
 | Capability | Ops-managed | Self-serve |
 | ---------- | ----------- | ---------- |
 | List tab | ✅ | ✅ |
-| Remap + output settings + **global Character limit** | ✅ | ✅ |
+| Remap + output settings + **global Push setting / Character limit** | ✅ | ✅ |
 | Preview / Save | ✅ | ✅ |
 | **Reset to default** | ✅ only | ❌ — no ops default to restore |
 | **Request New Section** | ✅ only | ❌ |
@@ -171,7 +184,7 @@ Branch `cursor/drchrono-ehr-9d4d` — visual / UX only. EHR locked to DrChrono. 
 | Mapping table | Free-text clinical fields only |
 | ICD / CPT | **Excluded** from picker — separate `sub_template_ids` mechanism (not prototyped) |
 | Character limit | **Template bar only** — global; never in section output settings |
-| No Push setting | AMD-only doctor UI |
+| Push setting | **Template bar + section override** — same model as AMD (`append` / `prepend` / overwrite) |
 | No checkbox fields | AMD-only control type |
 | Connect EHR at create | Self-serve + Cat 2 — `EHR_TEMPLATES_BY_SYSTEM.DrChrono` |
 | Shared field | Neutral **Shared** chip when 2+ sections map to one field |
@@ -184,7 +197,7 @@ Branch `cursor/drchrono-ehr-9d4d` — visual / UX only. EHR locked to DrChrono. 
 | **Field-level push visibility** | `save_note` swallows exceptions → no real push-issues banner | Needs Lambda change |
 | **ICD / CPT doctor UX** | Supported in backend via `sub_template_ids`; no My Templates UI | Needs design + template API access |
 | **DrChrono push activation** | Is push live for any practices? | Confirm with Vignesh |
-| **Append / prepend in doctor UI** | Backend supports; PRD keeps Push setting AMD-only | Leave YAML/ops for now |
+| **Append / prepend in doctor UI** | ~~YAML/ops only~~ → **Push setting** global + local like AMD | Done in prototype |
 | **Stale field detection** | No auto-remap; silent drop | Remap + ops until API surfaces failures |
 
 ### Changelog
@@ -195,5 +208,6 @@ Branch `cursor/drchrono-ehr-9d4d` — visual / UX only. EHR locked to DrChrono. 
 | 2026-08-10 | Snake_case fields; drop ICD/CPT from mapping picker |
 | 2026-08-10 | Remove AMD checkbox UI and Push setting from doctor UI |
 | 2026-08-10 | Character limit restored as **global only** (never local) |
+| 2026-08-10 | Config keys → same global/local settings model as AMD; Push setting restored (global + local) |
 | 2026-08-10 | Doc: mapping table vs naked free-text vs ICD/CPT; gaps table |
 | 2026-08-10 | Push-error tweaks: auth + field-gap mock only |
