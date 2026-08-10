@@ -560,7 +560,7 @@ const EHR_CATEGORY = {
   Veradigm:   { cat: 1, label: "Veradigm",               fieldSource: "fixed" },
   Charm:      { cat: 2, label: "CharmHealth",             fieldSource: "fetch", canReFetch: false },
   DrChrono:   { cat: 2, label: "DrChrono",                fieldSource: "fetch" },
-  Centricity: { cat: 3, label: "Centricity",              fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
+  Centricity: { cat: 1, label: "Centricity",              fieldSource: "fixed" },
   Cerner:     { cat: 3, label: "Cerner",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
   Nereg:      { cat: 3, label: "Nereg",                   fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
   ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
@@ -589,10 +589,6 @@ const EHR_TEMPLATES_BY_SYSTEM = {
     { id: "charm_t2", name: "Progress Note" },
     { id: "charm_t3", name: "Initial Evaluation" },
   ],
-  Centricity: [
-    { id: "cen_t1", name: "Office Visit" },
-    { id: "cen_t2", name: "Follow-up" },
-  ],
 };
 
 // Human-readable display labels for EHR field identifiers that use camelCase or snake_case.
@@ -616,6 +612,12 @@ const EHR_FIELD_LABELS = {
   "reasonsForVisit":          "Reason for Visit",
   "vitals":                   "Vitals",
   "ICD":                      "ICD Diagnosis Codes",
+  // Centricity (Athena Flow)
+  "chief_complaint":          "Chief Complaint",
+  "ros":                      "Review of Systems",
+  "physical_exam":            "Physical Exam",
+  "assessment_plan":          "Assessment & Plan",
+  "past_medical_history":     "Past Medical History",
 };
 
 // Keep EHR_FIELDS as alias for backward compatibility (AMD default).
