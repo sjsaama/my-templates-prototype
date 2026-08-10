@@ -413,8 +413,15 @@ function SectionRow({
   const ehrCatMeta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
   const ehrRowCat = ehrCatMeta.cat;
   // Nereg is Cat 2 but locked auto-map — no per-section output settings / remap.
-  const hasOutputSettings = (ehrRowCat === 1 || ehrRowCat === 2) && ehrCatMeta.canRemap !== false && ehrCatMeta.fieldSource !== "auto";
+  const lockedAutoMap = ehrCatMeta.fieldSource === "auto" || ehrCatMeta.canRemap === false;
+  const hasOutputSettings = (ehrRowCat === 1 || ehrRowCat === 2) && !lockedAutoMap;
   const promptOpen = !!s.promptOpen;
+  const [nameDraft, setNameDraft] = useStateR(s.name);
+  const [showRenameWarn, setShowRenameWarn] = useStateR(false);
+  const autoMapKey = s.autoMapKey || s.keyName || s.name;
+
+  // Keep draft in sync when section identity/name changes from outside
+  React.useEffect(() => { setNameDraft(s.name); }, [s.id, s.name]);
 
   // Dual-mapping demo override — applies to "Assessment & Plan" only
   const demoOverride =
@@ -465,11 +472,25 @@ function SectionRow({
           <div className="namecell">
             <input
               className="sname-input"
-              value={s.name}
-              onChange={(e) => onUpdate(s.id, { name: e.target.value })}
+              value={nameDraft}
+              onChange={(e) => {
+                setNameDraft(e.target.value);
+                if (lockedAutoMap && e.target.value.trim() !== autoMapKey) setShowRenameWarn(true);
+                else if (lockedAutoMap && e.target.value.trim() === autoMapKey) setShowRenameWarn(false);
+              }}
+              onBlur={() => {
+                const next = nameDraft.trim() || s.name;
+                if (next !== s.name) onUpdate(s.id, { name: next });
+                if (lockedAutoMap && next !== autoMapKey) setShowRenameWarn(true);
+              }}
               onClick={(e) => e.stopPropagation()}
               aria-label="Section header"
             />
+            {lockedAutoMap && showRenameWarn && (
+              <div className="nereg-rename-warn">
+                Renaming this section may break Nereg auto-mapping. Field mapping can’t be changed in the app — keep the name matched to the Nereg field, or contact support.
+              </div>
+            )}
             <div className="name-icons" style={{position:"relative"}}>
               {/* Macros icon */}
               <button type="button"
@@ -605,7 +626,7 @@ function SectionRow({
             <span className="row-push-error-msg">{pushIssue.msg}</span>
           </div>
           <div className="row-push-error-actions">
-            {(pushIssue.type === "mapping_broken") && hasOutputSettings && (
+            {(pushIssue.type === "mapping_broken") && hasOutputSettings && !lockedAutoMap && (
               <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
             )}
             {pushIssue.selfServe

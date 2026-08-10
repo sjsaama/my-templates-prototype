@@ -11,15 +11,80 @@ See also: [README.md](README.md) Category 2 · [CATEGORY_3.md](CATEGORY_3.md) (C
 
 ---
 
+## My Templates UI (Nereg-specific)
+
+This is the product surface for Nereg in the doctor app. Prototype: Tweaks → EHR → **Nereg**, open **Progress Note**.
+
+### Principles
+
+| Principle | UI consequence |
+|---|---|
+| Connect EHR template | Required — show connected template at template level |
+| No doctor field mapping | No mapping picker; no Remap on push errors |
+| Auto from section `key_name` | Mapping column: *“Auto-mapped from section names”* |
+| Push formatting hardcoded | Output settings (sliders) hidden |
+| Rename breaks routing | Warn when doctor renames a section |
+
+### Editor chrome
+
+1. **Info notice** (persistent while EHR = Nereg)  
+   Copy: *Nereg maps each section to an EHR field by section name. You can’t change field mapping here — connect the right Nereg note template, and keep section names aligned with Nereg fields.*
+
+2. **Connected EHR template banner**  
+   - Label: `Connected Nereg template`  
+   - Value: selected template name (e.g. Progress Note), or unset state  
+   - Action: **Change** / **Connect** opens template picker (list from `EHR_TEMPLATES_BY_SYSTEM.Nereg`)  
+   - No “Fetch fields” — connection only
+
+3. **Section rows**  
+   - Mapping cell: locked auto label (*Auto-mapped from section names*) — not clickable  
+   - No sliders / output settings  
+   - No Remap on row push-error strip (Contact support only)
+
+4. **Rename warning**  
+   When the doctor changes a section header, show an amber inline warning:  
+   *Renaming this section may break Nereg auto-mapping. Field mapping can’t be changed in the app — keep the name matched to the Nereg field, or contact support.*
+
+### Create template flow
+
+| Step | Nereg behavior |
+|---|---|
+| 1 — Starting point | Same as other EHRs (gallery / copy) |
+| 2 — Describe | Name, purpose, document type |
+| 3 — Connect EHR | **Required.** Pick a Nereg note template. Explain: *No field mapping step — sections auto-map by name into the connected template.* |
+| 4 — Review | Show connected template name; hint that mapping is locked |
+
+Review hint: *After creation, section mapping is automatic. You won’t pick EHR fields — only edit content and keep section names aligned.*
+
+### What we do **not** show for Nereg
+
+- Per-section field picker (Add section or remap)
+- Remap button on push-issues banner / row error strip
+- Output settings sliders
+- “Fetch fields from Nereg” in the editor
+
+### Prototype flags (`data.jsx`)
+
+```js
+Nereg: {
+  cat: 2,
+  label: "Nereg",
+  fieldSource: "auto",
+  canRemap: false,
+  autoMsg: "Auto-mapped from section names",
+  requiresEhrTemplateConnection: true,
+}
+```
+
+---
+
 ## Template connection (required)
 
 | Property | Role |
 |---|---|
-| EHR note template connection | **Required** — same Cat 2 idea as AMD/DrChrono/Charm: Marvix is tied to a destination template in Nereg |
+| EHR note template connection | **Required** — Marvix is tied to a destination template in Nereg |
 | Marvix section `key_name` | Becomes `ehr_field_name` at push time — the real per-section routing key |
 | Doctor remap / field picker | **Not offered** — mapping is locked / auto |
-
-How Connect EHR is shown in self-serve (picker at creation vs ops-provisioned + display-only name) follows Cat 2 template connection; field fetch for a doctor-facing dropdown is **not** used because doctors cannot change mapping.
 
 ---
 
@@ -50,6 +115,7 @@ Not doctor-configurable — config is hardcoded in the push logic (`separator: \
 | | |
 |---|---|
 | EHR field mapping | ❌ No — locked / auto from `key_name` |
+| Connected Nereg template | ✅ Connect / change at template level |
 | Section prompts, add/delete sections | ✅ Yes (self-serve), with rename caution |
 | Output settings (sliders) | ❌ Hidden — hardcoded in push |
 
@@ -59,8 +125,8 @@ Not doctor-configurable — config is hardcoded in the push logic (`separator: \
 
 | What breaks it | How it fails | Visible to doctor? |
 |---|---|---|
-| Section `key_name` doesn't match a valid Nereg field | Field silently skipped | No |
-| Missing / wrong EHR template connection | Note may not land in expected Nereg template context | No — ops/tech |
+| Section `key_name` doesn't match a valid Nereg field | Field silently skipped | No — rename warning only |
+| Missing / wrong EHR template connection | Note may not land in expected Nereg template context | Banner shows unset / wrong template |
 
 ---
 
@@ -72,7 +138,7 @@ Not doctor-configurable — config is hardcoded in the push logic (`separator: \
 | Per-field push failure | `logger.error` only — not raised | Logged, not retried, not surfaced | ❌ No — ops checks CloudWatch |
 | `key_name` doesn't match a valid Nereg field | Field silently skipped | No exception raised | ❌ No — ops/product fixes `key_name` (no doctor remap) |
 
-**Key gap**: renaming a section's `key_name` breaks auto-mapping silently. Surface a rename warning for Nereg templates. *(Not yet in prototype.)* Remap button is **not** shown — recovery is ops/`key_name` fix, not doctor field pick.
+**Key gap**: renaming a section's `key_name` breaks auto-mapping silently. UI surfaces a rename warning. Remap button is **not** shown — recovery is ops/`key_name` fix, not doctor field pick.
 
 ---
 
@@ -83,3 +149,7 @@ Not doctor-configurable — config is hardcoded in the push logic (`separator: \
 | `ehr_layer/nereg.py:280` | Auto-builds field mapping from `key_name` |
 | `ehr_layer/nereg.py:328` | `__construct_note_to_push()` — builds note payload |
 | `ehr_layer/nereg.py:344` | Special handling for `Assessment and Plan` split |
+| Prototype: `data.jsx` `EHR_CATEGORY.Nereg` | Cat 2 locked flags |
+| Prototype: `app.jsx` | Nereg notice + connected-template banner |
+| Prototype: `modal.jsx` | Connect EHR step (template only) + picker |
+| Prototype: `rows.jsx` | Auto mapping label, no sliders/remap, rename warn |

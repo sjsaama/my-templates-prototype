@@ -388,6 +388,7 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
   const [name, setName] = useStateM("");
   const [desc, setDesc] = useStateM("");
   const [type, setType] = useStateM("Clinical Note");
+  const [ehrTemplateId, setEhrTemplateId] = useStateM("");
 
   useEffectM(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -404,13 +405,24 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
     }
   }, [gallerySelection]);
 
-  const ehrCat = (window.EHR_CATEGORY || {})[ehr];
-  const ehrLabel = (ehrCat && ehrCat.label) || ehr || "your EHR";
-  const totalSteps = 3;
-  const stepLabel = (n) => ({ 1: "Starting point", 2: "Describe", 3: "Review" }[n]);
+  const ehrCat = (window.EHR_CATEGORY || {})[ehr] || {};
+  const ehrLabel = ehrCat.label || ehr || "your EHR";
+  const isNeregLocked = ehrCat.fieldSource === "auto" && ehrCat.canRemap === false;
+  const ehrTplOptions = (window.EHR_TEMPLATES_BY_SYSTEM && window.EHR_TEMPLATES_BY_SYSTEM[ehr]) || [];
+  const selectedEhrTpl = ehrTplOptions.find((x) => x.id === ehrTemplateId);
 
-  const step1Valid = true; // gallery always has a selection (blank by default)
+  // Nereg: Starting point → Describe → Connect EHR → Review
+  const totalSteps = isNeregLocked ? 4 : 3;
+  const stepLabel = (n) => {
+    if (isNeregLocked) return ({ 1: "Starting point", 2: "Describe", 3: "Connect EHR", 4: "Review" }[n]);
+    return ({ 1: "Starting point", 2: "Describe", 3: "Review" }[n]);
+  };
+
   const step2Valid = name.trim() && desc.trim();
+  const step3Valid = !isNeregLocked || !!ehrTemplateId;
+  const nextDisabled =
+    (step === 2 && !step2Valid) ||
+    (isNeregLocked && step === 3 && !step3Valid);
 
   const copyFromId = gallerySelection === "__blank__" ? null : gallerySelection;
 
@@ -420,8 +432,14 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
       description: desc.trim(),
       type,
       copyFromId,
+      ehrTemplateId: selectedEhrTpl ? selectedEhrTpl.id : "",
+      ehrTemplateName: selectedEhrTpl ? selectedEhrTpl.name : "",
     });
   };
+
+  const reviewHint = isNeregLocked
+    ? "After creation, section mapping is automatic. You won’t pick EHR fields — only edit content and keep section names aligned with Nereg."
+    : "After creation you'll be taken to the template editor where you can configure sections and EHR field mappings.";
 
   return (
     <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -429,7 +447,11 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
 
         <div className="modal-head">
           <h2>Create a template</h2>
-          <span className="modal-sub">You'll configure sections and EHR mapping after creation</span>
+          <span className="modal-sub">
+            {isNeregLocked
+              ? "Connect a Nereg note template — field mapping stays automatic"
+              : "You'll configure sections and EHR mapping after creation"}
+          </span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
 
@@ -486,8 +508,33 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
             </div>
           )}
 
-          {/* ── Step 3: Review ── */}
-          {step === 3 && (
+          {/* ── Step 3 (Nereg): Connect EHR template only ── */}
+          {isNeregLocked && step === 3 && (
+            <div className="create-step-body">
+              <p className="modal-hint">
+                Connect a <strong>Nereg note template</strong>. There is no field-mapping step — each Marvix section auto-maps by name into the connected template.
+              </p>
+              <div className="ehr-tpl-list">
+                {ehrTplOptions.length === 0 ? (
+                  <div className="mapping-picker-empty">No Nereg templates available.</div>
+                ) : ehrTplOptions.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className={"ehr-tpl-option" + (opt.id === ehrTemplateId ? " ehr-tpl-option--selected" : "")}
+                    onClick={() => setEhrTemplateId(opt.id)}
+                  >
+                    <span className="ehr-tpl-option-name">{opt.name}</span>
+                    <span className="ehr-tpl-option-id">{opt.id}</span>
+                    {opt.id === ehrTemplateId && <span className="ehr-tpl-option-check">✓</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Review ── */}
+          {((isNeregLocked && step === 4) || (!isNeregLocked && step === 3)) && (
             <div className="create-step-body">
               <div className="create-review-notice">
                 <p className="create-review-lead">Review your template before creating.</p>
@@ -498,15 +545,16 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
                   <tr><td>Type</td><td>{type}</td></tr>
                   <tr><td>Purpose</td><td>{desc}</td></tr>
                   <tr><td>EHR</td><td>{ehrLabel}</td></tr>
+                  {isNeregLocked && (
+                    <tr><td>Connected template</td><td><strong>{selectedEhrTpl ? selectedEhrTpl.name : "—"}</strong></td></tr>
+                  )}
                   <tr><td>Starting point</td><td>{
                     gallerySelection === "__blank__" ? "Blank template" :
                     ((window.STARTER_TEMPLATES || []).find(t => t.id === gallerySelection) || (templates || []).find(t => t.id === gallerySelection) || {}).name || "Unknown"
                   }</td></tr>
                 </tbody>
               </table>
-              <p className="create-review-hint">
-                After creation you'll be taken to the template editor where you can configure sections and EHR field mappings.
-              </p>
+              <p className="create-review-hint">{reviewHint}</p>
             </div>
           )}
 
@@ -517,13 +565,69 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
             ? <button className="btn-ghost" onClick={() => setStep(s => s - 1)}>Back</button>
             : <button className="btn-ghost" onClick={onClose}>Cancel</button>}
           {step < totalSteps
-            ? <button className="btn-teal" onClick={() => setStep(s => s + 1)}
-                disabled={step === 2 ? !step2Valid : false}>
+            ? <button className="btn-teal" onClick={() => setStep(s => s + 1)} disabled={nextDisabled}>
                 Next
               </button>
-            : <button className="btn-teal" onClick={handleCreate}>Create template</button>}
+            : <button className="btn-teal" onClick={handleCreate} disabled={isNeregLocked && !ehrTemplateId}>Create template</button>}
         </div>
 
+      </div>
+    </div>
+  );
+}
+
+function EhrTemplatePickerModal({ ehr, ehrLabel, selectedId, onClose, onSelect }) {
+  const I = window.Icons;
+  const [picked, setPicked] = useStateM(selectedId || "");
+  const options = (window.EHR_TEMPLATES_BY_SYSTEM && window.EHR_TEMPLATES_BY_SYSTEM[ehr]) || [];
+
+  useEffectM(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal modal--ehr-tpl" role="dialog" aria-modal="true">
+        <div className="modal-head">
+          <h2>Connect {ehrLabel || ehr} template</h2>
+          <span className="modal-sub">Destination note template only — field mapping stays automatic</span>
+          <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
+        </div>
+        <div className="modal-body">
+          <p className="modal-hint">
+            Pick the Nereg note template this Marvix template should push into. You won’t map individual fields.
+          </p>
+          <div className="ehr-tpl-list">
+            {options.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                className={"ehr-tpl-option" + (opt.id === picked ? " ehr-tpl-option--selected" : "")}
+                onClick={() => setPicked(opt.id)}
+              >
+                <span className="ehr-tpl-option-name">{opt.name}</span>
+                <span className="ehr-tpl-option-id">{opt.id}</span>
+                {opt.id === picked && <span className="ehr-tpl-option-check">✓</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="modal-foot">
+          <button className="btn-ghost" onClick={onClose}>Cancel</button>
+          <button
+            className="btn-teal"
+            disabled={!picked}
+            onClick={() => {
+              const opt = options.find((x) => x.id === picked);
+              if (!opt) return;
+              onSelect({ id: opt.id, name: opt.name });
+            }}
+          >
+            Save connection
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -699,4 +803,4 @@ function PreviewModal({ sections, tpl, onClose }) {
   );
 }
 
-Object.assign(window, { ConnectionsModal, ConfirmModal, DisableConfirmModal, RequestNewSectionModal, CreateTemplateModal, AddSectionModal, PreviewModal });
+Object.assign(window, { ConnectionsModal, ConfirmModal, DisableConfirmModal, RequestNewSectionModal, CreateTemplateModal, EhrTemplatePickerModal, AddSectionModal, PreviewModal });
