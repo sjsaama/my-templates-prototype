@@ -182,9 +182,9 @@ Fields are tied to the doctor's EHR note template (Connect EHR). What the doctor
 | AMD | `Page Name > Field Name` | Push mode (prepend/append/replace) and character limit shown in output settings. Doctor can remap freely from the field list. |
 | DrChrono | Snake_case field names | ICD/CPT fields handled separately — not in mapping table. Doctor can remap. |
 | CharmHealth | `entry_chart_section` value if set, otherwise field name | Field list cannot be re-fetched. Doctor can remap from the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh. |
-| Nereg | Auto from section `key_name` | **Locked mapping.** Connect to EHR template like other Cat 2 EHRs, but **do not** give doctors a field picker or remap control. Mapping column shows “Auto-mapped from section names.” Fix broken mapping by aligning `key_name`s with the connected template (ops/product). Output settings hidden (hardcoded in push). Rename warning recommended. |
+| Nereg | Auto from section `key_name` | **Locked mapping.** Connect to EHR template like other Cat 2 EHRs, but **do not** give doctors a field picker or remap control. Mapping column shows “Auto-mapped from section names.” Fix broken mapping by aligning `key_name`s with the connected template (ops/product). Output settings hidden (hardcoded in push). Rename warning shown in editor when section name diverges from auto-map key. |
 
-> **Design decision:** EHR field fetching is not part of the creation flow for AMD/DrChrono/CharmHealth. After a Cat 2 template is created, the doctor opens it in the editor and fetches fields there — a "Fetch fields from [EHR]" action inside the template editor, not a creation step. CharmHealth cannot re-fetch — the editor shows an amber notice explaining this, with a "Contact support" button. **Nereg exception:** no field fetch / picker — only template connection + locked auto-map.
+> **Design decision:** For AMD / DrChrono / CharmHealth, connecting the EHR note template is the creation-flow Connect EHR step (when self-serve Connect is in scope). The field list used for mapping comes from that connected template — there is **no separate “Fetch fields” button** in the editor after creation. Remap in the editor uses the stored list. CharmHealth cannot re-fetch — the mapping picker shows an amber notice with “Contact support.” **Nereg exception:** Connect EHR template only — no field list / picker; locked auto-map from `key_name`.
 
 ### Cat 3 — Auto push (no field mapping; template connection required)
 
@@ -337,7 +337,7 @@ The section-level inline strip is the primary action surface — the banner is a
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
-| Wrong `key_name` (auto-map miss) | Ops / doctor rename | ❌ Silent skip | Nothing | Ops/product updates `key_name` — **no doctor remap**; future: rename warning in editor |
+| Wrong `key_name` (auto-map miss) | Ops / doctor rename | ❌ Silent skip | Nothing (rename warning shown in editor if doctor changes section name) | Ops/product updates `key_name` — **no doctor remap** |
 | Missing EHR template connection | Ops config | ⚠️ Needs confirm | — | Ops |
 | Auth failure | Infra | ✅ Yes | — | Ops |
 
@@ -427,7 +427,7 @@ Available in the editor header for every template — both ops-managed and self-
 
 ## Self-serve template creation
 
-This is separate from template management (the core v1 feature). Doctors who want a template beyond what ops provides can create one themselves. The creation flow is a 3-step modal.
+This is separate from template management (the core v1 feature). Doctors who want a template beyond what ops provides can create one themselves. The creation flow is a stepped modal (Starting point → Describe → optional Connect EHR → Review). **Nereg** inserts a required Connect EHR step (template only). Other Cat 2 Connect-at-create and Cat 3 destination Connect UI are partially prototype / open question — see below.
 
 **Template selector — search bar required.** Practices can have 50+ templates. The template selector (left nav) must include a search/filter bar so doctors can find templates without scrolling. This applies to both the main template list and any template-picker dropdown (e.g. "copy from existing" in the creation flow).
 
@@ -435,13 +435,14 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 | Step | What happens |
 |---|---|
-| 1 — Describe | Doctor enters template name, description, and document type (Clinical Note / Letter / Other). Optionally copies sections from an existing template. |
-| 2 — Connect EHR | **Cat 2** (AMD, DrChrono, CharmHealth, **Nereg**): doctor (or ops) connects an EHR note template. AMD/DrChrono/CharmHealth then use a field list for mapping; **Nereg connects the template but does not expose a field picker** — mapping stays locked/auto from `key_name`. **Cat 3** (Cerner, ModMed): no field fetch / mapping; destination template/document connection still required — **self-serve UI open question** ([`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)#open-questions). Cat 1 and Cat 4 skip this step (Cat 1 uses a fixed field list; Cat 4 has no push). |
-| 3 — Review | Summary of name, type, EHR system, and whether sections were copied. Doctor confirms to create. |
+| 1 — Starting point | Gallery / blank / copy from existing (prototype). |
+| 2 — Describe | Doctor enters template name, description, and document type (Clinical Note / Letter / Other). |
+| 3 — Connect EHR | **Cat 2 Nereg (prototype):** required — pick Nereg note template; no field mapping. **Cat 2 AMD / DrChrono / CharmHealth:** Connect EHR + field list at create is product intent; **not yet in prototype** (editor uses mock field lists). **Cat 3** (Cerner, ModMed): destination connection required in principle — **self-serve UI open question** ([`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)#open-questions). Cat 1 and Cat 4 skip Connect. |
+| 4 — Review | Summary of name, type, EHR, connected template (when applicable). Doctor confirms to create. |
 
-**Copy from existing template (step 1, optional):** Doctor selects any of their existing templates from a dropdown. The new template inherits a deep copy of the source section tree — including order, enabled/disabled state, and EHR mappings. If no template is selected, the new template starts from Marvix defaults (Cat 1/3/4) or an empty section list (Cat 2).
+**Copy from existing template (optional):** Doctor selects any of their existing templates. The new template inherits a deep copy of the source section tree — including order, enabled/disabled state, and EHR mappings. If no template is selected: Marvix defaults for Cat 1 / Cat 3 / Cat 4 / **Nereg**; empty section list for fetch-based Cat 2 (AMD, DrChrono, CharmHealth).
 
-> **EHR field fetching happens at creation, not in the editor.** Once created, the template editor does not expose a "Fetch fields" action. If Cat 2 fields become stale after the EHR template changes, the remap flow inside the editor is the recovery path (see Cat 2 remap behavior above).
+> **Field lists after create:** No separate “Fetch fields” action in the editor. Remap uses the field list from the connected template (or mock list in prototype). CharmHealth cannot refresh that list — amber notice + Contact support in the mapping picker.
 
 ---
 

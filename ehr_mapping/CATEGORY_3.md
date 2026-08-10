@@ -10,12 +10,14 @@ See also: [Cerner.md](Cerner.md) · [ModMed.md](ModMed.md)
 
 ## Shared model
 
-| | |
-|---|---|
-| Per-section field mapping | **Not needed** — no mapping rows, no field picker, no Extra Fields YAML for routing |
-| Output settings (sliders) | **Hidden** — nothing to configure per field |
-| Remap on push error | **Not shown** — errors are ops/infra, not doctor remap |
-| Connect to a template in the final EHR | **Required** — destination template / document target (no section→field mapping) |
+
+|                                        |                                                                                     |
+| -------------------------------------- | ----------------------------------------------------------------------------------- |
+| Per-section field mapping              | **Not needed** — no mapping rows, no field picker, no Extra Fields YAML for routing |
+| Output settings (sliders)              | **Hidden** — nothing to configure per field                                         |
+| Remap on push error                    | **Not shown** — errors are ops/infra, not doctor remap                              |
+| Connect to a template in the final EHR | **Required** — destination template / document target (no section→field mapping)    |
+
 
 > **Note:** Earlier PRD drafts said Cat 3 skips Connect EHR because there is no field list to fetch. Destination connection is still required; **how it appears in self-serve UI is an open question** — see below.
 
@@ -44,7 +46,7 @@ See also: [Cerner.md](Cerner.md) · [ModMed.md](ModMed.md)
 
 - Full note → PDF → `POST /DocumentReference`.
 - No section structure impact; doctor can reshape the Marvix note template freely without breaking field routing.
-- `**ehr_template_name`** is used as the PDF `file_name` in the chart — cosmetic for routing, but it is the visible document name in Cerner.
+- **`ehr_template_name`** is used as the PDF `file_name` in the chart — cosmetic for routing, but it is the visible document name in Cerner.
 - Breaks on FHIR auth / wrong `ehr_doctor_id` or `ehr_patient_id`, not on section mapping.
 
 ### ModMed — single PDF, different FHIR path
@@ -67,9 +69,10 @@ Self-serve Connect EHR presentation is **not** decided here — see Open questio
 
 ## Open questions
 
-| Question | Why it matters | Owner |
-|---|---|---|
-| **Cat 3 self-serve Connect EHR UI** — picker (destination only) vs ops-provisioned + display-only name vs ops-only? | Earlier drafts skipped Connect EHR; connection is required, but presentation is undecided | Product |
-| What exact EHR object do ops connect for Cerner / ModMed today (`ehr_template_id`, name only, document type, something else)? | Defines Connect EHR UI | Tech / Vignesh |
-| Should Cat 3 self-serve Connect EHR be mandatory, optional, or ops-provisioned only for v1? | Creation-flow scope | Product |
-| Does ModMed store / use `ehr_template_name` like Cerner’s PDF filename? | Parity in template-connection model | Tech |
+
+| Question                                                                                                                      | Why it matters                                                                            | Owner          |
+| ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------- |
+| **Cat 3 self-serve Connect EHR UI** — picker (destination only) vs ops-provisioned + display-only name vs ops-only?           | Earlier drafts skipped Connect EHR; connection is required, but presentation is undecided | Product        |
+| What exact EHR object do ops connect for Cerner / ModMed today (`ehr_template_id`, name only, document type, something else)? | Defines Connect EHR UI                                                                    | Tech / Vignesh |
+| Should Cat 3 self-serve Connect EHR be mandatory, optional, or ops-provisioned only for v1?                                   | Creation-flow scope                                                                       | Product        |
+| Does ModMed store / use `ehr_template_name` like Cerner’s PDF filename?                                                       | Parity in template-connection model                                                       | Tech           |
