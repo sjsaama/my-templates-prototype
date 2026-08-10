@@ -163,9 +163,11 @@ Catch broken mappings before push — feasible for fixed-list EHRs without an AP
 | AthenaOne | ✅ Free | Check `ehr_field_name` is in the hardcoded 9-item list |
 | ECW (main) | ✅ Free | Check `ehr_field_name` is in the known shortcut list |
 | Veradigm | ✅ Free | Check `ehr_field_name` is in the known 7-item list |
+| Centricity | ✅ Free | Check `ehr_field_name` is in the hardcoded fixed list |
 | AMD | ✅ Feasible | Re-fetch AMD template, flag any `ehr_field_id` that no longer exists |
 | DrChrono | ⚠️ Partial | Needs DrChrono API call |
 | CharmHealth | ❌ Hard | No live fetch available |
+| Nereg | ❌ N/A | No doctor remap — auto from `key_name`; validate names vs connected template (ops) |
 
 ### When to run
 - On mapping save in ops portal
@@ -186,12 +188,15 @@ Catch broken mappings before push — feasible for fixed-list EHRs without an AP
 
 ## Remap flows
 
-### Flow A — Fixed list (AthenaOne, ECW, Veradigm)
+### Flow A — Fixed list (AthenaOne, ECW, Veradigm, Centricity)
 Re-open the dropdown. Hardcoded known list, no API call needed.
 
-### Flow B — Flexible list (AMD, DrChrono)
-Re-fetch current fields from EHR live, pick correct field.
+### Flow B — Flexible list (AMD, DrChrono, CharmHealth)
+Re-fetch current fields from EHR live (CharmHealth: existing list only — no re-fetch), pick correct field.
 If `ehr_template_id` deleted: go back to the template-level picker first.
+
+### Flow C — Locked auto-map (Nereg)
+No Remap UI. Fix via `key_name` / connected template alignment (ops/product). Rename warning in editor only.
 
 ### Flow C — CharmHealth
 Can't re-fetch automatically. Escalate to tech.

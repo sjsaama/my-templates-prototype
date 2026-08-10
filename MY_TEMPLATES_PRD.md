@@ -399,7 +399,7 @@ No field-level remap. Template/document connection failures and push infra error
 | Cat 3 — what object is connected today? | For Cerner / ModMed: exact ops fields (`ehr_template_id`, name, document type, other). Needed before Connect EHR UX. | Tech / Vignesh |
 | ModMed `ehr_template_name` parity with Cerner | Does ModMed use template name as PDF/document identity like Cerner’s `file_name`? | Tech |
 | Nereg Connect EHR object | Exact template id/name ops stores for Nereg today. | Tech |
-| Nereg rename warning copy | Locked mapping means doctor can't remap — warn on section rename that breaks `key_name` auto-map. | Product |
+| Nereg rename warning copy | Implemented in prototype; open whether final copy needs polish. | Product |
 
 ---
 
@@ -467,12 +467,14 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 #### Cat 2 — AMD, DrChrono, CharmHealth, Nereg
 
-**What the doctor does (AMD / DrChrono / CharmHealth):**
+**What the doctor does (AMD / DrChrono / CharmHealth) — product intent:**
 1. Click "+ Create template"
 2. Enter name, description, document type. Optionally copy sections.
-3. Step 2 (Connect EHR): Doctor sees a list of their EHR note templates fetched from the EHR system. Doctor picks one. This fetch is live — it pulls actual templates from their EHR account. If the fetch fails, they can retry or skip and map manually later.
+3. Step Connect EHR: Doctor sees a list of their EHR note templates fetched from the EHR system. Doctor picks one. This fetch is live — it pulls actual templates from their EHR account. If the fetch fails, they can retry or skip and map manually later.
 4. Template is created. Sections start empty (no default set) because section relevance depends on the chosen EHR template.
-5. In the editor, each section row's mapping picker shows the fields fetched from the chosen EHR template. Doctor maps each section.
+5. In the editor, each section row's mapping picker shows the fields from the chosen EHR template. Doctor maps each section.
+
+> **Prototype gap:** AMD / DrChrono / CharmHealth Connect-at-create is **not** implemented yet — create is Starting point → Describe → Review, and the editor uses mock field lists. Nereg Connect-at-create **is** implemented.
 
 **What's different from ops-managed templates:**
 - Doctor can remap any section from the fetched field list
@@ -484,9 +486,10 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 **AMD-specific:** Push mode (Prepend / Append / Replace) and character limit are shown in the output settings per section. AMD is the only EHR where these are configurable by the doctor.
 
-**Nereg exception (locked auto-mapping):**
-1–3. Same Connect EHR idea — Marvix template is connected to a Nereg note template.
-4–5. **No field picker and no remap.** Mapping column shows “Auto-mapped from section names.” Fix mapping by aligning section `key_name`s with the connected template (ops/product), not by letting doctors change field targets. Output settings hidden. Warn on section rename.
+**Nereg exception (locked auto-mapping) — implemented in prototype:**
+1–2. Same Starting point / Describe.
+3. **Required Connect EHR** — pick a Nereg note template (no field fetch).
+4–5. **No field picker and no remap.** Mapping column shows “Auto-mapped from section names.” Sections start from Marvix defaults (not empty). Rename warning if section name changes. Output settings hidden.
 
 ---
 
