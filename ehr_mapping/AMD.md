@@ -1,18 +1,19 @@
 # EHR Mapping — AdvancedMD (AMD)
 
+Backend mapping reference + My Templates prototype notes (`cursor/amd-ehr-34b9`).  
+Related: [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md), [ERROR_UX.md](ERROR_UX.md), [SHARED_CONFIG.md](SHARED_CONFIG.md).
+
+---
+
 ## Extra Fields YAML keys
 
-
-| YAML key               | Required? | Type   | Purpose                                                                                                                                             | Example                        | Source                           |
-| ---------------------- | --------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | -------------------------------- |
-| `ehr_field_id`         | Yes       | Number | AMD's internal field ID — sent in the push payload as `@id` to identify which field to write to                                                     | `12345`                        | Postman API                      |
-| `ehr_field_name`       | Yes       | Text   | AMD's field label — used as the stable match key during auto-remap (re-fetches the template and finds the new `ehr_field_id` by this name)          | `"History of Present Illness"` | Postman API                      |
-| `ordinal`              | Yes       | Number | Field position within the page — sent in the push payload as `@ordinal`; AMD requires it to locate the field in the note                            | `1`                            | Postman API                      |
-| `page_name`            | Auto      | Text   | AMD page the field belongs to — groups fields into the correct page block in the push payload and used during auto-remap                            | —                              | Backend (AMD API) — do not enter |
-| `max_character_length` | Auto      | Number | Field character limit fetched from AMD — informs the global **Character limit** template setting and too-long error copy; still auto per mapped field from the API                                                                 | —                              | Backend (AMD API) — do not enter |
-
-
-**Example YAML:**
+| YAML key               | Required? | Type   | Purpose | Example | Source |
+| ---------------------- | --------- | ------ | ------- | ------- | ------ |
+| `ehr_field_id`         | Yes       | Number | AMD internal field ID — push payload `@id` | `12345` | Postman API |
+| `ehr_field_name`       | Yes       | Text   | Stable match key for auto-remap (finds new `ehr_field_id` by name) | `"History of Present Illness"` | Postman API |
+| `ordinal`              | Yes       | Number | Field position — push payload `@ordinal` | `1` | Postman API |
+| `page_name`            | Auto      | Text   | AMD page — groups fields in payload + auto-remap | — | Backend (AMD API) |
+| `max_character_length` | Auto      | Number | Per-field limit from AMD API — informs global Character limit + too-long errors | — | Backend (AMD API) |
 
 ```yaml
 ehr_field_id: 12345
@@ -20,307 +21,172 @@ ehr_field_name: "History of Present Illness"
 ordinal: 1
 ```
 
-> `page_name` and `max_character_length` are auto-populated by the backend when you save the mapping — do not enter them manually.
+> `page_name` and `max_character_length` are auto-populated on save — do not enter manually.
 
 ---
 
 ## What doctors can change
 
+| Why | Doctor / Admin action | Effect on mapping | Needs ops? |
+| --- | --------------------- | ----------------- | ---------- |
+| Layout / add-remove-reorder fields | AMD reassigns `@id` / `@ordinal` | Auto-recovery: re-fetch, rematch by `page_name` + `ehr_field_name` | No |
+| Rename page or field | Labels change in AMD | Auto-remap fails — field silently dropped | Yes — update YAML names |
+| Switch AMD template entirely | New visit type / standardised template | Mapping points at wrong template | Yes — new `ehr_template_id` + remap |
 
-| Why doctor does this                                                                                  | Doctor / Admin action                                                                         | Effect on mapping                                                                                     | Needs ops?                                                  |
-| ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Customising note layout; billing team asked for a new field; cleaning up unused fields                | Adds, removes, or reorders fields within a page (AMD reassigns internal `@id` and `@ordinal`) | Marvix detects "Control not found", re-fetches template, re-matches by `page_name` + `ehr_field_name` | ✅ No — auto-recovery                                        |
-| Making field labels clearer for their workflow                                                        | Renames a page or field inside their AMD template                                             | Auto-remap fails — `page_name` or `ehr_field_name` no longer matches, field silently dropped          | ❌ Yes — update `page_name` / `ehr_field_name` in YAML       |
-| New visit type (e.g. added telehealth or new specialty); practice switched to a standardised template | Switches to a completely different AMD template                                               | Mapping points at wrong template — pushes to wrong fields or fails entirely                           | ❌ Yes — update `ehr_template_id` + re-enter all YAML fields |
+### Auto-remap
 
+On AMD `"Control not found"` → `EhrTemplateChangeException`:
 
----
+1. Re-fetch AMD template  
+2. Rematch by `page_name` + `ehr_field_name` → new `@id` / `@ordinal`  
+3. Update mapping and retry  
 
-## What breaks the mapping
-
-
-| What breaks it                            | How it fails                                                  | Visible to doctor?                    |
-| ----------------------------------------- | ------------------------------------------------------------- | ------------------------------------- |
-| Template ID change, field renamed/removed | `EhrTemplateChangeException` raised → auto-recovery attempted | Yes — AMD shows error; Marvix retries |
-
-
-### Auto-remap (how AMD self-heals)
-
-When AMD returns "Control not found", Marvix automatically:
-
-1. Re-fetches the AMD template
-2. Matches each field by `page_name` + `ehr_field_name` to get the new `@id` and `@ordinal`
-3. Updates the mapping and retries the push
-
-This survives field reordering and ID reassignment. It **fails** if `page_name` or `ehr_field_name` was renamed — ops must update the YAML manually in that case.
+Fails if names were renamed — ops updates YAML.
 
 ---
 
-## Settings — global (template) and local (section)
+## Settings — global and local
 
-Doctor-facing settings for AMD push. Today these still live as per-row YAML `config` keys; the product model is **global template defaults** with **optional per-section overrides**.
+Product model: **template defaults** applied to every section, **optional per-section overrides**.  
+YAML today still stores values per row (`config.*`) until Template Settings migration lands.
 
-### Push setting (combined write mode)
+**Hierarchy:** Global (template) → applied to each section → local override in output settings (sliders).
 
-`append` / `prepend` / overwrite are **one control**, not three separate toggles:
+### Global (template)
 
-| UI label | YAML today | Behaviour |
-| -------- | ---------- | --------- |
-| **Insert before** | `prepend: true` | Marvix content before existing EHR field text |
-| **Insert after** | `append: true` | Marvix content after existing EHR field text |
-| **Overwrite** | neither (replace) | Marvix content replaces the field |
+| Setting | YAML today | Notes |
+| ------- | ---------- | ----- |
+| **Push setting** | `append` / `prepend` / neither (= overwrite) | One control — see below |
+| **Character limit** | `char_limit` | Informed by AMD `max_character_length` when a field is mapped |
+| Subsection join | `push_subsections`, `retain_headings`, `skip_empty_subsections`, `separator` | How parent + children combine into one EHR field |
 
-AMD can read existing note content before writing, so all three modes work.
+### Local (section output settings)
 
-**Hierarchy**
+| Setting | Notes |
+| ------- | ----- |
+| **Push setting** | Override template default for this section |
+| **Character limit** | Override template default; AMD field max still caps what EHR accepts |
+| Additional text | Fixed text before/after section body |
+| Default negative | Pushed when section has no generated content |
 
-1. **Global (template)** — doctor sets Push setting once on the template
-2. **Applied to each section** — that value becomes the default for every section on the template
-3. **Local override** — any section can change Push setting in its output settings (sliders) without affecting other sections
+### Push setting options
 
-Prototype: template bar sets/applies the mode to all sections; section panel can diverge afterward.
+One control (not three toggles). AMD can read existing note content, so all three work.
 
-### Global — template settings
-
-Set once per template. Apply as defaults across sections.
-
-
-| Setting | YAML today | AMD notes |
-| ------- | ---------- | --------- |
-| **Push setting** | `append` / `prepend` (or neither = overwrite) | Combined control above. Global default → applied to each section → overridable locally. |
-| **Character limit** | `char_limit` / AMD `max_character_length` | **Global template setting.** Set once, applied to each section, overridable locally. AMD still returns `max_character_length` per field from the API (auto) — that value informs the default and too-long errors when a field is mapped. |
-| Subsection join / headings | `push_subsections`, `retain_headings`, `skip_empty_subsections`, `separator` | How parent + child text is combined into one EHR field. **Template Settings** (not per mapping row). |
-
-
-### Local — section output settings
-
-Opened via the sliders button on a section row (Cat 1 / Cat 2).
-
-
-| Setting | Scope | Notes |
-| ------- | ----- | ----- |
-| **Push setting** | Section override | Same Insert before / Insert after / Overwrite control. Overrides the template default for this section only. |
-| **Character limit** | Section override | Overrides the template Character limit for this section. When mapped, AMD field `max_character_length` still caps what the EHR will accept. |
-| Additional text | Section | Fixed text before/after section body on push |
-| Default negative | Section | Text pushed when the section has no generated content |
-
-> YAML migration: keep writing `config.append` / `config.prepend` / `config.char_limit` per row until Template Settings lands; the UI presents Push setting + Character limit with global → local inheritance. `max_character_length` remains auto-populated from the AMD API per mapped field.
+| UI label | YAML | Behaviour |
+| -------- | ---- | --------- |
+| Insert before | `prepend: true` | Marvix content before existing field text |
+| Insert after | `append: true` | Marvix content after existing field text |
+| Overwrite | neither | Replaces field content |
 
 ---
 
 ## Push errors
 
+### Backend (today)
 
-| Error                                          | Exception                                                             | Behaviour                                                                                                                                                       | Doctor-actionable?                                      |
-| ---------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Field control no longer exists in EHR template | `EhrTemplateChangeException`                                          | Lambda auto-recovers: re-fetches template, rebuilds mapping by `page_name` + `ehr_field_name`, retries push. If retry also fails → `FatalException` → ops email | ✅ Yes — if auto-recovery fails, ops must remap          |
-| `ehr_template_id` deleted from AMD             | `FatalException`: `"Template not found."`                             | No retry — ops email only                                                                                                                                       | ✅ Yes — ops picks new EHR template, remaps all sections |
-| Section text exceeds AMD character limit       | `FatalException`: `"Value is too long."`                              | Error message includes section name and the character limit                                                                                                     | ✅ Yes — doctor shortens the note                        |
-| MA account missing Create Pt Notes permission  | `FatalException`: `"permission level does not allow Create Pt Notes"` | No retry — ops email only                                                                                                                                       | ✅ Yes — practice admin fixes MA account in AMD          |
-| Provider not found                             | `FatalException`: `"Provider not found."`                             | No retry — ops email only                                                                                                                                       | ❌ No — ops/tech fixes setup                             |
-| Field value rejected                           | `FatalException`: `"Value is not valid"`                              | No retry — ops email only                                                                                                                                       | ❌ No — ops fixes YAML                                   |
+No `push_errors` DB table — failures go to ops email + CloudWatch only.
 
+| Error | Exception | Doctor-actionable? |
+| ----- | --------- | ------------------ |
+| Field control gone | `EhrTemplateChangeException` → auto-recovery; else `FatalException` | Yes — remap if recovery fails |
+| Template deleted | `FatalException`: `"Template not found."` | Yes — ops picks new template |
+| Content too long | `FatalException`: `"Value is too long."` | Yes — doctor shortens note |
+| Missing Create Pt Notes | `FatalException`: permission | Yes — practice admin |
+| Provider not found | `FatalException` | No — ops/tech |
+| Invalid field value | `FatalException`: `"Value is not valid"` | No — ops / prompt fix |
 
-**No `push_errors` DB table exists today** — all failures go to ops email and CloudWatch only. Doctor is not notified in-app.
+### Doctor UI actions (prototype)
 
----
+| Type | Tweaks | Remap | Got it | Contact support |
+| ---- | ------ | ----- | ------ | --------------- |
+| `too_long` | `amd_too_long` | ❌ | ✅ | ❌ |
+| `template_changed` / `mapping_broken` | `amd_template_changed` | ✅ | ❌ | ✅ |
+| `permission` / `invalid_value` / auth / locked | `amd_no_permission`, `amd_invalid_value` | ❌ | ❌ | ✅ |
 
-## Where this lives in the code
-
-
-| Location                            | Role                                               |
-| ----------------------------------- | -------------------------------------------------- |
-| `internal_endpoints.py:3797`        | Auto-populates `max_character_length` from AMD API |
-| `ehr_layer/advancedmd.py:1629`      | `get_updated_ehr_mapping()` — auto-remap logic     |
-| `ehr_layer/section_text_builder.py` | Reads `config` keys at push time                   |
-
+Too-long must not offer Remap — mapping is fine. Amber = doctor-fixable (`selfServe`); red = ops-needed.
 
 ---
 
-## My Templates prototype (AMD branch)
+## Code
 
-Living notes for branch `cursor/amd-ehr-34b9`. Visual / UX prototype — not production wiring.
+| Location | Role |
+| -------- | ---- |
+| `internal_endpoints.py:3797` | Auto-populates `max_character_length` |
+| `ehr_layer/advancedmd.py:1629` | `get_updated_ehr_mapping()` auto-remap |
+| `ehr_layer/section_text_builder.py` | Reads `config` at push time |
 
-**Keep this section updated whenever AMD prototype decisions or UI change.**
+---
 
-Related: [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md), [ERROR_UX.md](ERROR_UX.md).
+## My Templates prototype
 
-### Repo layout (this branch)
+Branch `cursor/amd-ehr-34b9` — visual / UX only. EHR locked to AMD. Entry: `index.html`.
 
-```
-index.html              # app entry (GitHub Pages)
-*.jsx / design-tokens.js
-MY_TEMPLATES_PRD.md     # product PRD
-BACKEND.md
-EHR_PUSH_FAILURE_LOG_ANALYSIS.md
-ehr_mapping/            # per-EHR docs — AMD notes live in THIS file
-design/                 # Figma + screenshots (not runtime)
-.github/                # historical design-PR bodies
-```
+### Ownership
 
-### Prototype scope
+| Capability | Ops-managed | Self-serve |
+| ---------- | ----------- | ---------- |
+| List tab | ✅ | ✅ |
+| Remap + output settings + global Push / Character limit | ✅ | ✅ |
+| Preview / Save / Reset | ✅ | ✅ |
+| **Request New Section** | ✅ only ††† | ❌ |
+| **+ Add section** / **Prompt** edit | ❌ | ✅ |
+| Seeded | General 1–3, First Visit, Follow Up, Neuro, AVS, Letters, DDx | `General 3 — Custom`, `Follow Up — My Push` |
 
-- Tweaks EHR switcher fixed to `AMD`; runtime `ehr` always `AMD`
-- Template list filtered to AMD templates only
-- Mapping display: **`Office Visit > Field Name`** (Title Case) on chips, picker, and char limits
-- Ownership tabs: **Ops-managed** / **Self-serve** (with counts)
-- AMD **checkbox** fields appear in the same field picker as text fields (tagged + allowed-values hint)
-- Push-error actions vary by error type (Remap / Got it / Contact support) — see matrix below
-- Global template settings: **Push setting** + **Character limit** (applied to sections, overridable locally)
+### Decisions
 
-### Ownership matrix (current)
-
-
-| Capability                                | Ops-managed                                                   | Self-serve                                  |
-| ----------------------------------------- | ------------------------------------------------------------- | ------------------------------------------- |
-| Listed under Ops-managed / Self-serve tab | ✅                                                             | ✅                                           |
-| Remap EHR fields + Output settings        | ✅                                                             | ✅                                           |
-| Preview / Save / Reset                    | ✅                                                             | ✅                                           |
-| **Request New Section**                   | ✅ only                                                        | ❌                                           |
-| **+ Add section** (incl. subsections)     | ❌                                                             | ✅                                           |
-| **Prompt** edit on row                    | ❌                                                             | ✅                                           |
-| Seeded examples                           | General 1–3, First Visit, Follow Up, Neuro, AVS, Letters, DDx | `General 3 — Custom`, `Follow Up — My Push` |
-
-
-Header shows an ownership badge + short hint for the active template.
-
-### Confirmed decisions
-
-
-| Topic                             | Decision                                                 |
-| --------------------------------- | -------------------------------------------------------- |
-| Configuration column              | **Not needed for AMD**                                   |
-| EHR path style                    | **`Office Visit > Title Case`** everywhere               |
-| Template types                    | **Self-serve** and **Ops-managed** (list tabs)           |
-| Request New Section               | **Ops-managed only** — self-serve uses + Add section ††† |
-| STATIC section badge              | **Dropped** †                                            |
-| EHR Pull / File Upload ghost rows | **Dropped** †                                            |
-| AMD checkbox fields               | Same picker as text; distinct control type + allowed values |
-| Push-error Remap                  | Only when mapping is wrong/stale — not for too-long / permission |
-| Push setting (append/prepend/overwrite) | **One control** — set globally on the template, applied to each section, overridable per section |
-| Character limit (`max_character_length` / `char_limit`) | **Global template setting** — applied to each section, overridable per section; AMD API still supplies per-field `max_character_length` |
-
+| Topic | Decision |
+| ----- | -------- |
+| Configuration column | Not needed for AMD |
+| Path style | `Office Visit > Title Case` everywhere †† |
+| STATIC badge / EHR Pull ghost rows | Dropped † |
+| Checkbox fields | Same picker as text; distinct type + allowed values |
+| Push setting + Character limit | Global → apply to sections → local override |
 
 ### Subtle UI elements
 
-AMD-specific UI details that are easy to miss. Keep this list current as the prototype evolves.
+#### Checkbox fields
 
-#### 1. Checkbox fields
+Distinct AMD control type in the **same** field picker as text.
 
-AMD checkbox controls are **real fields** from the template API — not a Marvix toggle bolted onto a text field.
+| Detail | Behaviour |
+| ------ | --------- |
+| Tag | `checkbox` on picker rows + mapping chips |
+| Allowed values | Shown in picker foot / under chip (`Yes`/`No` vs `Y`/`N` — per field from AMD) |
+| Dual mapping | e.g. `Chief Complaint` (text) + `Chief Complaint Enable` (checkbox) = two sections |
+| Prompt | Must output exactly one allowed value — else `"Value is not valid"` |
 
-| UI detail | What to notice |
-| --- | --- |
-| Same picker as text | Checkbox destinations appear in the **same** field list; doctor picks one like any other field |
-| `checkbox` tag | Picker rows and mapping chips show a `checkbox` type tag (and ☑ affordance) |
-| Allowed values | Selecting a checkbox field shows allowed values in the picker foot (`Yes`/`No`, `Y`/`N`, …) — values come from AMD and **differ per field** |
-| Dual mapping | Common pattern: **two sections** for one clinical idea — e.g. `Chief Complaint` (text) + `Chief Complaint Enable` (checkbox) |
-| Prompt constraint | Section prompt must output **exactly one** allowed value, or AMD rejects with `"Value is not valid"` |
-| Chip under mapping | Mapped checkbox chips also surface allowed values under the chip |
+Open: surface allowed values in prompt editor; vs YAML `extract_boolean_value` (SHARED_CONFIG). Tweaks: `amd_checkbox`, `amd_invalid_value`.
 
-Open: whether the prompt editor surfaces allowed values; relationship to YAML `extract_boolean_value` (see SHARED_CONFIG). Tweaks: `amd_checkbox`, `amd_invalid_value`.
-
-#### 2. Push setting — Insert before / Insert after / Overwrite
-
-Former `append` / `prepend` / replace are **one control**, not three toggles.
-
-| UI detail | What to notice |
-| --- | --- |
-| Labels | **Insert before** · **Insert after** · **Overwrite** (not raw Prepend/Append/Replace in the doctor UI) |
-| Global bar | Template **Push setting** bar at the top of the editor — AMD only |
-| Apply-all | Changing the template bar **applies that mode to every section** |
-| Local override | Section output settings (sliders) can diverge; shows “template default” vs “section override” |
-| Reset | Overridden sections can “Use template default” |
-| Why AMD | AMD can read existing note content before write — all three modes are valid |
-
-#### 3. Character limit (`max_character_length`)
-
-Also a **global template setting** — same hierarchy as Push setting.
-
-| UI detail | What to notice |
-| --- | --- |
-| Global | Template **Character limit** — set once on the template |
-| Apply-all | Applied to each section as the default (`char_limit`) |
-| Local override | Section output settings can change the limit for that section only |
-| AMD API | `max_character_length` is still **auto-fetched per mapped field** from AMD — informs defaults and too-long error copy (e.g. HPI max 2,000) |
-| Too-long errors | Use the effective limit; **Got it** only — do not offer Remap |
-
-#### 4. Other AMD-specific UI subtleties
+#### Other
 
 | Element | Subtlety |
-| --- | --- |
-| **No Configuration column** | AMD does not show a Config/Prepend-Append column in the section table — Push setting + Character limit live in template settings + output settings |
-| **Path style** | Mapping chips, picker, and limits use **`Office Visit > Title Case`** only (not `Clinical Notes > snake_case`) |
-| **Shared field** | Two+ sections mapped to the same EHR field get a neutral **Shared** chip label (valid, not a warning); content combines in section list order |
-| **Push-error actions** | Buttons depend on error type — too-long → **Got it** only (no Remap); template changed → **Remap** + Contact support; permission / invalid value → Contact support only |
-| **Too-long copy** | Message includes section name + character limit — mapping is fine; content is the problem |
-| **Self-serve vs ops styling** | Doctor-fixable errors use amber; ops-needed failures use red — driven by `selfServe` on the issue |
-| **Ownership chrome** | Ops-managed: Request New Section. Self-serve: + Add section + Prompt. Remap / output settings / Push setting / Character limit on both |
-| **Parent mapping modes** | Whole section vs map subsections individually — Shared / remap still apply to the active mapping target |
-| **Dropped chrome** | No STATIC section badge; no EHR Pull / File Upload ghost rows † |
+| ------- | -------- |
+| No Configuration column | Push setting + Character limit live in template bar + section output settings |
+| Shared field | Neutral **Shared** chip when 2+ sections map to one field — content joins in list order |
+| Parent mapping | Whole vs map subsections individually |
+| Dropped chrome | No STATIC badge; no EHR Pull / File Upload ghost rows † |
 
-#### Push-error action matrix (reference)
+*(Push setting, Character limit, and push-error actions — see Settings and Push errors above.)*
 
-Banner + row strip share `pushIssueActions(type)`:
+### Gaps
 
-
-| Error type | Example Tweaks scenario | Remap | Got it | Contact support | Who fixes |
-| --- | --- | --- | --- | --- | --- |
-| `too_long` | `amd_too_long` | ❌ | ✅ | ❌ | Doctor shortens note (limit from `max_character_length`) |
-| `checkin` / `chart_closed` | (other EHRs) | ❌ | ✅ | ❌ | Doctor acts in EHR, then re-push |
-| `template_changed` / `mapping_broken` | `amd_template_changed` | ✅ | ❌ | ✅ | Doctor remaps; ops if auto-recovery failed |
-| `permission` / `auth` / `locked` / `transient` / `invalid_value` | `amd_no_permission`, `amd_invalid_value` | ❌ | ❌ | ✅ | Ops / practice admin |
-
-### Still to align
-
-1. Cat 2 create: **Connect EHR** step (pick AMD note template / field list) — `EHR_TEMPLATES_BY_SYSTEM.AMD` exists but unused
-2. Prompt-editor surfacing of checkbox allowed values (open PRD question)
-3. More AMD fatal mocks if needed (`Template not found`, provider not found)
-
-### PRD vs prototype (AMD)
-
-
-| Area                                                                       | Status      | Notes                                                  |
-| -------------------------------------------------------------------------- | ----------- | ------------------------------------------------------ |
-| Ownership tabs + matrix above                                              | **Present** | Matches product call (Request = ops-managed)           |
-| `Office Visit > Title Case` mapping + picker                               | **Present** | Chips, picker, char limits aligned                     |
-| Cat 2 Connect EHR / fetch at create                                        | **Missing** | Create is Starting point → Describe → Review           |
-| Remap from field list                                                      | **Present** | Mocked static AMD field list (no live fetch)           |
-| Output settings (push setting, character limit, additional text, default negative) | **Present** | Global Push setting + Character limit; per-section overrides; no Configuration column |
-| AMD checkbox fields in picker                                              | **Present** | Tagged in picker + chip; CC Enable seeded; allowed-values hint |
-| Push errors: template changed / too long / permission / invalid value      | **Present** | Action matrix by type; too-long → Got it only          |
-| Preview / M·S / parent modes / Shared field                                | **Present** |                                                        |
-
+1. Cat 2 **Connect EHR** at create (`EHR_TEMPLATES_BY_SYSTEM.AMD` unused)
+2. Prompt editor: surface checkbox allowed values
+3. More fatal mocks if needed (`Template not found`, provider not found)
 
 ### Changelog
 
+| Date | Change |
+| ---- | ------ |
+| 2026-08-10 | AMD branch; no Config column; `Office Visit > Title Case`; Self-serve / Ops-managed tabs |
+| 2026-08-10 | Dropped STATIC + EHR Pull ghosts; Request New Section = ops-managed only ††† |
+| 2026-08-10 | Checkbox picker + CC Enable; push-error action matrix |
+| 2026-08-10 | Settings → global/local; Push setting + Character limit; Subtle UI section; doc cleanup |
 
-| Date       | Change                                                                                     |
-| ---------- | ------------------------------------------------------------------------------------------ |
-| 2026-08-10 | Branch created; EHR locked to AMD                                                          |
-| 2026-08-10 | Confirmed: no Configuration column; one path style; Self-serve / Ops-managed               |
-| 2026-08-10 | Dropped STATIC badge + EHR Pull/File Upload ghost rows †                                   |
-| 2026-08-10 | Unified path style to `Office Visit > Title Case` on seeded chips + picker                 |
-| 2026-08-10 | Merged `main` (PRD, `ehr_mapping/`, error-scenario + dual-mapping demos)                   |
-| 2026-08-10 | Consolidated prototype notes into this file; removed standalone AMD branch docs            |
-| 2026-08-10 | Cleaned branch layout → `design/`; removed stale `My Templates.html`                       |
-| 2026-08-10 | PRD vs prototype scoreboard                                                                |
-| 2026-08-10 | Ops-managed / Self-serve list tabs + ownership badge/hint; seeded two self-serve templates |
-| 2026-08-10 | **Request New Section = ops-managed only** †††; refreshed ownership matrix in this doc     |
-| 2026-08-10 | Checkbox fields in picker + seeded CC Enable; push-error action matrix; subtle-cases notes |
-| 2026-08-10 | Config keys → **Global / Local settings**; Push setting = append+prepend+overwrite (global default, per-section override) |
-| 2026-08-10 | Added **Subtle UI elements** section (checkbox, Push setting, other AMD UI subtleties) |
-| 2026-08-10 | **Character limit** (`max_character_length` / `char_limit`) → global template setting (apply to sections, overridable locally) |
+### Footnotes
 
-
-### Footnotes — dropped / superseded / product calls
-
-† **STATIC (dropped)** — section-level badge for non-AI / fixed content (old mock: lock on HPI / Labs).  
-*Still in the mock (different concept):* **Static Start / Static End** / Additional text — fixed boilerplate around a section body.
-
-† **EHR Pull / File Upload ghost rows (dropped)** — inbound rows like Vitals (“Inserted by EHR Pull”) or file upload; enable only, no mapping chip.
-
-†† **`Clinical Notes > snake_case` path style (superseded)** — older design chips; prototype uses **`Office Visit > Title Case`** only.
-
-††† **Request New Section ownership (product call)**  
-Shown on **ops-managed** templates only — doctors ask ops to add structure. Self-serve templates use **+ Add section** instead. Overrides an earlier PRD line that gated Request New Section to user-created / self-serve templates.
+† **STATIC (dropped)** — old non-AI section badge. *Still in mock (different):* Static Start / End / Additional text.  
+† **EHR Pull / File Upload ghosts (dropped)** — inbound-only rows with no mapping chip.  
+†† **`Clinical Notes > snake_case` (superseded)** — prototype uses `Office Visit > Title Case` only.  
+††† **Request New Section** — ops-managed only; self-serve uses + Add section. Overrides earlier PRD line that gated it to self-serve.
