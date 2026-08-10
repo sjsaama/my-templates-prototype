@@ -119,7 +119,7 @@ These live in the `templates` table and `json_template` JSON.
 
 ## Category 3 — Cerner, ModMed
 
-> **Correction:** Earlier wording treated “no field list to fetch” as “skip Connect EHR entirely.” Cat 3 does **not** need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR. See [CATEGORY_3.md](CATEGORY_3.md).
+> Destination template / document connection is required (no section→field mapping). Self-serve Connect EHR UI is an **open question** — see [CATEGORY_3.md](CATEGORY_3.md)#open-questions.
 
 ### Cerner
 

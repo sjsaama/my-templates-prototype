@@ -119,7 +119,7 @@ Based on the above, the errors that require the doctor (or ops on behalf of the 
 
 All other errors (auth, account locked, signed encounter, quota, DrChrono/Cerner/ModMed/Nereg failures) are ops-only — they don't require anything in My Templates today.
 
-**Cat 3 correction (Cerner / ModMed):** No section→field mapping to remap, but they still require a destination template (or document target) connection in the EHR. Do not treat “no field mapping” as “no Connect EHR.” See [CATEGORY_3.md](CATEGORY_3.md).
+**Cat 3 (Cerner / ModMed):** No section→field remap. Destination template / document connection is still required; self-serve Connect EHR UI is an **open question** — see [CATEGORY_3.md](CATEGORY_3.md)#open-questions.
 
 **Nereg (Cat 2, locked mapping):** Remap button is not shown. Wrong `key_name` / template alignment is ops-facing — doctors are not given a mapping picker.
 

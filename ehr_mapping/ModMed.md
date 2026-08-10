@@ -3,7 +3,7 @@
 ## Category
 **Category 3 — Auto push, no field mapping (template connection required).** Full note → one PDF via FHIR. No section-level mapping.
 
-> **Correction:** “No field mapping” does **not** mean skip Connect EHR. Cat 3 does not need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR. Self-serve presentation (picker vs ops-only vs display-only name) is TBD.
+Destination template / document connection is still required; self-serve Connect EHR UI is an **open question** — see [CATEGORY_3.md](CATEGORY_3.md)#open-questions.
 
 See [CATEGORY_3.md](CATEGORY_3.md) for shared Cat 3 model and how ModMed differs from Cerner.
 
@@ -24,7 +24,7 @@ No per-section field mapping, but the Marvix template still must be **connected 
 | Destination template / document target | Required so the PDF lands on the right chart artifact |
 | `ehr_template_name` / `ehr_template_id` | Exact usage less documented than Cerner — **confirm with tech** whether ModMed mirrors Cerner’s PDF filename behavior |
 
-How this connection is exposed in My Templates self-serve is TBD — see CATEGORY_3.md.
+How this connection is exposed in My Templates self-serve is an **open question** — see [CATEGORY_3.md](CATEGORY_3.md)#open-questions.
 
 ---
 

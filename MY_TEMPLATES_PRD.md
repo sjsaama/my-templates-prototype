@@ -55,7 +55,7 @@ If a push fails because the EHR field mapping is wrong, the doctor can pick a di
 | Cat 2 — AMD, DrChrono | Open mapping picker, select from the field list fetched at template creation. |
 | Cat 2 — CharmHealth | Open mapping picker, select from existing field list. Cannot re-fetch — automation blocked until CharmHealth templates API is available (confirm with KJ). If EHR template changed, doctor uses "Contact support" in picker. |
 | Cat 2 — Nereg | **No remap.** Mapping is auto from section `key_name` into the connected EHR template. Remap button / field picker not shown — fix mapping via `key_name` alignment (ops/product), not doctor pick. |
-| Cat 3 — ModMed (PDF), Cerner (PDF) | No section→field mapping to remap. Remap button not shown. **Correction:** still requires Marvix↔EHR destination template/document connection — earlier “skip Connect EHR” wording was wrong. See Cat 3 section / [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md). |
+| Cat 3 — ModMed (PDF), Cerner (PDF) | No section→field mapping to remap. Remap button not shown. Destination template/document connection still required; self-serve Connect EHR UI is an **open question** — see Cat 3 / [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)#open-questions. |
 | Cat 4 | No push capability. Remap button not shown. |
 
 ### Adjust section output settings
@@ -190,20 +190,14 @@ Fields are tied to the doctor's EHR note template (Connect EHR). What the doctor
 
 EHRs: Cerner, ModMed
 
-**Shared:** No mapping rows / field picker. Output settings (sliders) hidden. Remap button not shown on push errors.
+**Shared:** No mapping rows / field picker. Output settings (sliders) hidden. Remap button not shown on push errors. Destination template / document connection is still required.
 
-**Correction vs earlier PRD wording:** Earlier drafts said Cat 3 skips **Connect EHR** entirely because there is no field list to fetch. That understates the real requirement:
-
-> Cat 3 does **not** need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR.
-
-How that connection is shown in self-serve My Templates (picker vs ops-only vs display-only name) is **TBD** — see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md). Do not equate “no field mapping” with “no Connect EHR.”
+> Self-serve Connect EHR presentation (picker vs ops-only vs display-only name) is an **open question** — see Open questions and [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)#open-questions.
 
 | EHR | How it pushes | Label shown in mapping column | Subtle difference |
 |---|---|---|---|
 | Cerner | Whole note as PDF via FHIR | "Whole note pushed as PDF" | `ehr_template_name` → PDF filename in chart |
 | ModMed | Whole note as PDF (Binary → S3 → DocumentReference) | "Whole note pushed as PDF" | Same PDF outcome as Cerner; encounter lookup can silently omit encounter link |
-
-**UX incorporation TBD:** Whether self-serve creation shows a Connect EHR picker for Cat 3 (destination only, no field fetch), or connection stays ops-provisioned with a read-only label in the editor.
 
 ### Cat 4 — No push
 
@@ -401,8 +395,8 @@ No field-level remap. Template/document connection failures and push infra error
 | CharmHealth push activation status | Is CharmHealth push currently live? Automation blocked until templates API available — confirm timeline with KJ. | KJ |
 | DrChrono push activation status | Is DrChrono push currently active for any practices? | Vignesh |
 | Athena rate-limit scope | Is the quota per-practice, per-doctor, or per-API-key? Affects how the error copy is worded. | Vignesh |
+| Cat 3 — self-serve Connect EHR UI | Destination connection is required (no section→field mapping). Undecided: picker (destination only) vs ops-provisioned + display-only name vs ops-only. Earlier drafts skipped Connect EHR — do not treat that as settled. | Product |
 | Cat 3 — what object is connected today? | For Cerner / ModMed: exact ops fields (`ehr_template_id`, name, document type, other). Needed before Connect EHR UX. | Tech / Vignesh |
-| Cat 3 — self-serve Connect EHR? | Destination-only picker in creation flow vs ops-provisioned + read-only label. No field fetch either way. | Product |
 | ModMed `ehr_template_name` parity with Cerner | Does ModMed use template name as PDF/document identity like Cerner’s `file_name`? | Tech |
 | Nereg Connect EHR object | Exact template id/name ops stores for Nereg today. | Tech |
 | Nereg rename warning copy | Locked mapping means doctor can't remap — warn on section rename that breaks `key_name` auto-map. | Product |
@@ -413,7 +407,7 @@ No field-level remap. Template/document connection failures and push infra error
 
 | Area | Notes |
 |---|---|
-| Doctor picks their EHR template | Ops sets this during onboarding for most EHRs. Doctor-facing template picker is future scope for Cat 2 (AMD/DrChrono/Charm). **Cat 2 Nereg** and **Cat 3** still need destination template/document connection even without doctor field remap — Connect EHR UX TBD. |
+| Doctor picks their EHR template | Ops sets this during onboarding for most EHRs. Doctor-facing template picker is future scope for Cat 2 (AMD/DrChrono/Charm). Cat 2 Nereg and Cat 3 still need destination connection without doctor field remap — **Cat 3 self-serve Connect EHR UI is an open question**. |
 | Derivatives | Customization of derivative templates is a known gap. Needs a scoping session with Vignesh + Nandini before it can be planned. |
 
 ## Preview output (dry run)
@@ -442,7 +436,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 | Step | What happens |
 |---|---|
 | 1 — Describe | Doctor enters template name, description, and document type (Clinical Note / Letter / Other). Optionally copies sections from an existing template. |
-| 2 — Connect EHR | **Cat 2** (AMD, DrChrono, CharmHealth, **Nereg**): doctor (or ops) connects an EHR note template. AMD/DrChrono/CharmHealth then use a field list for mapping; **Nereg connects the template but does not expose a field picker** — mapping stays locked/auto from `key_name`. **Cat 3** (Cerner, ModMed): **do not skip Connect EHR.** There is no field list to fetch and no section→field mapping, but the Marvix template **must** still be connected to a destination template (or document target) in the EHR. Self-serve presentation TBD — see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md). Cat 1 and Cat 4 skip this step (Cat 1 uses a fixed field list; Cat 4 has no push). |
+| 2 — Connect EHR | **Cat 2** (AMD, DrChrono, CharmHealth, **Nereg**): doctor (or ops) connects an EHR note template. AMD/DrChrono/CharmHealth then use a field list for mapping; **Nereg connects the template but does not expose a field picker** — mapping stays locked/auto from `key_name`. **Cat 3** (Cerner, ModMed): no field fetch / mapping; destination template/document connection still required — **self-serve UI open question** ([`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)#open-questions). Cat 1 and Cat 4 skip this step (Cat 1 uses a fixed field list; Cat 4 has no push). |
 | 3 — Review | Summary of name, type, EHR system, and whether sections were copied. Doctor confirms to create. |
 
 **Copy from existing template (step 1, optional):** Doctor selects any of their existing templates from a dropdown. The new template inherits a deep copy of the source section tree — including order, enabled/disabled state, and EHR mappings. If no template is selected, the new template starts from Marvix defaults (Cat 1/3/4) or an empty section list (Cat 2).
@@ -497,16 +491,10 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 #### Cat 3 — Cerner, ModMed
 
-**Correction vs earlier PRD wording:** Earlier drafts said Cat 3 skips Connect EHR entirely because there is no field list to fetch. That understates the requirement:
-
-> Cat 3 does **not** need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR.
-
-How that connection is shown in self-serve My Templates (picker vs ops-only vs display-only name) is TBD.
-
 **What the doctor does:**
 1. Click "+ Create template"
 2. Enter name, description, document type. Optionally copy sections.
-3. Step 2 (Connect EHR): **Required destination connection — not a field-mapping step.** No field fetch. Whether the doctor picks the destination here or ops provisions it (with a display-only name in the editor) is **TBD** (see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)). Do not imply “skip Connect EHR = no EHR attachment.”
+3. Connect EHR / destination attachment: required in principle (not a field-mapping step). **Self-serve presentation is an open question** (picker vs ops-provisioned + display-only name) — see Open questions / [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)#open-questions.
 4. Template is created with the default Marvix section set (or copied sections).
 5. In the editor, mapping column shows “Whole note pushed as PDF.” No per-section field picker.
 

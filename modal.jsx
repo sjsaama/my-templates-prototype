@@ -636,10 +636,10 @@ function EhrTemplatePickerModal({ ehr, ehrLabel, selectedId, onClose, onSelect }
 // ── Add Section / Add Subsection ──────────────────────────────────────────
 // Header + Prompt, written by the doctor — no AI drafting. For Cat 1 (fixed field list) and
 // remappable Cat 2 (fetch-based) EHRs, the section must be tied to an available field first.
-// Cat 2 Nereg (fieldSource "auto", canRemap false), Cat 3, and Cat 4 skip the *field picker* —
-// Nereg still requires template-level Connect EHR with locked auto-mapping (see Nereg.md).
-// Cat 3 still requires destination template/document connection — do not equate
-// "no field mapping" with "no Connect EHR."
+// Cat 2 Nereg (fieldSource "auto", canRemap false), Cat 3, and Cat 4 skip the *field picker*.
+// Nereg: template-level Connect EHR with locked auto-mapping (see Nereg.md).
+// Cat 3: destination connection still required; self-serve Connect EHR UI is an open question
+// (see ehr_mapping/CATEGORY_3.md).
 function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreate }) {
   const I = window.Icons;
   const [name, setName] = useStateM("");

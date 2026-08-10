@@ -564,8 +564,8 @@ const EHR_CATEGORY = {
   // Cat 2 Nereg: connect EHR template like other Cat 2, but mapping is locked/auto from key_name —
   // doctors cannot remap (fieldSource "auto", canRemap false). See ehr_mapping/Nereg.md.
   Nereg:      { cat: 2, label: "Nereg",                   fieldSource: "auto",  canRemap: false, autoMsg: "Auto-mapped from section names", requiresEhrTemplateConnection: true },
-  // Cat 3: fieldSource "none" = no section→field mapping. Template/document connection in the
-  // EHR is still required — do not treat as "skip Connect EHR." See ehr_mapping/CATEGORY_3.md.
+  // Cat 3: no section→field mapping; destination template connection still required.
+  // Self-serve Connect EHR UI is an open question — see ehr_mapping/CATEGORY_3.md.
   Cerner:     { cat: 3, label: "Cerner",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF", requiresEhrTemplateConnection: true },
   ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF", requiresEhrTemplateConnection: true },
   Athena:     { cat: 4, label: "Athena (Legacy)",         fieldSource: "none",  noPushMsg: "Athena" },
