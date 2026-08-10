@@ -376,7 +376,7 @@ The section-level inline strip is the primary action surface — the banner is a
 |---|---|---|
 | Do doctor customizations apply per-doctor or per-practice? | If two doctors share a template, do they share settings or have independent ones? | Vignesh |
 | Write mode restrictions per EHR | Athena is append-only; most others may be append-only too. Confirm which EHRs support each Push setting mode. | Vignesh |
-| Derivatives | Definition and scope unclear. Needs a session with Vignesh + Nandini before this can be added to the PRD. Known gap. | Vignesh + Nandini |
+| Derivatives | Definition and scope unclear — needs a scoping session before adding to the PRD. | Vignesh + Nandini |
 | ECW selective copy — user-level vs. practice-level | Which fields in ECW are owned at the user level vs. practice level? Affects whether remap UI is per-doctor or per-practice. | Vignesh |
 | First-line heading omit — is it configurable? | Whether the section heading is stripped before push. Currently unconfirmed. | Vignesh |
 | AMD checkbox — how is the push value chosen? | Two mechanisms conflict: (A) PRD — AI prompt must output an allowed value; (B) YAML `extract_boolean_value` — if section has content push configured value, else empty. Need one product rule. | TBD |
