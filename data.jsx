@@ -612,6 +612,12 @@ const EHR_FIELD_LABELS = {
   "reasonsForVisit":          "Reason for Visit",
   "vitals":                   "Vitals",
   "ICD":                      "ICD Diagnosis Codes",
+  // Centricity (Athena Flow)
+  "chief_complaint":          "Chief Complaint",
+  "ros":                      "Review of Systems",
+  "physical_exam":            "Physical Exam",
+  "assessment_plan":          "Assessment & Plan",
+  "past_medical_history":     "Past Medical History",
 };
 
 // Keep EHR_FIELDS as alias for backward compatibility (AMD default).
