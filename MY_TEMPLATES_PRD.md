@@ -54,8 +54,8 @@ If a push fails because the EHR field mapping is wrong, the doctor can pick a di
 | Cat 1 — AthenaOne, ECW, Veradigm, Centricity (AthenaFlow) | Open mapping picker, select from hardcoded field list. No API call. Field names shown with human-readable labels. |
 | Cat 2 — AMD, DrChrono | Open mapping picker, select from the field list fetched at template creation. |
 | Cat 2 — CharmHealth | Open mapping picker, select from existing field list. Cannot re-fetch — automation blocked until CharmHealth templates API is available (confirm with KJ). If EHR template changed, doctor uses "Contact support" in picker. |
-| Cat 3 — ModMed (PDF), Cerner (PDF), Tebra (integration TBD) | No mapping to remap. Remap button not shown. |
-| Cat 4 | No push capability. Remap button not shown. |
+| Cat 3 — ModMed (PDF), Cerner (PDF) | No mapping to remap. Remap button not shown. |
+| Cat 4 | No push capability. Remap button not shown. *(No EHRs assigned yet.)* |
 
 ### Adjust section output settings
 
@@ -198,18 +198,17 @@ Note is pushed automatically — no mapping rows shown, no doctor action needed 
 
 ### Cat 4 — No push
 
-EHRs: Athena (legacy), ECW FHIR, Greenway Prime Suites, Tebra
+EHRs: *(none assigned yet — confirmed no-push EHRs will be listed here)*
 
 No push capability. Doctor copies the note and pastes into EHR manually. The output settings panel (sliders button) is hidden — there is no mapping to configure.
+
+**ECW FHIR is not Cat 4** — push is unimplemented, but it is not classified as a copy-only / no-push product category.
 
 **Upfront notice:** When a doctor views or creates a template with a Cat 4 EHR, a blue info banner appears at the top of the section table: *"[EHR name] doesn't have a push integration — notes are copied manually after each visit. Section mapping isn't needed, but you can still configure content and style."* This sets expectations before they see "No push" across all section rows.
 
 | EHR | Why no push |
 |---|---|
-| Athena (legacy) | Legacy API — replaced by AthenaOne |
-| ECW FHIR | Push not yet implemented |
-| Greenway Prime Suites | On-prem — no cloud API. ⚠️ *Unconfirmed — verify with Vignesh before freeze.* |
-| Tebra | No active push integration — moved from Cat 3 |
+| — | TBD once no-push EHRs are confirmed |
 
 ---
 
@@ -323,7 +322,7 @@ The section-level inline strip is the primary action surface — the banner is a
 | Account locked | EHR | ✅ Yes | — | Ops unlocks |
 | SOAP mode failures | Any | ❌ Undetectable | Nothing — no per-field errors returned | Ops investigates |
 
-### Cat 3 — Cerner, Nereg, Centricity, ModMed, Tebra
+### Cat 3 — Cerner, Nereg, Centricity, ModMed
 
 **Cerner**
 
@@ -345,7 +344,7 @@ The section-level inline strip is the primary action surface — the banner is a
 | Wrong `ehr_field_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Ops updates field name in YAML |
 | Push failure | Infra | ✅ Yes | — | Ops |
 
-**ModMed / Tebra**
+**ModMed**
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
@@ -489,7 +488,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 ---
 
-#### Cat 4 — Athena (legacy), ECW FHIR, Greenway, Tebra
+#### Cat 4 — No push *(no EHRs assigned yet)*
 
 **What the doctor does:**
 1. Click "+ Create template"
@@ -505,6 +504,8 @@ This is separate from template management (the core v1 feature). Doctors who wan
 - Remap button is never shown on push error strips (no push = no remap)
 
 **Value for Cat 4 doctors:** Even without push, the template still controls which sections are generated and in what order — the note is copied manually but its shape is fully controlled here.
+
+> Flow applies once EHRs are assigned to Cat 4. **ECW FHIR is not Cat 4.**
 
 ---
 

@@ -1,9 +1,9 @@
 # EHR Mapping — Greenway
 
 ## Category
-**Category 4 — No push capability.** `save_note()` delegates to the base class which has no push implementation. Not implemented.
+**Unassigned (not Cat 4 yet).** `save_note()` delegates to the base class which has no push implementation. Not implemented.
 
-> ⚠️ **Unconfirmed** — Cat 4 classification needs verification with Vignesh before My Templates launch.
+> ⚠️ **Unconfirmed** — whether Greenway belongs in Cat 4 needs verification with Vignesh before My Templates launch.
 
 ---
 
@@ -21,7 +21,7 @@ None — not implemented.
 
 ## App UX
 
-Since no push happens, the app should show a prominent **"Copy Note"** prompt after the note is generated:
+Until Cat 4 membership is finalized: if this EHR is treated as no-push, show a **"Copy Note"** prompt after the note is generated:
 > *"Your EHR doesn't support auto-push — copy and paste into Greenway."*
 
 ---

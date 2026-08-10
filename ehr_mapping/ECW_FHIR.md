@@ -1,7 +1,7 @@
 # EHR Mapping — ECW FHIR
 
 ## Category
-**Category 4 — No push capability.** `save_note()` is an empty stub (`pass`). Not implemented.
+**Not Category 4.** `save_note()` is an empty stub (`pass`) — push is not implemented yet, but ECW FHIR is **not** classified as a no-push (Cat 4) EHR. Auth and note-read are implemented; treat push as pending engineering work, not as an intentional copy-only product category.
 
 ---
 
@@ -42,8 +42,7 @@ None — push not implemented.
 
 ## App UX
 
-Since no push happens, the app should show a prominent **"Copy Note"** prompt after the note is generated:
-> *"Your EHR doesn't support auto-push — copy and paste into ECW."*
+Push is not implemented. Until write-back ships, doctors may still need to copy manually — but **do not treat this as Cat 4** (no dedicated "No push" category UX). Product placement TBD.
 
 ---
 

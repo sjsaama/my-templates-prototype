@@ -39,9 +39,6 @@ Note pushed automatically. No mapping rows or dropdown. Ops may define section n
 ## Category 4 — No push capability
 Marvix generates the note but cannot push it. Doctor copies manually. App should show "Copy Note" prompt.
 
-| EHR | File | Status |
-|---|---|---|
-| Athena (legacy) | [Athena_Legacy.md](Athena_Legacy.md) | `save_note` returns `False` — read-only |
-| ECW FHIR | [ECW_FHIR.md](ECW_FHIR.md) | `save_note` stub — auth and note-read implemented, push not |
-| Greenway (Prime Suites) | [Greenway.md](Greenway.md) | On-prem — no cloud API; stub not implemented. ⚠️ Unconfirmed — verify with Vignesh. |
-| Tebra | [Tebra.md](Tebra.md) | `save_note` is empty stub — not implemented. Moved from Cat 3. |
+No EHRs are assigned here yet. EHRs confirmed to have **no push capability** will be listed in this section.
+
+> Previously listed candidates (Athena legacy, ECW FHIR, Greenway, Tebra) were cleared pending a fresh pass over which systems truly have no push. **ECW FHIR is not Cat 4.** See individual EHR docs for current technical status.

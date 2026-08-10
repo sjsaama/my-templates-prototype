@@ -80,7 +80,7 @@ const ERROR_SCENARIOS = {
 };
 
 
-const EHR_OPTIONS = ["AMD", "AthenaOne", "Athena", "eCW", "Charm", "DrChrono", "Veradigm", "Centricity", "Cerner", "Nereg", "ECW FHIR", "Greenway", "ModMed", "Tebra"];
+const EHR_OPTIONS = ["AMD", "AthenaOne", "eCW", "Charm", "DrChrono", "Veradigm", "Centricity", "Cerner", "Nereg", "ModMed"];
 
 function mapSectionTree(list, id, fn) {
   return list.map((s) => {
