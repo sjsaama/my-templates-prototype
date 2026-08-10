@@ -87,3 +87,50 @@ This survives field reordering and ID reassignment. It **fails** if `page_name` 
 | `internal_endpoints.py:3797` | Auto-populates `max_character_length` from AMD API |
 | `ehr_layer/advancedmd.py:1629` | `get_updated_ehr_mapping()` — auto-remap logic |
 | `ehr_layer/section_text_builder.py` | Reads `config` keys at push time |
+
+---
+
+## My Templates prototype (AMD branch)
+
+Living notes for branch `cursor/amd-ehr-34b9`. Visual / UX prototype — not production wiring.  
+Related: [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md), [ERROR_UX.md](ERROR_UX.md).
+
+### Prototype scope
+
+- Tweaks EHR switcher fixed to `AMD`; runtime `ehr` always `AMD`
+- Template list filtered to AMD templates only
+- Mapping display: **`Office Visit > Field Name`** (Title Case) on chips, picker, and char limits
+
+### Confirmed decisions
+
+| Topic | Decision |
+|---|---|
+| Configuration column | **Not needed for AMD** |
+| EHR path style | **`Office Visit > Title Case`** everywhere |
+| Template types | **Self-serve** and **Ops-managed** |
+| STATIC section badge | **Dropped** † |
+| EHR Pull / File Upload ghost rows | **Dropped** † |
+
+### Still to align
+
+1. Template list tabs: **Self-serve** vs **Ops-managed** (PRD: Request New Section / Add section only on self-serve; ops-managed structure is ops-controlled)
+
+### Changelog
+
+| Date | Change |
+|---|---|
+| 2026-08-10 | Branch created; EHR locked to AMD |
+| 2026-08-10 | Confirmed: no Configuration column; one path style; Self-serve / Ops-managed |
+| 2026-08-10 | Dropped STATIC badge + EHR Pull/File Upload ghost rows † |
+| 2026-08-10 | Unified path style to `Office Visit > Title Case` on seeded chips + picker |
+| 2026-08-10 | Merged `main` (PRD, `ehr_mapping/`, error-scenario + dual-mapping demos). Kept AMD lock; STATIC/ghost stay dropped |
+| 2026-08-10 | Consolidated prototype notes into this file; removed standalone AMD branch docs |
+
+### Footnotes — dropped / superseded
+
+† **STATIC (dropped)** — section-level badge for non-AI / fixed content (old mock: lock on HPI / Labs).  
+*Still in the mock (different concept):* **Static Start / Static End** — fixed boilerplate around a section body.
+
+† **EHR Pull / File Upload ghost rows (dropped)** — inbound rows like Vitals (“Inserted by EHR Pull”) or file upload; enable only, no mapping chip.
+
+†† **`Clinical Notes > snake_case` path style (superseded)** — older design chips; prototype now uses **`Office Visit > Title Case`** only.
