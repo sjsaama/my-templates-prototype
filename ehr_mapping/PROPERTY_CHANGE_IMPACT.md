@@ -126,9 +126,9 @@ These live in the `templates` table and `json_template` JSON.
 
 ---
 
-### Category 4 EHRs (Athena legacy, ECW FHIR, Greenway, ModMed, Tebra)
+### Out-of-scope EHRs (see `not_needed/`)
 
-No push — property changes have no mapping impact. Doctor copies note manually.
+Athena legacy, ECW FHIR, Greenway, and Tebra are archived under [`not_needed/`](not_needed/) — outside the active My Templates EHR set. No push — property changes have no mapping impact.
 
 ---
 

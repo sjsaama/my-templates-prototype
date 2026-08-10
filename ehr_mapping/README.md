@@ -6,6 +6,8 @@ See [SHARED_CONFIG.md](SHARED_CONFIG.md) for config keys and `append_other_deriv
 See [PROPERTY_CHANGE_IMPACT.md](PROPERTY_CHANGE_IMPACT.md) for what breaks when template or section properties change, per EHR.
 See [ERROR_UX.md](ERROR_UX.md) for the error detection, popup, and self-service remap UX spec.
 
+Active EHRs below match the systems covered by My Templates (prototype + PRD). Docs for EHRs outside that set live in [`not_needed/`](not_needed/).
+
 ---
 
 ## Category 1 — Fixed field list
@@ -36,12 +38,13 @@ Note pushed automatically. No mapping rows or dropdown. Ops may define section n
 | Nereg | [Nereg.md](Nereg.md) | Auto-mapped from section `key_name` at push time |
 | Centricity (Athena Flow) | [Centricity.md](Centricity.md) | Ops defines `ehr_field_name` per section; Centricity routes content |
 
-## Category 4 — No push capability
-Marvix generates the note but cannot push it. Doctor copies manually. App should show "Copy Note" prompt.
+## Not needed (out of My Templates scope)
 
-| EHR | File | Status |
+Archived under [`not_needed/`](not_needed/) — kept for reference, not part of the active My Templates EHR set:
+
+| EHR | File | Why archived |
 |---|---|---|
-| Athena (legacy) | [Athena_Legacy.md](Athena_Legacy.md) | `save_note` returns `False` — read-only |
-| ECW FHIR | [ECW_FHIR.md](ECW_FHIR.md) | `save_note` stub — auth and note-read implemented, push not |
-| Greenway (Prime Suites) | [Greenway.md](Greenway.md) | On-prem — no cloud API; stub not implemented. ⚠️ Unconfirmed — verify with Vignesh. |
-| Tebra | [Tebra.md](Tebra.md) | `save_note` is empty stub — not implemented. Moved from Cat 3. |
+| Athena (legacy) | [not_needed/Athena_Legacy.md](not_needed/Athena_Legacy.md) | Legacy API — replaced by AthenaOne; no push |
+| ECW FHIR | [not_needed/ECW_FHIR.md](not_needed/ECW_FHIR.md) | Separate integration; push not implemented |
+| Greenway (Prime Suites) | [not_needed/Greenway.md](not_needed/Greenway.md) | On-prem — no cloud API |
+| Tebra | [not_needed/Tebra.md](not_needed/Tebra.md) | Push stub only — not implemented |
