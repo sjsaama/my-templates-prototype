@@ -42,19 +42,59 @@ function fieldLabel(f) {
   return labels[raw] || labels[f] || raw;
 }
 
+function fieldMeta(path) {
+  if (window.amdFieldMeta) return window.amdFieldMeta(path);
+  return { type: "text" };
+}
+
+function filterFieldGroups(groups, q) {
+  const needle = (q || "").toLowerCase();
+  return groups.map((g) => ({
+    ...g,
+    fields: g.fields.filter((f) => {
+      const label = f.split(" > ").pop();
+      return !needle || label.toLowerCase().includes(needle) || g.group.toLowerCase().includes(needle);
+    }),
+  })).filter((g) => g.fields.length > 0);
+}
+
 function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeIt, ehr, onSelect, onClose }) {
   const [query, setQuery] = useStateR("");
   const [scribeQuery, setScribeQuery] = useStateR("");
   const [pendingEhr, setPendingEhr] = useStateR(currentEhr);
   const [pendingScribeIt, setPendingScribeIt] = useStateR(currentScribeIt || "");
   const I = window.Icons;
-  const isEcw = ehr === "eCW";
-  const ehrCat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
-  const isFixedList = ehrCat && ehrCat.fieldSource === "fixed";
-  const isCharm = ehr === "Charm";
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
+  const isEcw = !!caps.hasScribeIt;
+  const isFixedList = !!caps.isFixedList;
+  const isCharm = !!caps.showCharmRemapNotice;
+  const primaryGroups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [];
+  const pendingMeta = pendingEhr ? fieldMeta(pendingEhr) : null;
 
   const confirm = () => {
     onSelect(sectionId, pendingEhr, isEcw ? pendingScribeIt : undefined);
+  };
+
+  const renderSimpleFields = (groups, selectedValue, onPick, q) => {
+    const filtered = filterFieldGroups(groups, q);
+    if (filtered.length === 0) return <div className="mapping-picker-empty">No fields match "{q}"</div>;
+    return filtered.map((g) => (
+      <div key={g.group}>
+        <div className="mapping-picker-group-label">{g.group}</div>
+        {g.fields.map((f) => {
+          const isSelected = f === selectedValue;
+          return (
+            <button key={f}
+              className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
+              onClick={() => onPick(f)}
+            >
+              <span>{fieldLabel(f)}</span>
+              {isSelected && <span className="mapping-picker-check"><I.check /></span>}
+            </button>
+          );
+        })}
+      </div>
+    ));
   };
 
   return (
@@ -94,35 +134,7 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                   value={query} onChange={e => setQuery(e.target.value)} autoFocus />
               </div>
               <div className="mapping-picker-body">
-                {(() => {
-                  const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [];
-                  const filtered = groups.map(g => ({
-                    ...g,
-                    fields: g.fields.filter(f => {
-                      const label = f.split(" > ").pop();
-                      return label.toLowerCase().includes(query.toLowerCase()) || g.group.toLowerCase().includes(query.toLowerCase());
-                    }),
-                  })).filter(g => g.fields.length > 0);
-                  return filtered.length === 0
-                    ? <div className="mapping-picker-empty">No fields match "{query}"</div>
-                    : filtered.map(g => (
-                      <div key={g.group}>
-                        <div className="mapping-picker-group-label">{g.group}</div>
-                        {g.fields.map(f => {
-                          const isSelected = f === pendingEhr;
-                          return (
-                            <button key={f}
-                              className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
-                              onClick={() => setPendingEhr(f)}
-                            >
-                              <span>{fieldLabel(f)}</span>
-                              {isSelected && <span className="mapping-picker-check"><I.check /></span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ));
-                })()}
+                {renderSimpleFields(primaryGroups, pendingEhr, setPendingEhr, query)}
               </div>
               <div className="mapping-picker-foot">
                 <button className="mapping-picker-clear" onClick={() => setPendingEhr("")}>Clear primary mapping</button>
@@ -139,35 +151,7 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                   value={scribeQuery} onChange={e => setScribeQuery(e.target.value)} />
               </div>
               <div className="mapping-picker-body">
-                {(() => {
-                  const groups = window.ECW_SCRIBEIT_FIELDS || [];
-                  const filtered = groups.map(g => ({
-                    ...g,
-                    fields: g.fields.filter(f => {
-                      const label = f.split(" > ").pop();
-                      return label.toLowerCase().includes(scribeQuery.toLowerCase()) || g.group.toLowerCase().includes(scribeQuery.toLowerCase());
-                    }),
-                  })).filter(g => g.fields.length > 0);
-                  return filtered.length === 0
-                    ? <div className="mapping-picker-empty">No fields match "{scribeQuery}"</div>
-                    : filtered.map(g => (
-                      <div key={g.group}>
-                        <div className="mapping-picker-group-label">{g.group}</div>
-                        {g.fields.map(f => {
-                          const isSelected = f === pendingScribeIt;
-                          return (
-                            <button key={f}
-                              className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
-                              onClick={() => setPendingScribeIt(f)}
-                            >
-                              <span>{fieldLabel(f)}</span>
-                              {isSelected && <span className="mapping-picker-check"><I.check /></span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ));
-                })()}
+                {renderSimpleFields(window.ECW_SCRIBEIT_FIELDS || [], pendingScribeIt, setPendingScribeIt, scribeQuery)}
               </div>
               <div className="mapping-picker-foot">
                 <button className="mapping-picker-clear" onClick={() => setPendingScribeIt("")}>Clear Scribe-it destination</button>
@@ -182,14 +166,7 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
             </div>
             <div className="mapping-picker-body">
               {(() => {
-                const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [];
-                const filtered = groups.map(g => ({
-                  ...g,
-                  fields: g.fields.filter(f => {
-                    const label = f.split(" > ").pop();
-                    return label.toLowerCase().includes(query.toLowerCase()) || g.group.toLowerCase().includes(query.toLowerCase());
-                  }),
-                })).filter(g => g.fields.length > 0);
+                const filtered = filterFieldGroups(primaryGroups, query);
                 return filtered.length === 0
                   ? <div className="mapping-picker-empty">No fields match "{query}"</div>
                   : filtered.map(g => (
@@ -197,13 +174,17 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                       <div className="mapping-picker-group-label">{g.group}</div>
                       {g.fields.map(f => {
                         const isSelected = f === pendingEhr;
+                        const meta = fieldMeta(f);
+                        const isCheckbox = caps.hasCheckboxFields && meta.type === "checkbox";
                         return (
                           <button key={f}
-                            className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
+                            className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "") + (isCheckbox ? " mapping-picker-field--checkbox" : "")}
                             onClick={() => setPendingEhr(f)}
                           >
                             <span className="mapping-picker-field-main">
+                              {isCheckbox && <span className="mapping-picker-cb-ico" aria-hidden="true">☑</span>}
                               <span>{fieldLabel(f)}</span>
+                              {isCheckbox && <span className="mapping-type-tag">checkbox</span>}
                             </span>
                             {isSelected && <span className="mapping-picker-check"><I.check /></span>}
                           </button>
@@ -215,6 +196,17 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
             </div>
             <div className="mapping-picker-foot">
               <button className="mapping-picker-clear" onClick={() => setPendingEhr("")}>Clear mapping — remove EHR destination</button>
+              {pendingMeta && pendingMeta.type === "checkbox" && (
+                <div className="mapping-picker-checkbox-hint">
+                  <strong>Checkbox field</strong>
+                  {(pendingMeta.allowedValues || []).length > 0 && (
+                    <span> — allowed values: {(pendingMeta.allowedValues || []).join(", ")}</span>
+                  )}
+                  <div className="mapping-picker-checkbox-hint-sub">
+                    {pendingMeta.hint || "Prompt must output one of the allowed values for AMD to accept the push."}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -360,11 +352,9 @@ function SectionRow({
   const hasKids = !!(s.children && s.children.length);
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
-  const ehrRowMeta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
-  const ehrRowCat = ehrRowMeta.cat;
-  const canRemapEhr = ehrRowMeta.canRemap !== false && ehrRowMeta.fieldSource !== "auto" && ehrRowMeta.fieldSource !== "none";
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
   // Sliders / remap only when the EHR has remappable field-level config (not Cat 3 PDF, not Nereg locked-auto).
-  const hasOutputSettings = (ehrRowCat === 1 || ehrRowCat === 2) && canRemapEhr;
+  const hasOutputSettings = !!caps.hasOutputSettings && !!caps.canRemap;
   const promptOpen = !!s.promptOpen;
 
   // Dual-mapping demo override — applies to "Assessment & Plan" only
@@ -472,11 +462,11 @@ function SectionRow({
         {/* EHR Mapping */}
         <div className="row-mapping">
           {(() => {
-            const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
             // Cat 3 PDF auto-push, or Cat 2 locked/auto (Nereg) — no remappable mapping chip
-            if (cat && (cat.cat === 3 || cat.fieldSource === "auto" || cat.fieldSource === "none")) return (
-              <span className="mapping-auto-label" title={cat.autoMsg}>{cat.autoMsg || "Auto-mapped"}</span>
+            if (!caps.canRemap || caps.category === 3) return (
+              <span className="mapping-auto-label" title={caps.autoMsg}>{caps.autoMsg || "Auto-mapped"}</span>
             );
+            const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
             if (cat && cat.fieldsPending) return (
               <span className="mapping-pending-label" title="Field list not yet confirmed — ops will configure this">Field list pending</span>
             );
@@ -497,7 +487,7 @@ function SectionRow({
           })()}
         </div>
         {/* eCW secondary column — Scribe-it destination */}
-        {ehr === "eCW" && (
+        {caps.hasScribeIt && (
           <div className="row-ehr-secondary">
             <button className="ehr-scribeit-btn" onClick={() => onOpenMapping(s.id)} title="Edit Scribe-it mapping">
               {s.scribeIt
@@ -555,22 +545,32 @@ function SectionRow({
             <span className="row-push-error-msg">{pushIssue.msg}</span>
           </div>
           <div className="row-push-error-actions">
-            {(() => {
-              const actions = (window.pushIssueActions || (() => ({})))(pushIssue);
-              return (
-                <>
-                  {actions.remap && hasOutputSettings && (
-                    <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
-                  )}
-                  {actions.gotIt && (
-                    <button className="row-push-error-dismiss">Got it</button>
-                  )}
-                  {actions.support && (
-                    <button className="row-push-error-support">Contact support</button>
-                  )}
-                </>
-              );
-            })()}
+            {(window.PushIssueActionButtons
+              ? <window.PushIssueActionButtons
+                  issue={pushIssue}
+                  remapClass="row-push-error-remap"
+                  gotItClass="row-push-error-dismiss"
+                  supportClass="row-push-error-support"
+                  onRemap={() => onOpenMapping(s.id)}
+                  showRemap={hasOutputSettings}
+                />
+              : (() => {
+                  const actions = (window.pushIssueActions || (() => ({})))(pushIssue);
+                  return (
+                    <>
+                      {actions.remap && hasOutputSettings && (
+                        <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
+                      )}
+                      {actions.gotIt && (
+                        <button className="row-push-error-dismiss">Got it</button>
+                      )}
+                      {actions.support && (
+                        <button className="row-push-error-support">Contact support</button>
+                      )}
+                    </>
+                  );
+                })()
+            )}
           </div>
         </div>
       )}
@@ -729,9 +729,10 @@ function SectionTable({
   const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo };
 
   // ── Add Section availability — varies by EHR category ──
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
-  const isCat1 = ehrCat.cat === 1;
-  const isCat2 = ehrCat.cat === 2;
+  const isCat1 = caps.category === 1;
+  const isCat2 = caps.category === 2;
   // Only count fields actually in *this* EHR's field list — sections mapped under a
   // previously-selected EHR (or seeded demo data) shouldn't count against a different EHR's cap.
   const validFieldSet = new Set(
@@ -740,12 +741,12 @@ function SectionTable({
   const usedFieldCount = Object.keys(ehrCounts).filter((f) => validFieldSet.has(f)).length;
   const totalFieldCount = window.ehrFieldTotalCount ? window.ehrFieldTotalCount(ehr) : 0;
   // Field cap applies only when there is a remappable field list (not Cat 3 / Nereg locked-auto).
-  const usesFieldCap = (isCat1 || isCat2) && ehrCat.fieldSource !== "auto" && ehrCat.fieldSource !== "none" && ehrCat.canRemap !== false;
+  const usesFieldCap = (isCat1 || isCat2) && !!caps.canRemap;
   const capReached = usesFieldCap && (totalFieldCount === 0 || usedFieldCount >= totalFieldCount);
 
   let addDisabledReason = "";
-  if (capReached && ehrCat.fieldsPending) addDisabledReason = (ehrCat.label || ehr) + "'s field list isn't confirmed yet — check with ops";
-  else if (capReached) addDisabledReason = "All available " + (ehrCat.label || ehr) + " fields are already used";
+  if (capReached && ehrCat.fieldsPending) addDisabledReason = (caps.label || ehr) + "'s field list isn't confirmed yet — check with ops";
+  else if (capReached) addDisabledReason = "All available " + (caps.label || ehr) + " fields are already used";
 
   return (
     <div className={"table table-edit" + (ehr ? " table--" + ehr.toLowerCase() : "")}>
@@ -762,7 +763,7 @@ function SectionTable({
           </button>
         )}
         {isCat1 && totalFieldCount > 0 && (
-          <span className="section-toolbar-hint">{usedFieldCount}/{totalFieldCount} {ehrCat.label || ehr} fields used</span>
+          <span className="section-toolbar-hint">{usedFieldCount}/{totalFieldCount} {caps.label || ehr} fields used</span>
         )}
       </div>
       <div className="thead">
@@ -771,7 +772,7 @@ function SectionTable({
           EHR Mapping
           {ehr && <span className="th-ehr-badge">{ehr}</span>}
         </div>
-        {ehr === "eCW" && <div className="th">Scribe-it</div>}
+        {caps.hasScribeIt && <div className="th">Scribe-it</div>}
         <div className="th th-enable">Enable</div>
       </div>
       <div className="tbody">

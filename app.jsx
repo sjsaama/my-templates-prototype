@@ -50,6 +50,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 const EHR_OPTIONS = ["eCW"];
 const EHR_LOCKED = true;
 
+// eCW-scoped branch — only eCW push-error demos are wired into Tweaks.
 const ERROR_SCENARIOS = {
   none: [],
   ecw_order_config: [
@@ -63,6 +64,25 @@ const ERROR_SCENARIOS = {
     { id: "pi1", section: "Physical Exam", error: "Scribe-it destination mismatch", type: "mapping_broken", msg: "Selective Copy (Scribe-it) may be pasting into the wrong note-panel field. Remap Scribe-it or contact support.", selfServe: false },
   ],
 };
+
+const ERROR_SCENARIO_OPTIONS = Object.keys(ERROR_SCENARIOS);
+
+function PushIssueActionButtons({ issue, remapClass, gotItClass, supportClass, onRemap, onGotIt, showRemap }) {
+  const actions = (window.pushIssueActions || (() => ({})))(issue);
+  return (
+    <>
+      {actions.remap && showRemap !== false && onRemap && (
+        <button className={remapClass} onClick={onRemap}>Remap</button>
+      )}
+      {actions.gotIt && (
+        <button className={gotItClass} onClick={onGotIt || undefined}>Got it</button>
+      )}
+      {actions.support && (
+        <button className={supportClass}>Contact support</button>
+      )}
+    </>
+  );
+}
 
 function mapSectionTree(list, id, fn) {
   return list.map((s) => {
@@ -140,6 +160,7 @@ function App() {
   const [addSectionOpen, setAddSectionOpen] = useStateA(null); // { parentId: string|null } | null
 
   const tpl = activeTpl ? templates.find((x) => x.id === activeTpl) : null;
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
   const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
   const pendingCount = pendingRequests.length;
@@ -151,6 +172,7 @@ function App() {
     : [];
   const templateCharLimit = (activeTpl && charLimitByTpl[activeTpl]) || 4000;
   const templateLineSep = (activeTpl && lineSepByTpl[activeTpl]) || "\\X0A\\"; // HL7 hex LF
+  const showTemplateSettings = caps.hasPushMode || caps.hasCharLimit || caps.hasLineSeparator;
 
   const setSections = (fn) => {
     if (!activeTpl) return;
@@ -366,41 +388,45 @@ function App() {
                 </div>
               </header>
 
-              {/* Global settings — Character limit + ECW line separator (no Push setting) */}
-              {ehrCat.cat <= 2 && (
+              {/* Template-level settings driven by EHR capabilities */}
+              {showTemplateSettings && caps.hasOutputSettings && (
                 <div className="tpl-settings-stack">
-                  <div className="tpl-settings-bar">
-                    <span className="tpl-settings-label">Character limit</span>
-                    <input
-                      className="tpl-settings-input"
-                      type="number"
-                      min="0"
-                      step="100"
-                      value={templateCharLimit}
-                      onChange={(e) => applyTemplateCharLimit(e.target.value)}
-                      aria-label="Template character limit"
-                    />
-                    <span className="tpl-settings-hint">
-                      Global only — applies to the whole template. Not editable per section.
-                    </span>
-                  </div>
-                  <div className="tpl-settings-bar">
-                    <span className="tpl-settings-label">Line separator</span>
-                    <select
-                      className="tpl-settings-select"
-                      value={templateLineSep}
-                      onChange={(e) => applyTemplateLineSep(e.target.value)}
-                      aria-label="ECW line separator"
-                    >
-                      <option value={"\\X0A\\"}>{"\\X0A\\ (HL7 ORU default)"}</option>
-                      <option value={"\\n"}>{"\\n (plain LF)"}</option>
-                      <option value={"\\r\\n"}>{"\\r\\n (CRLF)"}</option>
-                      <option value="<br>">&lt;br&gt;</option>
-                    </select>
-                    <span className="tpl-settings-hint">
-                      eCW HL7 main mode — replaces newlines before S3 upload. Not used for Selective Copy (Scribe-it).
-                    </span>
-                  </div>
+                  {caps.hasCharLimit && (
+                    <div className="tpl-settings-bar">
+                      <span className="tpl-settings-label">Character limit</span>
+                      <input
+                        className="tpl-settings-input"
+                        type="number"
+                        min="0"
+                        step="100"
+                        value={templateCharLimit}
+                        onChange={(e) => applyTemplateCharLimit(e.target.value)}
+                        aria-label="Template character limit"
+                      />
+                      <span className="tpl-settings-hint">
+                        Global only — applies to the whole template. Not editable per section.
+                      </span>
+                    </div>
+                  )}
+                  {caps.hasLineSeparator && (
+                    <div className="tpl-settings-bar">
+                      <span className="tpl-settings-label">Line separator</span>
+                      <select
+                        className="tpl-settings-select"
+                        value={templateLineSep}
+                        onChange={(e) => applyTemplateLineSep(e.target.value)}
+                        aria-label="ECW line separator"
+                      >
+                        <option value={"\\X0A\\"}>{"\\X0A\\ (HL7 ORU default)"}</option>
+                        <option value={"\\n"}>{"\\n (plain LF)"}</option>
+                        <option value={"\\r\\n"}>{"\\r\\n (CRLF)"}</option>
+                        <option value="<br>">&lt;br&gt;</option>
+                      </select>
+                      <span className="tpl-settings-hint">
+                        eCW HL7 main mode — replaces newlines before S3 upload. Not used for Selective Copy (Scribe-it).
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -419,23 +445,19 @@ function App() {
                   </div>
                   <div className="push-issues-msg">{pushIssues[0].msg}</div>
                   <div className="push-issues-list">
-                    {pushIssues.map(issue => {
-                      const actions = (window.pushIssueActions || (() => ({})))(issue);
-                      return (
-                        <div key={issue.id} className="push-issues-item">
-                          <span className="push-issues-section">• {issue.section}</span>
-                          {actions.remap && (
-                            <button className="push-issues-remap" onClick={() => setRemapTarget(issue.section)}>Remap</button>
-                          )}
-                          {actions.gotIt && (
-                            <button className="push-issues-remap" onClick={() => setPushIssuesDismissed(true)}>Got it</button>
-                          )}
-                          {actions.support && (
-                            <button className="push-issues-support">Contact support</button>
-                          )}
-                        </div>
-                      );
-                    })}
+                    {pushIssues.map(issue => (
+                      <div key={issue.id} className="push-issues-item">
+                        <span className="push-issues-section">• {issue.section}</span>
+                        <PushIssueActionButtons
+                          issue={issue}
+                          remapClass="push-issues-remap"
+                          gotItClass="push-issues-remap"
+                          supportClass="push-issues-support"
+                          onRemap={() => setRemapTarget(issue.section)}
+                          onGotIt={() => setPushIssuesDismissed(true)}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -559,7 +581,7 @@ function App() {
         )}
         <TweakSection label="Simulate push error" />
         <TweakSelect label="Error scenario" value={t.errorScenario}
-          options={["none","ecw_order_config","ecw_wrong_shortcut","ecw_scribeit_mismatch"]}
+          options={ERROR_SCENARIO_OPTIONS}
           onChange={(v) => setTweak("errorScenario", v)} />
         <TweakSection label="Advanced mapping demos" />
         <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}
@@ -570,4 +592,5 @@ function App() {
   );
 }
 
+Object.assign(window, { PushIssueActionButtons });
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
