@@ -56,14 +56,14 @@ const ERROR_SCENARIOS = {
     { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to a DrChrono authentication issue. Contact support.", selfServe: false },
   ],
   drchrono_field_failed: [
-    { id: "pi1", section: "History of Present Illness", error: "Field push failed", type: "mapping_broken", msg: "One or more sections failed to push to DrChrono. Contact support.", selfServe: false },
-    { id: "pi2", section: "Assessment & Plan", error: "Field push failed", type: "mapping_broken", msg: "One or more sections failed to push to DrChrono. Contact support.", selfServe: false },
+    { id: "pi1", section: "History of Present Illness", error: "Field push failed", type: "push_failed", msg: "One or more sections failed to push to DrChrono. Contact support.", selfServe: false },
+    { id: "pi2", section: "Assessment & Plan", error: "Field push failed", type: "push_failed", msg: "One or more sections failed to push to DrChrono. Contact support.", selfServe: false },
   ],
   drchrono_stale_mapping: [
     { id: "pi1", section: "Past Medical History", error: "Field no longer available", type: "mapping_broken", msg: "A mapped field is no longer available in DrChrono. Remap the section or contact support.", selfServe: false },
   ],
   drchrono_icd_cpt_failed: [
-    { id: "pi1", section: "ICD Codes", error: "ICD/CPT push failed", type: "mapping_broken", msg: "ICD/CPT codes for 'ICD Codes' failed to push to DrChrono. Contact support.", selfServe: false },
+    { id: "pi1", section: "ICD Codes", error: "ICD/CPT push failed", type: "push_failed", msg: "ICD/CPT codes for 'ICD Codes' failed to push to DrChrono. Contact support.", selfServe: false },
   ],
 };
 

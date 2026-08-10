@@ -68,13 +68,15 @@ Same hierarchy as AMD: Global → sections → optional local override.
 
 Field-level failures are often invisible to Lambda today (`save_note` swallows them) — **not fixable for now**. Still treat as errors and show copy when surfaced / in mocks.
 
-| Error | Behaviour today | Doctor sees |
-| --- | --- | --- |
-| Free-text field push failed | `save_note` → `False`; Lambda may not see it | "One or more sections failed to push to DrChrono. Contact support." |
-| ICD / CPT push failed | `logger.warning` only | "ICD/CPT codes for '[Section]' failed to push to DrChrono. Contact support." |
-| Stale / archived field mapping | Invalid `ehr_field_id`; silent fail | "A mapped field is no longer available in DrChrono. Remap the section or contact support." |
-| Auth / credentials | `CredentialsException` | "Push failed due to a DrChrono authentication issue. Contact support." |
-| Rate limit | `ThrottledException` | Auto-retry — no doctor action |
+| Error | Behaviour today | Doctor sees | Actions |
+| --- | --- | --- | --- |
+| Free-text field push failed | `save_note` → `False`; Lambda may not see it | "One or more sections failed to push to DrChrono. Contact support." | Contact support (`push_failed`) |
+| ICD / CPT push failed | `logger.warning` only | "ICD/CPT codes for '[Section]' failed to push to DrChrono. Contact support." | Contact support (`push_failed`) |
+| Stale / archived field mapping | Invalid `ehr_field_id`; silent fail | "A mapped field is no longer available in DrChrono. Remap the section or contact support." | Remap + Contact support (`mapping_broken`) |
+| Auth / credentials | `CredentialsException` | "Push failed due to a DrChrono authentication issue. Contact support." | Contact support (`auth`) |
+| Rate limit | `ThrottledException` | Auto-retry — no doctor action | — |
+
+**Remap only for stale mapping.** Field / ICD / CPT push failures are ops — no Remap.
 
 Prototype tweaks: `drchrono_auth`, `drchrono_field_failed`, `drchrono_stale_mapping`, `drchrono_icd_cpt_failed`.
 

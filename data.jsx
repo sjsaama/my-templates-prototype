@@ -693,6 +693,7 @@ function pushIssueActions(issue) {
   // Remap: mapping is wrong / stale — doctor can pick another field.
   // Got it: doctor fixes outside My Templates (shorten note, finish check-in, open chart).
   // Contact support: ops / practice admin must act.
+  // push_failed / auth: ops only — no Remap (DrChrono field/ICD/CPT failures).
   if (type === "too_long" || type === "checkin" || type === "chart_closed") {
     return { remap: false, gotIt: true, support: false };
   }

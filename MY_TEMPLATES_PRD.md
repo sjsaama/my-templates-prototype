@@ -309,8 +309,8 @@ The section-level inline strip is the primary action surface — the banner is a
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
-| Free-text field push failed | Any | ❌ Often invisible (`save_note` swallows) — not fixable for now | "One or more sections failed to push to DrChrono. Contact support." | Ops investigates |
-| ICD / CPT push failed | Any | ❌ `logger.warning` only | "ICD/CPT codes for '[Section]' failed to push to DrChrono. Contact support." | Ops |
+| Free-text field push failed | Any | ❌ Often invisible (`save_note` swallows) — not fixable for now | "One or more sections failed to push to DrChrono. Contact support." | Ops — Contact support (no Remap) |
+| ICD / CPT push failed | Any | ❌ `logger.warning` only | "ICD/CPT codes for '[Section]' failed to push to DrChrono. Contact support." | Ops — Contact support (no Remap) |
 | Stale / archived field mapping | EHR admin | ❌ Silent fail today | "A mapped field is no longer available in DrChrono. Remap the section or contact support." | Remap or ops |
 | Auth / credentials expired | Any | ✅ Yes | "Push failed due to a DrChrono authentication issue. Contact support." | Ops |
 | Rate limit | DrChrono | ✅ Yes | — (auto-retry) | Auto |
