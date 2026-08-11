@@ -60,9 +60,14 @@ Raised per field when `SaveXNote` returns an error for a specific field. Bubbles
 
 ### AthenaOne
 
-- `LockedEncounterException` (check-in not complete) → caught locally → `FatalException` with message: *"Can't push the note because the patient's check-in is not yet complete in Athena. Please either a) complete the check-in in Athena, or b) click on 'Go to Exam' or 'Go to Intake' in Athena before trying again."*
-- Per-section push failures (`Unable to push HPI`, `Unable to push Assessment`, etc.) → bare `Exception` → logged + email to ops, push continues for remaining sections
+- `LockedEncounterException` (check-in not complete) → caught locally → `FatalException` with message: *"Can't push the note because the patient's check-in is not yet complete in Athena. Please either a) complete the check-in in Athena, or b) click on 'Go to Exam' or 'Go to Intake' in Athena before trying again."* — **doctor-actionable** (Got it → finish check-in → retry). Prototype: `athena_checkin`.
+- Per-section push failures (`Unable to push HPI`, `Unable to push Assessment`, etc.) → bare `Exception` → logged + email to ops, push continues for remaining sections — surface as Remap + Contact support. Prototype: `athena_section`.
+- Transient API 500 / appointment lookup failures → retry with backoff; burst observed 2026-07-27 (~48). Prototype: `athena_transient`.
+- Auth token empty → Contact support. Prototype: `athena_auth`.
 - `"Quota Exceeded"` → `ManagedException` → retry
+- Wrong `ehr_field_name` (not in the 9-item list) → Athena rejects silently — logged + ops email; Layer 2 validation can catch before push
+
+See `AthenaOne.md` → Push errors for the full action matrix.
 
 ### DrChrono
 
@@ -113,6 +118,8 @@ Based on the above, the errors that require the doctor (or ops on behalf of the 
 | MA account missing "Create Pt Notes" permission | AMD | Fix permissions in AMD | Practice admin |
 | Field failed to save | Veradigm | Remap the field | Ops |
 | Check-in not complete in Athena | AthenaOne | Complete check-in in Athena (or click "Go to Exam") then push again | Doctor |
+| Per-section / wrong field mapping | AthenaOne | Remap from fixed 9-field list (or ops YAML) | Doctor Remap / ops |
+| Auth token empty / persistent Athena API failure | AthenaOne | Refresh credentials / investigate outage | Ops |
 | Order config mismatch (lab/rx/referral/…) | ECW | Fix order type config in YAML / ops tooling | Ops |
 | Wrong shortcut / section code (after spot-check) | ECW | Remap from fixed list or update `section_code` | Doctor Remap / ops |
 
@@ -158,12 +165,9 @@ Catch broken mappings before push — feasible for fixed-list EHRs without an AP
 | AthenaOne | ✅ Free | Check `ehr_field_name` is in the hardcoded 9-item list |
 | ECW (main) | ✅ Free | Check `ehr_field_name` is in the known shortcut list |
 | Veradigm | ✅ Free | Check `ehr_field_name` is in the known 7-item list |
-| Centricity (Athena Flow) | ✅ Free | Check `ehr_field_name` is in the hardcoded fixed list |
 | AMD | ✅ Feasible | Re-fetch AMD template, flag any `ehr_field_id` that no longer exists |
 | DrChrono | ⚠️ Partial | Needs DrChrono API call |
 | CharmHealth | ❌ Hard | No live fetch available |
-| Nereg | ⚠️ Partial | No field picker — validate section `key_name` values against connected template / known Nereg fields |
-| Cerner / ModMed | N/A | Whole-note PDF — no per-section field mapping to validate |
 
 ### When to run
 - On mapping save in ops portal
@@ -200,12 +204,12 @@ ECW-specific copy and per-error step flows: **`ECW.md` → Push errors**.
 
 ## Remap flows
 
-### Flow A — Fixed list (AthenaOne, ECW, Veradigm, Centricity / Athena Flow)
+### Flow A — Fixed list (AthenaOne, ECW, Veradigm)
 Re-open the dropdown. Hardcoded known list, no API call needed.
 
-**ECW:** dual-column picker — Primary (shortcut commands) + optional Scribe-it note-panel fields.
+**AthenaOne actions:** `checkin` → Got it only; `mapping_broken` → Remap + Contact support; `transient` / `auth` → Contact support only. Labels in the picker are human-readable; stored value remains snake_case.
 
-**Centricity (Athena Flow):** same product — fixed `ehr_field_name` list; separate from AthenaOne.
+**ECW:** dual-column picker — Primary (shortcut commands) + optional Scribe-it note-panel fields.
 
 ### Flow B — Flexible list (AMD, DrChrono)
 Re-fetch current fields from EHR live, pick correct field.
@@ -213,12 +217,6 @@ If `ehr_template_id` deleted: go back to the template-level picker first.
 
 ### Flow C — CharmHealth
 Can't re-fetch automatically. Escalate to tech.
-
-### Flow D — Nereg (Cat 2 locked / auto)
-No Remap button. Mapping is auto from section `key_name` after EHR template connection. Doctor uses Contact support; ops fixes `key_name` / connected template.
-
-### No remap — Cat 3 (Cerner, ModMed)
-Whole note as PDF. Remap not shown.
 
 ---
 

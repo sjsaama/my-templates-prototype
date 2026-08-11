@@ -1,5 +1,5 @@
 // app.jsx — root: wires templates, sections, modal, tweaks
-// Branch scoped to eClinicalWorks (eCW) — Cat 1 fixed field list + Scribe-it secondary.
+// Branch scoped to AthenaOne — Cat 1 fixed field list (9 snake_case encounter sections).
 const { useState: useStateA } = React;
 
 // Reorder sections — enforces same-parent constraint for subsections.
@@ -41,26 +41,30 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "density": "regular",
   "showAdvancedInline": true,
   "monoMapping": true,
-  "ehr": "eCW",
+  "ehr": "AthenaOne",
   "errorScenario": "none",
   "dualMappingDemo": "none"
 }/*EDITMODE-END*/;
 
-// This branch is scoped to eCW only — other EHR systems live on their own branches.
-const EHR_OPTIONS = ["eCW"];
+// This branch is scoped to AthenaOne only — other EHR systems live on their own branches.
+const EHR_OPTIONS = ["AthenaOne"];
 const EHR_LOCKED = true;
 
 const ERROR_SCENARIOS = {
   none: [],
-  ecw_order_config: [
-    { id: "pi1", section: "Labs and Imaging", error: "Order config mismatch", type: "order_config", msg: "Couldn't find any Orders of type: lab_order — pattern matching failed or empty field provided. Support has been notified.", selfServe: false },
-    { id: "pi2", section: "Assessment & Plan", error: "Order config mismatch", type: "order_config", msg: "Couldn't find any Orders of type: prescription_order — pattern matching failed or empty field provided. Support has been notified.", selfServe: false },
+  athena_checkin: [
+    { id: "pi1", section: "History of Present Illness", error: "Check-in not complete", type: "checkin", msg: "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again.", selfServe: true },
+    { id: "pi2", section: "Assessment & Plan", error: "Check-in not complete", type: "checkin", msg: "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again.", selfServe: true },
   ],
-  ecw_wrong_shortcut: [
-    { id: "pi1", section: "History of Present Illness", error: "Wrong shortcut / section code", type: "mapping_broken", msg: "Ops flagged that HPI may be landing in the wrong eCW field after a chart spot-check. Remap the shortcut or contact support.", selfServe: false },
+  athena_section: [
+    { id: "pi1", section: "History of Present Illness", error: "Field mapping broken", type: "mapping_broken", msg: "One or more sections failed to push. Support has been notified.", selfServe: false },
+    { id: "pi2", section: "Assessment & Plan", error: "Field mapping broken", type: "mapping_broken", msg: "One or more sections failed to push. Support has been notified.", selfServe: false },
   ],
-  ecw_scribeit_mismatch: [
-    { id: "pi1", section: "Physical Exam", error: "Scribe-it destination mismatch", type: "mapping_broken", msg: "Selective Copy (Scribe-it) may be pasting into the wrong note-panel field. Remap Scribe-it or contact support.", selfServe: false },
+  athena_transient: [
+    { id: "pi1", section: "History of Present Illness", error: "Athena API error", type: "transient", msg: "Something went wrong on Athena's end — we'll retry automatically. If this keeps happening, contact support.", selfServe: false },
+  ],
+  athena_auth: [
+    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to an authentication issue. Contact support.", selfServe: false },
   ],
 };
 
@@ -115,7 +119,7 @@ function Toast({ msg }) {
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const ehr = EHR_LOCKED ? "eCW" : t.ehr;
+  const ehr = EHR_LOCKED ? "AthenaOne" : t.ehr;
   const [templates, setTemplates] = useStateA(window.TEMPLATES);
   const [createTemplateOpen, setCreateTemplateOpen] = useStateA(false);
   const [activeTpl, setActiveTpl] = useStateA("gen3");
@@ -125,7 +129,6 @@ function App() {
   );
   const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
   const [charLimitByTpl, setCharLimitByTpl] = useStateA({});
-  const [lineSepByTpl, setLineSepByTpl] = useStateA({});
   const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
   const [disableTarget, setDisableTarget] = useStateA(null);
   const [toast, setToast] = useStateA("");
@@ -144,13 +147,12 @@ function App() {
   const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
   const pendingCount = pendingRequests.length;
   const visibleTemplates = EHR_LOCKED
-    ? templates.filter((x) => !x.ehrSystem || x.ehrSystem === "eCW")
+    ? templates.filter((x) => !x.ehrSystem || x.ehrSystem === "AthenaOne")
     : templates;
   const sections = activeTpl
     ? (sectionsByTpl[activeTpl] || (sectionsByTpl[activeTpl] = window.makeSections()))
     : [];
   const templateCharLimit = (activeTpl && charLimitByTpl[activeTpl]) || 4000;
-  const templateLineSep = (activeTpl && lineSepByTpl[activeTpl]) || "\\X0A\\"; // HL7 hex LF
 
   const setSections = (fn) => {
     if (!activeTpl) return;
@@ -162,12 +164,6 @@ function App() {
     const n = Math.max(0, parseInt(limit, 10) || 0);
     setCharLimitByTpl((m) => ({ ...m, [activeTpl]: n }));
     flash("Character limit updated for this template");
-  };
-
-  const applyTemplateLineSep = (val) => {
-    if (!activeTpl) return;
-    setLineSepByTpl((m) => ({ ...m, [activeTpl]: val }));
-    flash("Line separator updated — required for eCW HL7 ORU formatting");
   };
 
   const flash = (msg) => { setToast(msg); clearTimeout(window.__tt); window.__tt = setTimeout(() => setToast(""), 2600); };
@@ -247,9 +243,9 @@ function App() {
       name: data.name,
       derivative: data.type,
       ehr: data.ehrTemplateName
-        ? "ECW_" + data.ehrTemplateName.replace(/\s+/g, "_")
-        : "ECW_Progress",
-      ehrSystem: ehr || "eCW",
+        ? "AthenaOne_" + data.ehrTemplateName.replace(/\s+/g, "_")
+        : "AthenaOne_OV",
+      ehrSystem: ehr || "AthenaOne",
       group: "My Templates",
       userCreated: true,
     };
@@ -261,7 +257,7 @@ function App() {
     setSectionsByTpl(m => ({ ...m, [newId]: baseSections }));
     setActiveTpl(newId);
     setCreateTemplateOpen(false);
-    flash("Template created — configure sections and eCW mappings below");
+    flash("Template created — configure sections and AthenaOne mappings below");
   };
 
   const selectTpl = (id) => {
@@ -302,7 +298,7 @@ function App() {
     <div className="app" style={densityVars}>
       {isLocalDev && (
         <div className="dev-ribbon" role="status">
-          Local preview — ECW branch. Use <strong>Tweaks</strong> (bottom-right) → Row density &amp; Accent. Hard-refresh if styles look stale (⌘⇧R).
+          Local preview — AthenaOne branch. Use <strong>Tweaks</strong> (bottom-right) → Row density &amp; Accent. Hard-refresh if styles look stale (⌘⇧R).
         </div>
       )}
       <window.Sidebar />
@@ -333,12 +329,12 @@ function App() {
                   <div className="ed-meta">
                     {tpl.derivative && <span className="ed-meta-tag">{tpl.derivative}</span>}
                     {tpl.ehr && <span className="ed-meta-tag ed-meta-tag--mono">{tpl.ehr}</span>}
-                    <span className="ed-meta-tag">eClinicalWorks</span>
+                    <span className="ed-meta-tag">AthenaOne</span>
                   </div>
                   {tpl.userCreated ? (
-                    <p className="ed-ownership-hint">You manage this template’s structure and eCW mappings — add sections, edit prompts, and remap Primary / Scribe-it destinations.</p>
+                    <p className="ed-ownership-hint">You manage this template’s structure and AthenaOne mappings — add sections, edit prompts, and remap encounter fields from the fixed list.</p>
                   ) : (
-                    <p className="ed-ownership-hint">Ops manages the section structure. Remap Primary / Scribe-it fields, adjust output settings, or request a new section from ops.</p>
+                    <p className="ed-ownership-hint">Ops manages the section structure. Remap AthenaOne fields, adjust output settings, or request a new section from ops.</p>
                   )}
                 </div>
                 <div className="ed-head-right">
@@ -366,7 +362,7 @@ function App() {
                 </div>
               </header>
 
-              {/* Global settings — Character limit + ECW line separator (no Push setting) */}
+              {/* Global settings — Character limit only (no Push setting — AthenaOne does not fetch existing content) */}
               {ehrCat.cat <= 2 && (
                 <div className="tpl-settings-stack">
                   <div className="tpl-settings-bar">
@@ -381,24 +377,7 @@ function App() {
                       aria-label="Template character limit"
                     />
                     <span className="tpl-settings-hint">
-                      Global only — applies to the whole template. Not editable per section.
-                    </span>
-                  </div>
-                  <div className="tpl-settings-bar">
-                    <span className="tpl-settings-label">Line separator</span>
-                    <select
-                      className="tpl-settings-select"
-                      value={templateLineSep}
-                      onChange={(e) => applyTemplateLineSep(e.target.value)}
-                      aria-label="ECW line separator"
-                    >
-                      <option value={"\\X0A\\"}>{"\\X0A\\ (HL7 ORU default)"}</option>
-                      <option value={"\\n"}>{"\\n (plain LF)"}</option>
-                      <option value={"\\r\\n"}>{"\\r\\n (CRLF)"}</option>
-                      <option value="<br>">&lt;br&gt;</option>
-                    </select>
-                    <span className="tpl-settings-hint">
-                      eCW HL7 main mode — replaces newlines before S3 upload. Not used for Selective Copy (Scribe-it).
+                      Global only — applies to the whole template. Not editable per section. No Push setting (append/prepend have no effect on AthenaOne).
                     </span>
                   </div>
                 </div>
@@ -547,10 +526,10 @@ function App() {
         <TweakSection label="EHR" />
         {EHR_LOCKED ? (
           <TweakRadio
-            label="EHR system (ECW branch)"
-            value="eCW"
-            options={["eCW"]}
-            onChange={() => setTweak("ehr", "eCW")}
+            label="EHR system (AthenaOne branch)"
+            value="AthenaOne"
+            options={["AthenaOne"]}
+            onChange={() => setTweak("ehr", "AthenaOne")}
           />
         ) : (
           <TweakSelect label="EHR system" value={t.ehr}
@@ -559,7 +538,7 @@ function App() {
         )}
         <TweakSection label="Simulate push error" />
         <TweakSelect label="Error scenario" value={t.errorScenario}
-          options={["none","ecw_order_config","ecw_wrong_shortcut","ecw_scribeit_mismatch"]}
+          options={["none","athena_checkin","athena_section","athena_transient","athena_auth"]}
           onChange={(v) => setTweak("errorScenario", v)} />
         <TweakSection label="Advanced mapping demos" />
         <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}

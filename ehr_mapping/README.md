@@ -13,7 +13,7 @@ Field names defined by the EHR's API/spec. Dropdown hardcoded in portal. No depe
 
 | EHR | File | YAML keys needed |
 |---|---|---|
-| AthenaOne | [AthenaOne.md](AthenaOne.md) | `ehr_field_name` (from fixed list) |
+| AthenaOne | [AthenaOne.md](AthenaOne.md) | `ehr_field_name` (fixed 9-field list; human-readable labels in My Templates) |
 | ECW (main + Selective Copy) | [ECW.md](ECW.md) | `ehr_field_name`, `section_code` |
 | Veradigm | [Veradigm.md](Veradigm.md) | `ehr_field_name` (from fixed list) |
 | Centricity (Athena Flow) | [Centricity.md](Centricity.md) | `ehr_field_name` (from fixed list) — same product as Athena Flow |
