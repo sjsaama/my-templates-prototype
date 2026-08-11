@@ -156,9 +156,12 @@ const REQ_STATUS_META = {
 
 function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSubmit }) {
   const I = window.Icons;
+  const sources = window.CODE_CONTENT_SOURCES || [];
   const [name, setName] = useStateM("");
   const [desc, setDesc] = useStateM("");
   const [ehr, setEhr] = useStateM("");
+  const [contentSource, setContentSource] = useStateM("prompt");
+  const [codeTemplateId, setCodeTemplateId] = useStateM("");
   const [isSub, setIsSub] = useStateM(false);
   const [parentName, setParentName] = useStateM("");
   const [tplIds, setTplIds] = useStateM(() => {
@@ -172,16 +175,32 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffectM(() => {
+    setCodeTemplateId("");
+    if (contentSource === "icd" && !name.trim()) setName("ICD Codes");
+    if (contentSource === "em" && !name.trim()) setName("EM Codes");
+  }, [contentSource]);
+
   const groups = window.groupsFor(templates);
   const toggleTpl = (id) =>
     setTplIds((arr) => (arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]));
+  const isCodeSource = contentSource === "icd" || contentSource === "em";
+  const codeTemplates = ((window.CODE_GENERATOR_TEMPLATES || {})[contentSource]) || [];
+  const sourceMeta = sources.find((s) => s.id === contentSource);
+
+  const canSend = name.trim() && ehr.trim() && (isCodeSource ? !!codeTemplateId : !!desc.trim());
 
   const send = () => {
-    if (!name.trim() || !desc.trim() || !ehr.trim()) return;
+    if (!canSend) return;
+    const gen = codeTemplates.find((t) => t.id === codeTemplateId);
     onSubmit({
       name: name.trim(),
-      description: desc.trim(),
+      description: isCodeSource
+        ? ((gen && gen.description) || (contentSource === "icd" ? "ICD code section" : "EM code section"))
+        : desc.trim(),
       ehr: ehr.trim(),
+      contentSource,
+      codeTemplateId: isCodeSource ? codeTemplateId : "",
       isSubsection: isSub,
       parentName: parentName.trim(),
       tplIds,
@@ -198,6 +217,25 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
         </div>
         <div className="modal-body">
 
+          <div className="req-field">
+            <label>Content source</label>
+            <div className="content-source-row" role="radiogroup" aria-label="Content source">
+              {sources.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={contentSource === s.id}
+                  className={"content-source-btn" + (contentSource === s.id ? " content-source-btn--on" : "")}
+                  onClick={() => setContentSource(s.id)}
+                >
+                  <span className="content-source-btn-label">{s.label}</span>
+                </button>
+              ))}
+            </div>
+            {sourceMeta && <div className="adv-field-hint">{sourceMeta.hint}</div>}
+          </div>
+
           <div className="req-row2">
             <div className="req-field">
               <label>Section name</label>
@@ -210,11 +248,31 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
             </div>
           </div>
 
-          <div className="req-field">
-            <label>What should AI capture in this section?</label>
-            <textarea className="req-input req-textarea" value={desc} onChange={(e) => setDesc(e.target.value)}
-              placeholder="e.g. Document all known allergies, reactions, and severity…" rows={3} />
-          </div>
+          {isCodeSource ? (
+            <div className="req-field">
+              <label>{contentSource === "icd" ? "ICD" : "EM"} generator</label>
+              <div className="code-template-list">
+                {codeTemplates.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={"code-template-btn" + (codeTemplateId === t.id ? " code-template-btn--on" : "")}
+                    onClick={() => setCodeTemplateId(t.id)}
+                  >
+                    <span className="code-template-name">{t.name}</span>
+                    <span className="code-template-desc">{t.description}</span>
+                    {codeTemplateId === t.id && <span className="mapping-picker-check"><I.check /></span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="req-field">
+              <label>What should AI capture in this section?</label>
+              <textarea className="req-input req-textarea" value={desc} onChange={(e) => setDesc(e.target.value)}
+                placeholder="e.g. Document all known allergies, reactions, and severity…" rows={3} />
+            </div>
+          )}
 
           <div className="req-sub-row">
             <label className="req-check">
@@ -246,7 +304,7 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
 
           <div className="req-foot-row">
             <button className="btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn-teal" onClick={send}>Send request</button>
+            <button className="btn-teal" disabled={!canSend} onClick={send}>Send request</button>
           </div>
 
           {pending.length > 0 && (
@@ -254,10 +312,16 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
               <div className="req-pending-title">Your requests</div>
               {pending.map((r) => {
                 const meta = REQ_STATUS_META[r.status] || REQ_STATUS_META.pending;
+                const src = r.contentSource || "prompt";
                 return (
                   <div className={"req-pending-item" + (r.status === "rejected" ? " req-pending-item--rejected" : "")} key={r.id}>
                     <div className="req-pending-head">
-                      <span className="req-pending-name">{r.name}</span>
+                      <span className="req-pending-name">
+                        {r.name}
+                        {(src === "icd" || src === "em") && (
+                          <span className={"content-source-chip content-source-chip--" + src} style={{marginLeft:6}}>{src === "icd" ? "ICD" : "EM"}</span>
+                        )}
+                      </span>
                       <span className={"req-status-pill " + meta.cls}>{meta.label}</span>
                     </div>
                     <p className="req-pending-desc">{r.description}</p>
@@ -315,8 +379,18 @@ function TemplateGalleryStep({ templates, sectionsByTpl, selected, onSelect }) {
         <div className="gallery-preview-note">
           {preview.sections.map(s => (
             <div key={s.id} className="gallery-preview-section">
-              <div className="gallery-preview-section-name">{s.name.toUpperCase()}</div>
-              <div className="gallery-preview-section-text">{preview.sampleOutput[s.id] || s.prompt || "—"}</div>
+              <div className="gallery-preview-section-name">
+                {s.name.toUpperCase()}
+                {(s.contentSource === "icd" || s.contentSource === "em") && (
+                  <span className={"content-source-chip content-source-chip--" + s.contentSource} style={{marginLeft:8}}>{s.contentSource === "icd" ? "ICD" : "EM"}</span>
+                )}
+              </div>
+              <div className="gallery-preview-section-text">
+                {preview.sampleOutput[s.id]
+                  || ((window.SAMPLE_CODE_OUTPUT || {})[s.contentSource])
+                  || s.prompt
+                  || "—"}
+              </div>
             </div>
           ))}
         </div>
