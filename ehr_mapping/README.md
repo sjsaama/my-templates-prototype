@@ -6,6 +6,7 @@ See [SHARED_CONFIG.md](SHARED_CONFIG.md) for config keys and `append_other_deriv
 See [PROPERTY_CHANGE_IMPACT.md](PROPERTY_CHANGE_IMPACT.md) for what breaks when template or section properties change, per EHR.
 See [ERROR_UX.md](ERROR_UX.md) for the error detection, popup, and self-service remap UX spec.
 See [CATEGORY_3.md](CATEGORY_3.md) for Cat 3 shared model (Cerner / ModMed — no field mapping, template connection required).
+See [Nereg.md](Nereg.md) for Cat 2 locked auto-mapping UI (connect template, no doctor remap).
 
 ---
 
@@ -31,11 +32,7 @@ Fields come from the doctor's EHR template. Portal needs a "fetch template" / Co
 
 ## Category 3 — Auto push, no field mapping (template connection required)
 
-No per-section field mapping / dropdown. **EHR template connection is still required** (destination document or note template).
-
-> **Correction:** Earlier wording treated “no field list to fetch” as “skip Connect EHR entirely.” That understates the requirement. Cat 3 does **not** need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR. How that connection is shown in self-serve My Templates (picker vs ops-only vs display-only name) is TBD.
-
-See [CATEGORY_3.md](CATEGORY_3.md) for shared model and per-EHR nuances.
+No per-section field mapping / dropdown. Destination template / document connection in the EHR is still required. Self-serve Connect EHR presentation is an **open question** — see [CATEGORY_3.md](CATEGORY_3.md)#open-questions.
 
 | EHR | File | How note is pushed | Subtle difference |
 |---|---|---|---|

@@ -90,13 +90,13 @@ Raised per field when `SaveXNote` returns an error for a specific field. Bubbles
 
 - Token refresh failure → `ValueError` → retry
 - Note push failure → bare `Exception` (`"Note push failed: ..."`) → retry
-- **Cat 3 note:** No section→field remap UX. Destination template/document connection is still required — missing connection is ops-facing today (see [CATEGORY_3.md](CATEGORY_3.md)).
+- **Cat 3 note:** No section→field remap. Destination connection required; self-serve Connect EHR UI open question ([CATEGORY_3.md](CATEGORY_3.md)#open-questions).
 
 ### ModMed
 
 - Binary / S3 / DocumentReference failures → detectable via `response.ok` → ops
 - Encounter lookup from appointment can fail silently — push continues without encounter link
-- **Cat 3 note:** Same as Cerner — no field remap; template/document connection still required ([CATEGORY_3.md](CATEGORY_3.md)).
+- **Cat 3 note:** Same as Cerner ([CATEGORY_3.md](CATEGORY_3.md)#open-questions).
 
 ### ECW (main / HL7)
 
@@ -119,7 +119,7 @@ Based on the above, the errors that require the doctor (or ops on behalf of the 
 
 All other errors (auth, account locked, signed encounter, quota, DrChrono/Cerner/ModMed/Nereg failures) are ops-only — they don't require anything in My Templates today.
 
-**Cat 3 correction (Cerner / ModMed):** No section→field mapping to remap, but they still require a destination template (or document target) connection in the EHR. Do not treat “no field mapping” as “no Connect EHR.” See [CATEGORY_3.md](CATEGORY_3.md).
+**Cat 3 (Cerner / ModMed):** No section→field remap. Destination template / document connection is still required; self-serve Connect EHR UI is an **open question** — see [CATEGORY_3.md](CATEGORY_3.md)#open-questions.
 
 **Nereg (Cat 2, locked mapping):** Remap button is not shown. Wrong `key_name` / template alignment is ops-facing — doctors are not given a mapping picker.
 
@@ -163,9 +163,11 @@ Catch broken mappings before push — feasible for fixed-list EHRs without an AP
 | AthenaOne | ✅ Free | Check `ehr_field_name` is in the hardcoded 9-item list |
 | ECW (main) | ✅ Free | Check `ehr_field_name` is in the known shortcut list |
 | Veradigm | ✅ Free | Check `ehr_field_name` is in the known 7-item list |
+| Centricity | ✅ Free | Check `ehr_field_name` is in the hardcoded fixed list |
 | AMD | ✅ Feasible | Re-fetch AMD template, flag any `ehr_field_id` that no longer exists |
 | DrChrono | ⚠️ Partial | Needs DrChrono API call |
 | CharmHealth | ❌ Hard | No live fetch available |
+| Nereg | ❌ N/A | No doctor remap — auto from `key_name`; validate names vs connected template (ops) |
 
 ### When to run
 - On mapping save in ops portal
@@ -184,43 +186,20 @@ Catch broken mappings before push — feasible for fixed-list EHRs without an AP
 
 ---
 
-## Resolution mechanisms (doctor-facing)
-
-Every in-app push issue uses one of three actions. Only show buttons that apply.
-
-| Mechanism | UI | Doctor does | Clears when |
-|---|---|---|---|
-| **Remap** | Primary button on strip / banner row | Opens mapping picker → selects valid EHR field → Save | Mapping saved + next successful push (or optimistic clear) |
-| **Got it** | Dismiss | Fixes outside My Templates (shorten note, finish check-in, open chart) → **retries push** from consult/note flow | Successful push; dismiss only hides the strip |
-| **Contact support** | Secondary / sole escalate | Opens support; ops already has fatal email | Ops/admin fixes root cause → doctor retries push |
-
-**Severity**
-- Amber (`selfServe`): doctor can resolve without ops (Got it path).
-- Red: Remap and/or Contact support; mapping alone may not be enough.
-
-**Generic resolve loop**
-
-```
-Async push fails → (planned) push_errors row + ops email if fatal
-  → My Templates banner + section strip
-  → Remap | Got it | Contact support
-  → Retry push
-  → Success clears errors for those sections
-```
-
-AMD-specific copy and per-error step flows: **`AMD.md` → Push errors**.
-
 ## Remap flows
 
-### Flow A — Fixed list (AthenaOne, ECW, Veradigm)
+### Flow A — Fixed list (AthenaOne, ECW, Veradigm, Centricity)
 Re-open the dropdown. Hardcoded known list, no API call needed.
 
-### Flow B — Flexible list (AMD, DrChrono)
-Re-fetch current fields from EHR live, pick correct field.
-If `ehr_template_id` deleted: go back to the template-level picker first — Remap alone is not enough; use Contact support / reconnect template.
+### Flow B — Flexible list (AMD, DrChrono, CharmHealth)
+Re-fetch current fields from EHR live (CharmHealth: existing list only — no re-fetch), pick correct field.
+If `ehr_template_id` deleted: go back to the template-level picker first.
+
+### Flow C — Locked auto-map (Nereg)
+No Remap UI. Fix via `key_name` / connected template alignment (ops/product). Rename warning in editor only.
 
 ### Flow C — CharmHealth
-Can't re-fetch automatically. Escalate to tech (Contact support).
+Can't re-fetch automatically. Escalate to tech.
 
 ---
 
