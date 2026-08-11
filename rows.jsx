@@ -410,9 +410,8 @@ function SectionRow({
   const hasKids = !!(s.children && s.children.length);
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
-  const ehrRowCat = ((window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {}).cat;
-  const ehrRowMeta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
-  const hasOutputSettings = (ehrRowCat === 1 || ehrRowCat === 2) && ehrRowMeta.fieldSource !== "auto" && ehrRowMeta.canRemap !== false;
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
+  const hasOutputSettings = !!caps.hasOutputSettings;
   const promptOpen = !!s.promptOpen;
 
   // Dual-mapping demo override — applies to "Assessment & Plan" only
@@ -518,13 +517,13 @@ function SectionRow({
         {/* EHR Mapping */}
         <div className="row-mapping">
           {(() => {
-            const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
-            if (cat && (cat.cat === 3 || cat.fieldSource === "auto")) return (
-              <span className="mapping-auto-label" title={cat.autoMsg}>{cat.autoMsg}</span>
+            if (caps.showAutoMappingLabel) return (
+              <span className="mapping-auto-label" title={caps.autoMsg}>{caps.autoMsg}</span>
             );
-            if (cat && cat.cat === 4) return (
+            if (caps.showCat4Notice) return (
               <span className="mapping-no-push-label">No push</span>
             );
+            const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
             if (cat && cat.fieldsPending) return (
               <span className="mapping-pending-label" title="Field list not yet confirmed — ops will configure this">Field list pending</span>
             );

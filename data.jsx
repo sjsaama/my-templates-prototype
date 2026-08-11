@@ -567,6 +567,36 @@ const EHR_CATEGORY = {
   // Cat 4 reserved for confirmed no-push EHRs — none assigned yet.
 };
 
+/** Feature flags derived from EHR category + known product deltas. Prefer this over ad-hoc `ehr === "…"` / cat checks. */
+function ehrCapabilities(ehr) {
+  const meta = EHR_CATEGORY[ehr] || {};
+  const category = meta.cat || 0;
+  const fieldSource = meta.fieldSource || "none";
+  return {
+    ehr: ehr || "",
+    label: meta.label || ehr || "your EHR",
+    category,
+    fieldSource,
+    canRemap: (fieldSource === "fetch" || fieldSource === "fixed") && fieldSource !== "auto",
+    needsConnectEhr: category === 2 || !!meta.requiresEhrTemplateConnection,
+    hasOutputSettings: (category === 1 || category === 2) && fieldSource !== "auto",
+    showCat4Notice: category === 4,
+    isFixedList: fieldSource === "fixed",
+    canReFetch: meta.canReFetch !== false && fieldSource === "fetch",
+    hasPushMode: ehr === "AMD",
+    hasCharLimit: ehr === "AMD" || ehr === "DrChrono" || ehr === "eCW",
+    hasLineSeparator: ehr === "eCW",
+    hasCheckboxFields: ehr === "AMD",
+    hasScribeIt: ehr === "eCW",
+    showCharmRemapNotice: ehr === "Charm",
+    lockedAutoMap: fieldSource === "auto",
+    needsFieldPick: fieldSource === "fetch" || fieldSource === "fixed",
+    showAutoMappingLabel: fieldSource === "auto" || (!!meta.autoMsg && (fieldSource === "none" || fieldSource === "auto")),
+    autoMsg: meta.autoMsg || "",
+    noPushMsg: meta.noPushMsg || "",
+  };
+}
+
 // Mock EHR templates per Cat 2 system — shown in the template-level picker.
 const EHR_TEMPLATES_BY_SYSTEM = {
   AMD: [
@@ -796,6 +826,7 @@ Object.assign(window, {
   EHR_FIELDS,
   EHR_FIELDS_BY_SYSTEM,
   EHR_CATEGORY,
+  ehrCapabilities,
   AMD_CHAR_LIMITS,
   EHR_TEMPLATES_BY_SYSTEM,
   SAMPLE_TRANSCRIPT,
