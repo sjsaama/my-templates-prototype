@@ -574,6 +574,51 @@ const EHR_CATEGORY = {
   Tebra:      { cat: 4, label: "Tebra",                   fieldSource: "none",  noPushMsg: "Tebra" },
 };
 
+// Centralized EHR feature flags — keep UI predicates from diverging across files.
+// Nereg uses fieldSource "auto" (locked auto-map): no per-section remap / output settings,
+// but Cat 2 template-level Connect EHR still applies.
+function ehrCapabilities(ehr) {
+  const meta = EHR_CATEGORY[ehr] || {};
+  const category = meta.cat || 0;
+  const fieldSource = meta.fieldSource || "none";
+  const lockedAutoMap = fieldSource === "auto";
+  return {
+    ehr: ehr || "",
+    label: meta.label || ehr || "your EHR",
+    category,
+    fieldSource,
+    lockedAutoMap,
+    canRemap: (fieldSource === "fetch" || fieldSource === "fixed") && fieldSource !== "auto",
+    needsConnectEhr: category === 2,
+    needsFieldPick: fieldSource === "fetch" || fieldSource === "fixed",
+    showAutoMappingLabel: fieldSource === "auto" || (!!meta.autoMsg && fieldSource === "none"),
+    hasOutputSettings: (category === 1 || category === 2) && fieldSource !== "auto",
+    showCat4Notice: category === 4,
+    isFixedList: fieldSource === "fixed",
+    canReFetch: meta.canReFetch !== false && fieldSource === "fetch",
+    requiresEhrTemplateConnection: !!meta.requiresEhrTemplateConnection,
+    hasPushMode: ehr === "AMD",
+    hasCharLimit: ehr === "AMD" || ehr === "DrChrono" || ehr === "eCW",
+    hasLineSeparator: ehr === "eCW",
+    hasCheckboxFields: ehr === "AMD",
+    hasScribeIt: ehr === "eCW",
+    showCharmRemapNotice: ehr === "Charm",
+    autoMsg: meta.autoMsg || "",
+    noPushMsg: meta.noPushMsg || "",
+  };
+}
+
+// Read helpers — templates store connectedEhrTemplateId; create-modal payload uses ehrTemplateId.
+// Do not rename stored fields; normalize reads only.
+function connectedEhrTemplateIdOf(obj) {
+  if (!obj) return "";
+  return obj.connectedEhrTemplateId || obj.ehrTemplateId || "";
+}
+function connectedEhrTemplateNameOf(obj) {
+  if (!obj) return "";
+  return obj.connectedEhrTemplateName || obj.ehrTemplateName || "";
+}
+
 // Mock EHR templates per Cat 2 system — shown in the template-level picker.
 const EHR_TEMPLATES_BY_SYSTEM = {
   AMD: [
@@ -799,6 +844,10 @@ Object.assign(window, {
   EHR_FIELDS,
   EHR_FIELDS_BY_SYSTEM,
   EHR_CATEGORY,
+  ehrCapabilities,
+  connectedEhrTemplateIdOf,
+  connectedEhrTemplateNameOf,
+  ehrFieldTotalCount,
   AMD_CHAR_LIMITS,
   EHR_TEMPLATES_BY_SYSTEM,
   SAMPLE_TRANSCRIPT,
