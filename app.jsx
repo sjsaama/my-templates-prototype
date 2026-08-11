@@ -371,24 +371,26 @@ function App() {
                   </div>
                 </div>
                 <div className="ed-head-right">
-                  <button className="btn-ghost btn-sm" onClick={() => openSettings("local")}>Template settings</button>
-                  <button className="btn-ghost btn-sm" onClick={() => setPreviewOpen(true)}>Preview output</button>
-                  <button className="btn-ghost btn-sm" onClick={() => setResetConfirm(true)}>Reset to default</button>
-                  <button className="btn-teal btn-sm" onClick={() => flash("Changes saved")}>Save changes</button>
+                  <div className="ed-head-actions">
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => openSettings("local")}>Settings</button>
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => setPreviewOpen(true)}>Preview</button>
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => setResetConfirm(true)}>Reset</button>
+                    <button type="button" className="btn-teal btn-sm" onClick={() => flash("Changes saved")}>Save</button>
+                  </div>
                   {tpl.userCreated && (
-                    <button className="btn-outline btn-outline--req" onClick={() => {
+                    <button type="button" className="btn-outline btn-outline--req" onClick={() => {
                       setSectionRequestOpen(true);
                       setPendingRequests(arr => arr.map(r => ({ ...r, seenByDoctor: true })));
                     }}>
                       {unseenCount > 0 && (
                         <span className="btn-outline-badge" aria-label={unseenCount + " updates"}>{unseenCount}</span>
                       )}
-                      <span className="btn-outline-main">Request New Section</span>
+                      <span className="btn-outline-main">Request section</span>
                       {unseenCount > 0
                         ? <span className="btn-outline-sub btn-outline-sub--coral">{unseenCount} update{unseenCount === 1 ? "" : "s"}</span>
                         : pendingCount > 0
-                        ? <span className="btn-outline-sub">{pendingCount} request{pendingCount === 1 ? "" : "s"}</span>
-                        : <span className="btn-outline-sub">Add a section to any template</span>}
+                        ? <span className="btn-outline-sub">{pendingCount} pending</span>
+                        : null}
                     </button>
                   )}
                 </div>
