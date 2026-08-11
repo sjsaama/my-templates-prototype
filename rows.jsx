@@ -360,8 +360,10 @@ function SectionRow({
   const hasKids = !!(s.children && s.children.length);
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
-  const ehrRowCat = ((window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {}).cat;
-  const hasOutputSettings = ehrRowCat === 1 || ehrRowCat === 2;
+  const ehrCatMeta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
+  const ehrRowCat = ehrCatMeta.cat;
+  // Nereg is Cat 2 but locked auto-map — no per-section output settings / remap.
+  const hasOutputSettings = (ehrRowCat === 1 || ehrRowCat === 2) && ehrCatMeta.canRemap !== false && ehrCatMeta.fieldSource !== "auto";
   const promptOpen = !!s.promptOpen;
 
   // Dual-mapping demo override — applies to "Assessment & Plan" only
@@ -466,11 +468,12 @@ function SectionRow({
             </div>
           </div>
         </div>
-        {/* EHR Mapping */}
+        {/* EHR Mapping — Cat 3 PDF auto-label, or Cat 2 locked auto-map (Nereg).
+            Template/document connection is template-level, not this cell. */}
         <div className="row-mapping">
           {(() => {
             const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
-            if (cat && cat.cat === 3) return (
+            if (cat && (cat.cat === 3 || cat.fieldSource === "auto" || cat.canRemap === false) && cat.autoMsg) return (
               <span className="mapping-auto-label" title={cat.autoMsg}>{cat.autoMsg}</span>
             );
             if (cat && cat.cat === 4) return (

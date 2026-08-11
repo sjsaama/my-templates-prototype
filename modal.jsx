@@ -599,8 +599,11 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
 
 // ── Add Section / Add Subsection ──────────────────────────────────────────
 // Header + Prompt, written by the doctor — no AI drafting. For Cat 1 (fixed field list) and
-// Cat 2 (fetch-based, once fetched) EHRs, the section must be tied to an available field first.
-// Cat 3 (auto push) and Cat 4 (no push) skip the field picker entirely — nothing to map to.
+// remappable Cat 2 (fetch-based) EHRs, the section must be tied to an available field first.
+// Cat 2 Nereg (fieldSource "auto", canRemap false), Cat 3, and Cat 4 skip the *field picker* —
+// Nereg still requires template-level Connect EHR with locked auto-mapping (see Nereg.md).
+// Cat 3 still requires destination template/document connection — do not equate
+// "no field mapping" with "no Connect EHR."
 function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreate }) {
   const I = window.Icons;
   const [name, setName] = useStateM("");
@@ -617,7 +620,7 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
   }, []);
 
   const cat = ehrCat || {};
-  const needsFieldPick = (cat.cat === 1 || cat.cat === 2) && cat.fieldSource !== "none";
+  const needsFieldPick = (cat.cat === 1 || cat.cat === 2) && cat.fieldSource !== "none" && cat.fieldSource !== "auto" && cat.canRemap !== false;
   const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || [];
   const used = usedFields || [];
   const filteredGroups = needsFieldPick

@@ -79,15 +79,24 @@ Raised per field when `SaveXNote` returns an error for a specific field. Bubbles
 - `"Template mapping error."` → `FatalException`
 - Generic save failure → bare `Exception` → retry
 
-### Cerner
-
-- Token refresh failure → `ValueError` → retry
-- Note push failure → bare `Exception` (`"Note push failed: ..."`) → retry
-
 ### Nereg
 
 - Auth failure → `Exception` → retry
 - `save_note` silently handles per-field errors via `logger.error` — no exceptions raised per field
+- Wrong / renamed `key_name` → field silently skipped
+- **Cat 2 locked mapping:** Connect to EHR note template like other Cat 2 EHRs, but **no doctor remap / field picker**. Fix mapping via `key_name` + template alignment ([Nereg.md](Nereg.md)).
+
+### Cerner
+
+- Token refresh failure → `ValueError` → retry
+- Note push failure → bare `Exception` (`"Note push failed: ..."`) → retry
+- **Cat 3 note:** No section→field remap UX. Destination template/document connection is still required — missing connection is ops-facing today (see [CATEGORY_3.md](CATEGORY_3.md)).
+
+### ModMed
+
+- Binary / S3 / DocumentReference failures → detectable via `response.ok` → ops
+- Encounter lookup from appointment can fail silently — push continues without encounter link
+- **Cat 3 note:** Same as Cerner — no field remap; template/document connection still required ([CATEGORY_3.md](CATEGORY_3.md)).
 
 ### ECW (main / HL7)
 
@@ -108,7 +117,11 @@ Based on the above, the errors that require the doctor (or ops on behalf of the 
 | Field failed to save | Veradigm | Remap the field | Ops |
 | Check-in not complete in Athena | AthenaOne | Complete check-in in Athena (or click "Go to Exam") then push again | Doctor |
 
-All other errors (auth, account locked, signed encounter, quota, DrChrono/Cerner/Nereg failures) are ops-only — they don't require anything in My Templates.
+All other errors (auth, account locked, signed encounter, quota, DrChrono/Cerner/ModMed/Nereg failures) are ops-only — they don't require anything in My Templates today.
+
+**Cat 3 correction (Cerner / ModMed):** No section→field mapping to remap, but they still require a destination template (or document target) connection in the EHR. Do not treat “no field mapping” as “no Connect EHR.” See [CATEGORY_3.md](CATEGORY_3.md).
+
+**Nereg (Cat 2, locked mapping):** Remap button is not shown. Wrong `key_name` / template alignment is ops-facing — doctors are not given a mapping picker.
 
 **Note on DrChrono**: `save_note` swallows all field-level exceptions and returns `False` silently. Lambda currently has no visibility into which DrChrono fields failed. This is a gap — if we want push issues for DrChrono, Lambda needs to be updated to surface field failures.
 

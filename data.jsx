@@ -2,23 +2,20 @@
 // Exposed on window for the Babel-transpiled component scripts.
 
 const TEMPLATES = [
-  { id: "gen1", name: "General 1", derivative: "Clinical Note", ehr: "DrChrono_General_Template", ehrSystem: "DrChrono", group: "Clinical Notes" },
-  { id: "gen2", name: "General 2", derivative: "Clinical Note", ehr: "DrChrono_General_Template", ehrSystem: "DrChrono", group: "Clinical Notes" },
-  { id: "gen3", name: "General 3", derivative: "Clinical Note", ehr: "DrChrono_General_Template", ehrSystem: "DrChrono", group: "Clinical Notes" },
-  { id: "first", name: "First Visit", derivative: "Clinical Note", ehr: "DrChrono_FirstVisit_Template", ehrSystem: "DrChrono", group: "Clinical Notes" },
-  { id: "follow", name: "Follow Up", derivative: "Clinical Note", ehr: "DrChrono_FollowUp_Template", ehrSystem: "DrChrono", group: "Clinical Notes" },
-  { id: "neuro", name: "Neurology Consultation", derivative: "Clinical Note", ehr: "DrChrono_Neuro_Template", ehrSystem: "DrChrono", group: "Clinical Notes" },
-  { id: "avs", name: "AVS", derivative: "After Visit Summary", ehr: "DrChrono_AVS_Template", ehrSystem: "DrChrono", group: "Other Documents" },
-  { id: "referral", name: "Referral Letter", derivative: "Letter", ehr: "DrChrono_Referral_Template", ehrSystem: "DrChrono", group: "Other Documents" },
-  { id: "leave", name: "Medical Leave Letter", derivative: "Letter", ehr: "DrChrono_Leave_Template", ehrSystem: "DrChrono", group: "Other Documents" },
-  { id: "ddx", name: "DDx (Beta)", derivative: "Clinical Note", ehr: "DrChrono_DDx_Template", ehrSystem: "DrChrono", group: "Other Documents" },
-  // Self-serve examples (doctor-created)
-  { id: "gen3custom", name: "General 3 — Custom", derivative: "Clinical Note", ehr: "DrChrono_General_Template", ehrSystem: "DrChrono", group: "Clinical Notes", userCreated: true, ehrTemplateId: "dc_t1", ehrTemplateName: "Office Visit" },
-  { id: "followmypush", name: "Follow Up — My Push", derivative: "Clinical Note", ehr: "DrChrono_FollowUp_Template", ehrSystem: "DrChrono", group: "Clinical Notes", userCreated: true, ehrTemplateId: "dc_t2", ehrTemplateName: "SOAP Note" },
+  { id: "gen1", name: "General 1", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Clinical Notes" },
+  { id: "gen2", name: "General 2", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Clinical Notes" },
+  { id: "gen3", name: "General 3", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Clinical Notes" },
+  { id: "first", name: "First Visit", derivative: "Clinical Note", ehr: "AMD_FirstVisit_Template", ehrSystem: "AMD", group: "Clinical Notes" },
+  { id: "follow", name: "Follow Up", derivative: "Clinical Note", ehr: "AMD_FollowUp_Template", ehrSystem: "AMD", group: "Clinical Notes" },
+  { id: "neuro", name: "Neurology Consultation", derivative: "Clinical Note", ehr: "AMD_Neuro_Template", ehrSystem: "AMD", group: "Clinical Notes" },
+  { id: "avs", name: "AVS", derivative: "After Visit Summary", ehr: "AMD_AVS_Template", ehrSystem: "AMD", group: "Other Documents" },
+  { id: "referral", name: "Referral Letter", derivative: "Letter", ehr: "AMD_Referral_Template", ehrSystem: "AMD", group: "Other Documents" },
+  { id: "leave", name: "Medical Leave Letter", derivative: "Letter", ehr: "AMD_Leave_Template", ehrSystem: "AMD", group: "Other Documents" },
+  { id: "ddx", name: "DDx (Beta)", derivative: "Clinical Note", ehr: "AMD_DDx_Template", ehrSystem: "AMD", group: "Other Documents" },
   { id: "athena1", name: "Office Visit", derivative: "Clinical Note", ehr: "AthenaOne_OV", ehrSystem: "AthenaOne", group: "Clinical Notes" },
   { id: "ecw1", name: "Progress Note", derivative: "Clinical Note", ehr: "ECW_Progress", ehrSystem: "eCW", group: "Clinical Notes" },
   { id: "charm1", name: "SOAP Note", derivative: "Clinical Note", ehr: "Charm_SOAP", ehrSystem: "Charm", group: "Clinical Notes" },
-  { id: "amd1", name: "Office Visit", derivative: "Clinical Note", ehr: "AMD_OV", ehrSystem: "AMD", group: "Clinical Notes" },
+  { id: "drchrono1", name: "Office Visit", derivative: "Clinical Note", ehr: "DrChrono_OV", ehrSystem: "DrChrono", group: "Clinical Notes" },
   { id: "veradigm1", name: "Progress Note", derivative: "Clinical Note", ehr: "Veradigm_Progress", ehrSystem: "Veradigm", group: "Clinical Notes" },
   { id: "centricity1", name: "Office Visit", derivative: "Clinical Note", ehr: "Centricity_OV", ehrSystem: "Centricity", group: "Clinical Notes" },
   { id: "cerner1", name: "Office Visit", derivative: "Clinical Note", ehr: "Cerner_OV", ehrSystem: "Cerner", group: "Clinical Notes" },
@@ -44,7 +41,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_cc",
     name: "Chief Complaint",
-    ehr: "chief_complaint",
+    ehr: "Clinical Notes > chief_complaint",
     config: "Prepend",
     enabled: true,
     macros: [{ name: "Onset Macro", mode: "Y/N Logic" }],
@@ -57,7 +54,8 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_hpi",
     name: "History of Present Illness",
-    ehr: "history_of_present_illness",
+    static: true,
+    ehr: "Clinical Notes > hpi_freetext",
     config: "Prepend",
     enabled: true,
     macros: [
@@ -81,7 +79,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_example_parent",
     name: "Example Parent",
-    ehr: "example_notes",
+    ehr: "Clinical Notes > example_freetext",
     config: "Prepend",
     enabled: true,
     macros: [{ name: "Example Macro", mode: "Y/N Logic" }],
@@ -100,7 +98,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_ros",
     name: "Review of Systems",
-    ehr: "review_of_systems",
+    ehr: "Clinical Notes > ros_freetext",
     config: "Append",
     enabled: true,
     macros: [{ name: "ROS Negatives Macro", mode: "Free Text" }],
@@ -119,7 +117,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
       {
         id: "s_ros_general",
         name: "General",
-        ehr: "",
+        ehr: "Clinical Notes > ros_general",
         config: "Append",
         enabled: true,
         macros: [],
@@ -132,7 +130,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
       {
         id: "s_ros_child2",
         name: "Child 2",
-        ehr: "",
+        ehr: "Clinical Notes > ros_child2",
         config: "Append",
         enabled: true,
         macros: [],
@@ -149,7 +147,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
           {
             id: "s_ros_gc1",
             name: "Grand Child 1",
-            ehr: "",
+            ehr: "Clinical Notes > ros_gc1",
             config: "Prepend",
             enabled: true,
             macros: [],
@@ -192,7 +190,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_pmh",
     name: "Past Medical History",
-    ehr: "past_medical_history",
+    ehr: "Clinical Notes > pmh_freetext",
     config: "Prepend",
     enabled: false,
     macros: [],
@@ -205,7 +203,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_exam",
     name: "Physical Exam",
-    ehr: "physical_exam",
+    ehr: "Clinical Notes > physical_exam",
     config: "Replace",
     enabled: true,
     macros: [{ name: "Normal Exam Macro", mode: "Free Text" }],
@@ -218,7 +216,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
       {
         id: "s_exam_c1",
         name: "Cardiovascular",
-        ehr: "",
+        ehr: "Clinical Notes > exam_cv",
         config: "Append",
         enabled: true,
         macros: [],
@@ -231,7 +229,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
       {
         id: "s_exam_c2",
         name: "Respiratory",
-        ehr: "",
+        ehr: "Clinical Notes > exam_resp",
         config: "Append",
         enabled: true,
         macros: [],
@@ -246,7 +244,8 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_labs",
     name: "Labs and Imaging",
-    ehr: "labs_imaging",
+    static: true,
+    ehr: "Clinical Notes > labs_imaging",
     config: "Prepend",
     enabled: true,
     macros: [],
@@ -259,7 +258,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_ap",
     name: "Assessment & Plan",
-    ehr: "assessment_plan",
+    ehr: "Clinical Notes > assessment_plan",
     config: "Prepend",
     enabled: true,
     macros: [{ name: "Follow-up Macro", mode: "Y/N Logic" }],
@@ -271,14 +270,16 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   },
 ]));
 
-// Ensure every template section has a defaultNegative field.
+// Ensure every template section has a defaultNegative field (ghost sections excluded).
 function withDefaultNegatives(sections) {
   return sections.map((s) => {
     const out = { ...s, detailsExpanded: !!s.detailsExpanded, promptOpen: !!s.promptOpen };
-    out.defaultNegative = s.defaultNegative != null ? s.defaultNegative : "";
-    out.styleDetail   = s.styleDetail   || 'Standard';
-    out.styleFormat   = s.styleFormat   || 'Prose';
-    out.stylePrompt   = s.stylePrompt   || '';
+    if (!s.ghost) {
+      out.defaultNegative = s.defaultNegative != null ? s.defaultNegative : "";
+      out.styleDetail   = s.styleDetail   || 'Standard';
+      out.styleFormat   = s.styleFormat   || 'Prose';
+      out.stylePrompt   = s.stylePrompt   || '';
+    }
     if (s.children) {
       out.mappingMode = s.mappingMode || 'whole';
       out.children = withDefaultNegatives(s.children);
@@ -380,23 +381,20 @@ const CONFIG_OPTIONS = ["Prepend", "Append", "Replace"];
 const MACRO_MODES = ["Y/N Logic", "Free Text", "Lorem Ipsum"];
 const SUMMARIZER_MODES = ["Replace", "Append", "Prepend", "Inform"];
 
-// EHR field lists per system. AMD uses "Page > Field Name" (Title Case).
-// eCW uses shortcut command names; others use plain snake_case or display field names.
+// EHR field lists per system. AMD uses "Page > Field Name", eCW uses shortcut command names,
+// others use plain snake_case or display field names.
 const EHR_FIELDS_BY_SYSTEM = {
   AMD: [
     { group: "Office Visit", fields: [
       "Office Visit > Chief Complaint",
-      "Office Visit > Chief Complaint Enable",
       "Office Visit > History of Present Illness",
       "Office Visit > Review of Systems",
-      "Office Visit > ROS Complete",
       "Office Visit > Physical Exam",
       "Office Visit > Assessment & Plan",
       "Office Visit > Past Medical History",
       "Office Visit > Labs & Imaging",
       "Office Visit > Medications",
       "Office Visit > Allergies",
-      "Office Visit > Example Notes",
     ]},
     { group: "Vitals", fields: [
       "Vitals > Blood Pressure",
@@ -498,18 +496,17 @@ const EHR_FIELDS_BY_SYSTEM = {
     ]},
   ],
   DrChrono: [
-    // Snake_case clinical note fields. ICD/CPT are handled separately — not in this mapping table.
     { group: "Clinical Note Fields", fields: [
-      "chief_complaint",
-      "history_of_present_illness",
-      "review_of_systems",
-      "physical_exam",
-      "assessment_plan",
-      "past_medical_history",
-      "medications",
-      "allergies",
-      "labs_imaging",
-      "example_notes",
+      "Chief Complaint",
+      "History of Present Illness",
+      "Review of Systems",
+      "Physical Exam",
+      "Assessment & Plan",
+      "Past Medical History",
+      "Medications",
+      "Allergies",
+      "icd10_codes",
+      "cpt_codes",
     ]}
   ],
   Centricity: [
@@ -563,10 +560,14 @@ const EHR_CATEGORY = {
   Veradigm:   { cat: 1, label: "Veradigm",               fieldSource: "fixed" },
   Charm:      { cat: 2, label: "CharmHealth",             fieldSource: "fetch", canReFetch: false },
   DrChrono:   { cat: 2, label: "DrChrono",                fieldSource: "fetch" },
-  Centricity: { cat: 3, label: "Centricity",              fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
-  Cerner:     { cat: 3, label: "Cerner",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
-  Nereg:      { cat: 3, label: "Nereg",                   fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
-  ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
+  Centricity: { cat: 1, label: "Centricity",              fieldSource: "fixed" },
+  // Cat 2 Nereg: connect EHR template like other Cat 2, but mapping is locked/auto from key_name —
+  // doctors cannot remap (fieldSource "auto", canRemap false). See ehr_mapping/Nereg.md.
+  Nereg:      { cat: 2, label: "Nereg",                   fieldSource: "auto",  canRemap: false, autoMsg: "Auto-mapped from section names", requiresEhrTemplateConnection: true },
+  // Cat 3: fieldSource "none" = no section→field mapping. Template/document connection in the
+  // EHR is still required — do not treat as "skip Connect EHR." See ehr_mapping/CATEGORY_3.md.
+  Cerner:     { cat: 3, label: "Cerner",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF", requiresEhrTemplateConnection: true },
+  ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF", requiresEhrTemplateConnection: true },
   Athena:     { cat: 4, label: "Athena (Legacy)",         fieldSource: "none",  noPushMsg: "Athena" },
   "ECW FHIR": { cat: 4, label: "ECW FHIR",               fieldSource: "none",  noPushMsg: "ECW" },
   Greenway:   { cat: 4, label: "Greenway (Prime Suites)", fieldSource: "none",  noPushMsg: "Greenway" },
@@ -592,26 +593,15 @@ const EHR_TEMPLATES_BY_SYSTEM = {
     { id: "charm_t2", name: "Progress Note" },
     { id: "charm_t3", name: "Initial Evaluation" },
   ],
-  Centricity: [
-    { id: "cen_t1", name: "Office Visit" },
-    { id: "cen_t2", name: "Follow-up" },
+  Nereg: [
+    { id: "nereg_t1", name: "Progress Note" },
+    { id: "nereg_t2", name: "Office Visit" },
   ],
 };
 
 // Human-readable display labels for EHR field identifiers that use camelCase or snake_case.
 // Keyed by the raw field string stored on sections.
 const EHR_FIELD_LABELS = {
-  // DrChrono (snake_case — ICD/CPT excluded from mapping table)
-  "chief_complaint":              "Chief Complaint",
-  "history_of_present_illness":   "History of Present Illness",
-  "review_of_systems":            "Review of Systems",
-  "physical_exam":                "Physical Exam",
-  "assessment_plan":              "Assessment & Plan",
-  "past_medical_history":         "Past Medical History",
-  "medications":                  "Medications",
-  "allergies":                    "Allergies",
-  "labs_imaging":                 "Labs & Imaging",
-  "example_notes":                "Example Notes",
   // AthenaOne
   "encounterreasonnote":      "Encounter Reason / CC",
   "hpi":                      "History of Present Illness",
@@ -630,10 +620,16 @@ const EHR_FIELD_LABELS = {
   "reasonsForVisit":          "Reason for Visit",
   "vitals":                   "Vitals",
   "ICD":                      "ICD Diagnosis Codes",
+  // Centricity (Athena Flow)
+  "chief_complaint":          "Chief Complaint",
+  "ros":                      "Review of Systems",
+  "physical_exam":            "Physical Exam",
+  "assessment_plan":          "Assessment & Plan",
+  "past_medical_history":     "Past Medical History",
 };
 
-// Keep EHR_FIELDS as alias for backward compatibility (DrChrono default on this branch).
-const EHR_FIELDS = EHR_FIELDS_BY_SYSTEM.DrChrono;
+// Keep EHR_FIELDS as alias for backward compatibility (AMD default).
+const EHR_FIELDS = EHR_FIELDS_BY_SYSTEM.AMD;
 
 // eCW Scribe-it has a separate note panel with its own field targets.
 // These are distinct from the primary shortcut-command destinations.
@@ -666,42 +662,6 @@ const AMD_CHAR_LIMITS = {
   "Administrative > Patient Instructions": 1000,
   "Administrative > Follow-up Instructions": 1000,
 };
-
-// AMD field-type metadata. Checkbox fields are distinct AMD control types returned
-// by the template API alongside text fields — same picker, different push value rules.
-const AMD_FIELD_META = {
-  "Office Visit > Chief Complaint Enable": {
-    type: "checkbox",
-    allowedValues: ["Yes", "No"],
-    hint: "AMD checkbox control — prompt must output one of the allowed values",
-  },
-  "Office Visit > ROS Complete": {
-    type: "checkbox",
-    allowedValues: ["Y", "N"],
-    hint: "AMD checkbox control — prompt must output one of the allowed values",
-  },
-};
-
-function amdFieldMeta(path) {
-  if (!path) return { type: "text" };
-  return AMD_FIELD_META[path] || { type: "text" };
-}
-
-/** Which actions to show for a push-error issue (banner + row strip). */
-function pushIssueActions(issue) {
-  const type = (issue && issue.type) || "";
-  // Remap: mapping is wrong / stale — doctor can pick another field.
-  // Got it: doctor fixes outside My Templates (shorten note, finish check-in, open chart).
-  // Contact support: ops / practice admin must act.
-  // push_failed / auth: ops only — no Remap (DrChrono field/ICD/CPT failures).
-  if (type === "too_long" || type === "checkin" || type === "chart_closed") {
-    return { remap: false, gotIt: true, support: false };
-  }
-  if (type === "mapping_broken" || type === "template_changed") {
-    return { remap: true, gotIt: false, support: true };
-  }
-  return { remap: false, gotIt: false, support: true };
-}
 
 const SAMPLE_TRANSCRIPT = `Doctor: Good morning, Mrs. Chen. What brings you in today?
 Patient: Hi doctor. I've been having this chest tightness for about three days now. It's worse when I climb stairs.
@@ -840,9 +800,6 @@ Object.assign(window, {
   EHR_FIELDS_BY_SYSTEM,
   EHR_CATEGORY,
   AMD_CHAR_LIMITS,
-  AMD_FIELD_META,
-  amdFieldMeta,
-  pushIssueActions,
   EHR_TEMPLATES_BY_SYSTEM,
   SAMPLE_TRANSCRIPT,
   SAMPLE_OUTPUT,

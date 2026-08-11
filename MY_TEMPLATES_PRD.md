@@ -18,14 +18,13 @@ This creates three problems:
 
 ## Solution
 
-A template management surface inside the Marvix app. Doctors can:
+A self-serve template management surface inside the Marvix app. Doctors can:
 - View their assigned templates and how each section maps to their EHR
 - Remap sections if a push fails
-- Adjust output settings (formatting, default text, push setting where supported)
-- Request new sections (ops-managed) or add sections themselves (self-serve)
+- Adjust per-section output settings (formatting, default text, static content)
+- Request new sections
 
-**Ops-managed** templates: ops owns structure; doctors customize within it.  
-**Self-serve** templates: doctors create and own structure (including Cat 2 Connect EHR at create).
+Ops remains in control of the template structure. Doctors customize within that structure.
 
 ---
 
@@ -55,12 +54,13 @@ If a push fails because the EHR field mapping is wrong, the doctor can pick a di
 | Cat 1 — AthenaOne, ECW, Veradigm, Centricity (AthenaFlow) | Open mapping picker, select from hardcoded field list. No API call. Field names shown with human-readable labels. |
 | Cat 2 — AMD, DrChrono | Open mapping picker, select from the field list fetched at template creation. |
 | Cat 2 — CharmHealth | Open mapping picker, select from existing field list. Cannot re-fetch — automation blocked until CharmHealth templates API is available (confirm with KJ). If EHR template changed, doctor uses "Contact support" in picker. |
-| Cat 3 — ModMed (PDF), Cerner (PDF), Tebra (integration TBD) | No mapping to remap. Remap button not shown. |
+| Cat 2 — Nereg | **No remap.** Mapping is auto from section `key_name` into the connected EHR template. Remap button / field picker not shown — fix mapping via `key_name` alignment (ops/product), not doctor pick. |
+| Cat 3 — ModMed (PDF), Cerner (PDF) | No section→field mapping to remap. Remap button not shown. **Correction:** still requires Marvix↔EHR destination template/document connection — earlier “skip Connect EHR” wording was wrong. See Cat 3 section / [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md). |
 | Cat 4 | No push capability. Remap button not shown. |
 
 ### Adjust section output settings
 
-Per-section settings opened via the sliders (⊟) button on each section row. Only shown for Cat 1 and Cat 2 EHRs — hidden for Cat 3 (auto-push, no field config) and Cat 4 (no push).
+Per-section settings opened via the sliders (⊟) button on each section row. Only shown for Cat 1 and remappable Cat 2 EHRs — hidden for Cat 3 (auto-push, no field config), Cat 4 (no push), and **Nereg** (Cat 2 locked auto-map). Cat 3’s required EHR destination-template connection is template-level, not a per-section slider.
 
 > **Note:** "How subsections combine" (include headings, skip empty) and subsection spacing (single/double line) are template-level settings that live in the **Settings Portal**, not My Templates. They are out of scope here.
 
@@ -68,13 +68,15 @@ Per-section settings opened via the sliders (⊟) button on each section row. On
 
 | Setting | What it does | Where it appears |
 |---|---|---|
-| Additional text | Fixed text placed before or after section content on push. Doctor picks Before or After from a dropdown. | Output settings panel |
+| Additional text | Fixed text placed before or after section content on push. Doctor picks Before or After from a dropdown. Replaces old pre-literal / post-literal fields. | Output settings panel |
 | Default negative | Text pushed when section has no generated content (e.g. "Not reported") | Output settings panel |
-| Character limit | **Global template setting only** (`char_limit`) — no per-section value. Shown for AMD and DrChrono | Template settings (global) |
-| AMD checkbox fields | Distinct AMD field type in the **same** picker as text. Section maps to one checkbox destination (allowed values from AMD fetch). Dual mapping (e.g. CC Enable + CC Text) = two sections. **How the pushed value is chosen is open** — see Open questions. | Field picker (AMD) |
-| Section separator | Separator between top-level / parent sections when joined (e.g. two parents → one EHR field) | Template settings (global); Veradigm also surfaces in output settings |
-| Subsection separator | Separator between child subsections when a parent is joined into one field | Template settings (global); Veradigm also surfaces in output settings |
+| Character limit | Read-only — set by EHR field, shown for reference | Output settings panel (all EHRs where the field has a limit) |
+| Can push (AMD checkbox) | AMD only. A checkbox field in AMD is a **distinct field type** returned separately by the AMD template API — it is not merged into the adjacent text field. Checkbox fields appear in the **same field picker dropdown** as text fields; the doctor selects one as the mapping destination, same as any other field. The pushed value is determined by the section's AI prompt output, which must be written to output one of the checkbox field's allowed values (these come through in the same API fetch as the field names). Both the checkbox field and text field are mapped independently as separate sections, even when they relate to the same logical concept (e.g. chief complaint enable + chief complaint text = two separate mappings). Common case: chief complaint = CC Enable (checkbox) + CC Text (text field), both pushed. | Field picker (AMD — checkbox fields appear alongside text fields in the dropdown) |
+| Section separator | Separator character/string inserted between sections on push | Output settings panel (Veradigm) |
+| Subsection separator | Separator character/string inserted between subsections on push | Output settings panel (Veradigm) |
 | Default line separator | Default separator used for all line breaks in pushed content | Output settings panel (Veradigm) |
+
+> **Removed:** "Keep bullet points" toggle is out of scope for v1 — stripped from prototype.
 
 **EHR-specific line-break requirements**
 
@@ -83,11 +85,11 @@ Per-section settings opened via the sliders (⊟) button on each section row. On
 | ECW | Uses a non-standard line-break character — content must be formatted accordingly before push |
 | Veradigm | Requires `\r\n` (CRLF) line endings — plain `\n` will render incorrectly in the EHR |
 
-**Push setting** — AMD only (global + local)
+**Write mode** — AMD only
 
 | Setting | What it does |
 |---|---|
-| Insert before / Insert after / Overwrite | How Marvix content relates to text already in the EHR field. **Set globally on the template**, applied to each section, and **changeable per section** in output settings. One control — not separate append/prepend toggles. |
+| Prepend / Replace / Append | How Marvix content relates to text already in the EHR field |
 
 **Veradigm — push as note vs. push as document**
 
@@ -98,14 +100,20 @@ Setting is **template-level**, not user-level. Whether content is pushed as a no
 | Mechanism | What it is |
 |---|---|
 | Append other derivative | A section can pull content from a derivative template (e.g. a summary template) and append it to the main note on push. Mechanism TBD — needs clarification from Vignesh. |
-| **ICD / CPT codes (Add Section)** | **Self-serve only.** Sub-templates for now: **`icd10_codes`** and **`cpt_codes` only**. On **+ Add section**, content type: **Nothing / ICD / CPT** → Header → Prompt → Map. Codes are absorbed into that section. Ops-managed: remap only. **Assumption:** can map to any field on this template. **Open with ops:** confirm any-field vs specific destinations only. |
+| ICD / EM code mapping | Uses template ID in the mapping editor — a **separate mechanism** from append-other-derivative. ICD/CPT fields are not in the standard mapping table. |
 | One section → two EHR fields | A single logical section (e.g. chief complaint) may map to two separate EHR destination fields — confirmed for AMD (checkbox field + text field). Both fields are mapped independently. For non-checkbox pairs, ordering may matter for how the EHR renders them — handling TBD. See open questions. |
-| Two sections → same EHR field | Multiple Marvix **parent** sections can share one EHR destination. Valid. Content is combined in **Marvix UI section list order** (reorder parents in the list to change push order). Neutral **Shared** chip — not a warning. |
+| Two sections → same EHR field | Multiple Marvix sections can share the same EHR destination field. This is valid and supported. Content from all mapped sections is combined in section order. The UI shows a neutral "Shared" label on the mapping chip (not a warning). |
 | First-line heading omit | Whether the first line (section heading) is stripped before push. Configurability unconfirmed — see open questions. |
 
 ### Request a new section
 
-Doctor can submit a request for a section that doesn't exist yet — **ops-managed templates only**. Self-serve templates use **+ Add section** instead.
+### Reset to default
+
+Doctor can discard all their customizations for a template and restore the ops-configured default. Requires a confirmation step (lists what will be cleared: custom EHR mappings, section order, output settings).
+
+### Request a new section
+
+Doctor can submit a request for a section that doesn't exist yet:
 
 | Field | Required? |
 |---|---|
@@ -117,37 +125,32 @@ Doctor can submit a request for a section that doesn't exist yet — **ops-manag
 
 Requests go through ops review (approve / reject with note). Doctor is notified in-app when status changes.
 
-### Reset to default
-
-Doctor can discard customizations on an **ops-managed** template and restore the ops-configured default. Requires a confirmation step (lists what will be cleared: custom EHR mappings, section order, output settings).
-
-**Not shown on self-serve templates** — the doctor owns the template; there is no ops default to reset to.
-
 ---
 
-## UI conventions
+## UI decisions (from prototype review)
+
+These decisions were made during prototype review and should be treated as locked unless explicitly revisited.
 
 ### Header and template structure
 
-- **Template meta:** EHR system and derivative type shown as chip badges in the editor header.
-- **Save / Reset:** Header row alongside the template title. **Reset** is ops-managed only.
-- **Request New Section:** Header — **ops-managed only**.
-- **+ Add section:** **Self-serve only** (ops controls structure on ops-managed templates).
-- **Ownership:** Template list tabs for Ops-managed / Self-serve; header shows ownership badge + short hint.
+- **Template meta:** EHR system and derivative type shown as chip badges in the editor header — not text labels.
+- **Save / Reset buttons:** Live in the header row alongside the template title. No separate toolbar bar.
+- **"Request New Section" button:** Header, right side — only shown for user-created (self-serve) templates. Ops-managed templates do not show this button.
+- **"+ Add section" button:** Only shown for user-created templates. Hidden for ops-managed templates where the section structure is controlled by ops.
+- **"Request from ops" (sidebar):** Simplified to a plain ghost text link — no subtitle, no secondary line.
 
 ### Section row
 
-- **Macro / summarizer icons:** Labeled `M` and `S`. Dot indicator when at least one item is connected.
-- **Prompt:** Inline on each row — **self-serve only** (editable). Hidden on ops-managed. `!` if no prompt written yet.
-- **Output settings (sliders):** Cat 1 and Cat 2 only. Hidden for Cat 3 and Cat 4.
-- **Push-error strip actions:** Depend on error type (Remap / Got it / Contact support). Remap only when mapping is wrong/stale (Cat 1 / Cat 2).
+- **Macro / summarizer icons:** Labeled `M` (macros) and `S` (summarizers). Not symbols. Active state shown with a dot indicator when at least one item is connected.
+- **Prompt button:** Inline on each row — labeled "Prompt". Shows a `!` indicator if no prompt has been written yet.
+- **Output settings button (sliders):** Only shown for Cat 1 and Cat 2 EHRs that expose field config. Hidden for Cat 3, Cat 4, and **Nereg** (Cat 2 locked — push formatting hardcoded). (Cat 3 still requires template-level EHR destination connection — separate from this control.)
+- **Remap button on push error strip:** Only shown for Cat 1 / Cat 2 EHRs where section→field remap is allowed (AMD, DrChrono, CharmHealth, AthenaOne, ECW, Veradigm, Centricity). **Not** shown for Nereg (locked auto-map), Cat 3, or Cat 4.
 
 ### Mapping picker
 
-- **Field labels:** Human-readable everywhere — raw API identifiers are not shown to doctors.
-- **CharmHealth notice:** Amber warning that the field list can't be refreshed, with Contact support.
-- **eCW Scribe-it:** Separate optional field list from the primary destination.
-- **AMD checkbox:** Tagged in picker; allowed values shown when selected.
+- **Field labels:** Human-readable labels are used everywhere in the picker and on section rows — raw API identifiers (camelCase, snake_case) are not shown to doctors. AthenaOne and Veradigm field names are mapped to readable labels (e.g. `assessment_with_problems` → "Assessment & Problem List").
+- **CharmHealth notice:** Amber warning in the picker: "Field list can't be refreshed — remap from the list below, or contact support if your EHR template changed." A "Contact support" button is shown inline. The doctor can still remap to any field in the existing list.
+- **eCW Scribe-it:** Separate field list from the primary destination. Primary uses eCW shortcut commands (`HPI:`, `Assessment:`). Scribe-it uses a distinct set of Scribe-it note panel fields (`ScribeIt > HPI`, `ScribeIt > Physical Exam`, etc.).
 
 ---
 
@@ -155,7 +158,7 @@ Doctor can discard customizations on an **ops-managed** template and restore the
 
 ### Cat 1 — Fixed field list
 
-EHRs: AthenaOne, ECW, Veradigm
+EHRs: AthenaOne, ECW, Veradigm, Centricity (AthenaFlow)
 
 Field names are hardcoded — no API call needed to populate the dropdown. What the doctor sees in the mapping column:
 
@@ -164,36 +167,43 @@ Field names are hardcoded — no API call needed to populate the dropdown. What 
 | AthenaOne | Snake_case identifiers (`hpi`, `assessment_with_problems`) | Shown as human-readable labels: "History of Present Illness", "Assessment & Problem List" |
 | ECW | Shortcut command names (`HPI:`, `Assessment:`, `Chief Complaints:`) | Shown as-is — these are the literal commands eCW recognizes |
 | Veradigm | camelCase (`historySections`, `reviewOfSystem`, `assessmentPlanHP`) | Shown as human-readable labels: "History Sections", "Review of Systems", "Assessment & Plan" |
+| Centricity | Snake_case identifiers (`hpi`, `assessment_plan`) | Shown as human-readable labels: "History of Present Illness", "Assessment & Plan" |
 
 **ECW — Scribe-it secondary destination:** ECW is the only Cat 1 EHR with a secondary push destination. The mapping picker has two columns: Primary (shortcut commands like `HPI:`, `Assessment:`) and Scribe-it (a separate destination in eCW's Scribe-it note panel — different field set, e.g. `ScribeIt > HPI`, `ScribeIt > Physical Exam`). Both are optional; Scribe-it is surfaced as "optional" in the picker.
 
 ### Cat 2 — Flexible field list
 
-EHRs: AMD, DrChrono, CharmHealth
+EHRs: AMD, DrChrono, CharmHealth, **Nereg**
 
-Fields come from the doctor's EHR note template. The field list is populated at template creation time when the doctor selects their EHR note template — **there is no separate "Fetch fields" step** in the template editor. If fields need to be refreshed after the initial setup, the flows below apply.
+Fields are tied to the doctor's EHR note template (Connect EHR). What the doctor sees:
 
 | EHR | Format | Remap / refresh behavior |
 |---|---|---|
-| AMD | `Page Name > Field Name` (Title Case) | **Push setting** (global + per-section override) and **Character limit** (global only). Doctor remaps from the field list fetched at Connect EHR (self-serve create) or set by ops. |
-| DrChrono | Snake_case field names | **Character limit** (global only). Sub-templates for now: `icd10_codes` / `cpt_codes` via Add Section (self-serve). **Push setting is AMD-only.** |
+| AMD | `Page Name > Field Name` | Push mode (prepend/append/replace) and character limit shown in output settings. Doctor can remap freely from the field list. |
+| DrChrono | Snake_case field names | ICD/CPT fields handled separately — not in mapping table. Doctor can remap. |
 | CharmHealth | `entry_chart_section` value if set, otherwise field name | Field list cannot be re-fetched. Doctor can remap from the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh. |
+| Nereg | Auto from section `key_name` | **Locked mapping.** Connect to EHR template like other Cat 2 EHRs, but **do not** give doctors a field picker or remap control. Mapping column shows “Auto-mapped from section names.” Fix broken mapping by aligning `key_name`s with the connected template (ops/product). Output settings hidden (hardcoded in push). Rename warning recommended. |
 
-> **Self-serve Cat 2:** EHR note template is chosen at **create** (Connect EHR step); fields come from that template. There is no separate "Fetch fields" action in the editor. If fields go stale after an EHR template change, remap (or Contact support for CharmHealth) is the recovery path.  
-> **Ops-managed Cat 2:** Ops connects the EHR template at onboarding; doctors remap within the provided field list.
+> **Design decision:** EHR field fetching is not part of the creation flow for AMD/DrChrono/CharmHealth. After a Cat 2 template is created, the doctor opens it in the editor and fetches fields there — a "Fetch fields from [EHR]" action inside the template editor, not a creation step. CharmHealth cannot re-fetch — the editor shows an amber notice explaining this, with a "Contact support" button. **Nereg exception:** no field fetch / picker — only template connection + locked auto-map.
 
-### Cat 3 — Auto push
+### Cat 3 — Auto push (no field mapping; template connection required)
 
-EHRs: Cerner, ModMed, Nereg, Centricity
+EHRs: Cerner, ModMed
 
-Note is pushed automatically — no mapping rows shown, no doctor action needed after onboarding. The output settings panel (sliders button) is hidden for Cat 3 — there are no field-level settings to configure.
+**Shared:** No mapping rows / field picker. Output settings (sliders) hidden. Remap button not shown on push errors.
 
-| EHR | How it pushes | Label shown in mapping column |
-|---|---|---|
-| Cerner | Whole note as PDF via FHIR | "Whole note pushed as PDF" |
-| ModMed | Whole note as PDF | "Whole note pushed as PDF" |
-| Nereg | Section content matched by `key_name` | "Auto-mapped from section names" |
-| Centricity | Section content routed by `ehr_field_name` set by ops | "Auto-mapped from section names" |
+**Correction vs earlier PRD wording:** Earlier drafts said Cat 3 skips **Connect EHR** entirely because there is no field list to fetch. That understates the real requirement:
+
+> Cat 3 does **not** need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR.
+
+How that connection is shown in self-serve My Templates (picker vs ops-only vs display-only name) is **TBD** — see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md). Do not equate “no field mapping” with “no Connect EHR.”
+
+| EHR | How it pushes | Label shown in mapping column | Subtle difference |
+|---|---|---|---|
+| Cerner | Whole note as PDF via FHIR | "Whole note pushed as PDF" | `ehr_template_name` → PDF filename in chart |
+| ModMed | Whole note as PDF (Binary → S3 → DocumentReference) | "Whole note pushed as PDF" | Same PDF outcome as Cerner; encounter lookup can silently omit encounter link |
+
+**UX incorporation TBD:** Whether self-serve creation shows a Connect EHR picker for Cat 3 (destination only, no field fetch), or connection stays ops-provisioned with a read-only label in the editor.
 
 ### Cat 4 — No push
 
@@ -207,8 +217,8 @@ No push capability. Doctor copies the note and pastes into EHR manually. The out
 |---|---|
 | Athena (legacy) | Legacy API — replaced by AthenaOne |
 | ECW FHIR | Push not yet implemented |
-| Greenway Prime Suites | On-prem — no cloud API (confirm before freeze) |
-| Tebra | No active push integration |
+| Greenway Prime Suites | On-prem — no cloud API. ⚠️ *Unconfirmed — verify with Vignesh before freeze.* |
+| Tebra | No active push integration — moved from Cat 3 |
 
 ---
 
@@ -240,15 +250,14 @@ Apply to the whole template — not per section. Doctor can set these.
 
 | Setting | EHR | What it controls |
 |---|---|---|
-| **Push setting** (Insert before / Insert after / Overwrite) | AMD only | How Marvix content relates to text already in the EHR field. **Set globally → applied to each section → overridable per section.** Combines former append / prepend / replace toggles into one control. |
-| **Character limit** | AMD, DrChrono (and other EHRs that enforce limits) | Truncates / guides pushed length. **Global only — no per-section override.** AMD may still auto-fetch per-field `max_character_length` for error copy / guidance. |
 | Default line separator | Veradigm | Separator used for all line breaks in pushed content. |
-| Section separator | Veradigm, AMD (and any EHR that allows multi-parent → one field) | Between **parent** sections that share one EHR field (shared-field join). Default `\n\n`. |
-| Subsection separator | Veradigm, AMD (and any EHR that allows parent→children → one field) | Between **child** sections under one parent. Default `\n`. Subsection join may use either separator depending on what is being joined (parents sharing a field vs children under one parent). |
+| Section separator | Veradigm | Separator inserted between top-level sections on push. |
+| Subsection separator | Veradigm | Separator inserted between child subsections on push. |
+| Character limit (if EHR applies globally) | All applicable | ⚠️ TBD — currently shown per section. May need to become a template-level default if the EHR enforces a single limit across all fields. |
 
 ### Section-level settings
 
-Per-section, configured in the output settings panel (sliders button). See "Adjust section output settings" above for the full list. Includes an optional **Push setting** override when the section should differ from the template default.
+Per-section, configured in the output settings panel (sliders button). See "Adjust section output settings" above for the full list.
 
 ---
 
@@ -257,21 +266,12 @@ Per-section, configured in the output settings panel (sliders button). See "Adju
 Today all push failures go to ops email only. Doctors are not notified in-app. Below is the full picture of what can fail, who caused it, and what the resolution is.
 
 **In-app error surface (decided):** Errors appear at two levels simultaneously:
-1. A summary banner at the top of My Templates listing which sections failed
-2. Inline on the broken section row — strip with the error **copy** + actions
+1. A summary banner at the top of My Templates listing which sections failed, with a Remap shortcut
+2. Inline on the broken section row — a red strip with the error message + Remap + Contact support buttons
 
-The section-level strip is the primary action surface; the banner is awareness.
+The section-level inline strip is the primary action surface — the banner is a summary for awareness. "Contact support" is shown when the error is not doctor-recoverable (mapping broken by EHR template change, etc.). To enumerate what real error messages should say, pull 3 months of note-push failure logs before implementation.
 
-**Actions (show only what applies):**
-| Action | When | What happens |
-|---|---|---|
-| **Remap** | Mapping wrong/stale (Cat 1 / Cat 2) | Opens field picker → doctor picks valid field → Save → retry push |
-| **Got it** | Doctor fixes outside My Templates (too long, check-in, chart closed) | Dismisses strip; doctor fixes in note/EHR → **retry push** |
-| **Contact support** | Not doctor-recoverable in-app (auth, permissions, template deleted, invalid value on ops-managed, etc.) | Escalates; ops already emailed on fatal Lambda failures |
-
-Amber = doctor-fixable. Red = needs ops/admin. Full AMD copy + per-error resolution flows: `ehr_mapping/AMD.md` → Push errors. Cross-EHR mechanism notes: `ehr_mapping/ERROR_UX.md`.
-
-### Cat 1 — AthenaOne, ECW, Veradigm
+### Cat 1 — AthenaOne, ECW, Veradigm, Centricity
 
 **AthenaOne**
 
@@ -300,31 +300,35 @@ Amber = doctor-fixable. Red = needs ops/admin. Full AMD copy + per-error resolut
 | Duplicate encounter | EHR state | ✅ Yes | "A note for this encounter already exists in Veradigm. Contact support." | Ops |
 | Note locked | EHR state | ✅ Yes | "This encounter is locked in Veradigm and can't be edited." | Ops or doctor unlocks |
 
-### Cat 2 — AMD, DrChrono, CharmHealth
+**Centricity**
 
-**AMD** — see `ehr_mapping/AMD.md` for full resolution flows. Summary:
+| Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
+|---|---|---|---|---|
+| Wrong `ehr_field_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Doctor remaps from fixed list, or ops updates field name |
+| Push failure | Infra | ✅ Yes | — | Ops |
 
-| Scenario | Triggered by | Detectable? | Doctor sees | Actions | Resolution flow |
-|---|---|---|---|---|---|
-| EHR template changed (IDs invalid) | EHR admin | ✅ Auto-recover first; surface if fail | "Your AMD template was updated and some field mappings are no longer valid. Support has been notified." | Remap + Contact support | Remap against live fields **or** ops remaps → retry push |
-| EHR template deleted | EHR admin | ✅ | "Your AMD template was removed. Support has been notified to reconnect your template." | Contact support | Ops reconnects template + remaps all → retry |
-| Previous-note fetch failure | AMD / infra | ✅ | "Couldn't retrieve your previous note from AMD. Push was stopped — contact support." | Contact support | Ops fixes API/creds; push was aborted on purpose → retry |
-| Invalid field value | Content / mapping | ✅ | "'[Section name]' contains a value AMD doesn't accept for this field. Contact support." | Contact support (+ Prompt on self-serve) | Fix prompt/allowed value or mapping type → retry |
-| Section text too long | Doctor | ✅ | "'[Section name]' is too long for this field (max N chars). Shorten your note and push again." | Got it | Shorten note → retry push (no Remap) |
-| Note locked | Doctor / EHR | ✅ | "This note is locked in AMD and can't be edited. Contact support if this is unexpected." | Contact support | Unlock in AMD → retry |
-| Provider not found | EHR config / ops | ✅ | "Your provider account wasn't found in AMD. Contact support." | Contact support | Ops links provider → retry |
-| Permission insufficient | EHR admin | ✅ | "Marvix doesn't have permission to write to AMD. Ask your practice admin to check account permissions." | Contact support | Practice admin grants Create Pt Notes → retry |
-| Auth / credentials | Creds | ✅ | "Push failed due to an authentication issue. Contact support." | Contact support | Ops refreshes creds → retry |
+### Cat 2 — AMD, DrChrono, CharmHealth, Nereg
+
+**AMD**
+
+| Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
+|---|---|---|---|---|
+| EHR template changed / archived / replaced (field IDs invalidated) | EHR admin | ✅ Yes — Lambda auto-recovers; ops email if recovery fails | "Your AMD template was updated and some field mappings are no longer valid. Support has been notified." | Ops remaps against updated template |
+| EHR template deleted | EHR admin | ✅ Yes | "Your AMD template was removed. Support has been notified to reconnect your template." | Ops picks new template, remaps all sections |
+| Previous-note fetch failure | AMD / infra | ✅ Yes | "Couldn't retrieve your previous note from AMD. Push was stopped — contact support." | Ops |
+| Invalid field value | Content / mapping | ✅ Yes | "'[Section name]' contains a value AMD doesn't accept for this field. Contact support." | Ops reviews field constraints |
+| Section text too long | Doctor (note content) | ✅ Yes | "'[Section name]' is too long for this field (max N chars). Shorten your note and push again." | Self-serve — edit note, retry |
+| Note locked | Doctor / EHR state | ✅ Yes | "This note is locked in AMD and can't be edited. Contact support if this is unexpected." | Ops or doctor unlocks in AMD |
+| Provider not found | EHR config / ops | ✅ Yes | "Your provider account wasn't found in AMD. Contact support." | Ops |
+| Permission level insufficient | EHR admin | ✅ Yes | "Marvix doesn't have permission to write to AMD. Ask your practice admin to check account permissions." | Practice admin fixes MA account permissions in AMD |
 
 **DrChrono**
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
-| Free-text field push failed | Any | ❌ Often invisible (`save_note` swallows) — not fixable for now | "One or more sections failed to push to DrChrono. Contact support." | Ops — Contact support (no Remap) |
-| ICD / CPT push failed | Any | ❌ `logger.warning` only | "ICD/CPT codes for '[Section]' failed to push to DrChrono. Contact support." | Ops — Contact support (no Remap) |
-| Stale / archived field mapping | EHR admin | ❌ Silent fail today | "A mapped field is no longer available in DrChrono. Remap the section or contact support." | Remap or ops |
-| Auth / credentials expired | Any | ✅ Yes | "Push failed due to a DrChrono authentication issue. Contact support." | Ops |
-| Rate limit | DrChrono | ✅ Yes | — (auto-retry) | Auto |
+| EHR template changed | EHR admin | ❌ Undetectable | Nothing | Ops investigates; Lambda change required to surface failures |
+| Any field-level failure | Any | ❌ Undetectable | Nothing — `save_note` swallows all exceptions | Ops investigates |
+| Auth / credentials expired | Any | ✅ Yes | — | Ops |
 
 **CharmHealth**
 
@@ -335,33 +339,32 @@ Amber = doctor-fixable. Red = needs ops/admin. Full AMD copy + per-error resolut
 | Account locked | EHR | ✅ Yes | — | Ops unlocks |
 | SOAP mode failures | Any | ❌ Undetectable | Nothing — no per-field errors returned | Ops investigates |
 
-### Cat 3 — Cerner, Nereg, Centricity, ModMed, Tebra
+**Nereg (locked auto-mapping)**
+
+| Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
+|---|---|---|---|---|
+| Wrong `key_name` (auto-map miss) | Ops / doctor rename | ❌ Silent skip | Nothing | Ops/product updates `key_name` — **no doctor remap**; future: rename warning in editor |
+| Missing EHR template connection | Ops config | ⚠️ Needs confirm | — | Ops |
+| Auth failure | Infra | ✅ Yes | — | Ops |
+
+### Cat 3 — Cerner, ModMed
+
+No field-level remap. Template/document connection failures and push infra errors are ops-facing today. See [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md).
 
 **Cerner**
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
 | Token refresh failure / push rejection | Infra / auth | ✅ Yes | — | Ops |
+| Wrong / missing template connection (`ehr_template_name` for PDF name) | Ops config | ⚠️ Partial — wrong name is cosmetic; missing destination may fail push | — | Ops reconnects template |
 
-**Nereg**
-
-| Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
-|---|---|---|---|---|
-| Wrong `key_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Ops updates `key_name` in YAML |
-| Auth failure | Infra | ✅ Yes | — | Ops |
-
-**Centricity**
+**ModMed**
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
-| Wrong `ehr_field_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Ops updates field name in YAML |
-| Push failure | Infra | ✅ Yes | — | Ops |
-
-**ModMed / Tebra**
-
-| Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
-|---|---|---|---|---|
-| Push errors | Infra | ✅ Yes (assumed) | — | Ops |
+| Push errors (Binary / S3 / DocumentReference) | Infra | ✅ Yes (assumed) | — | Ops |
+| Encounter lookup from appointment fails | Runtime | ⚠️ Silent — push continues without encounter link | Nothing | Ops if note missing from chart |
+| Missing EHR template / document connection | Ops config | ⚠️ Needs confirm | — | Ops |
 
 ### Summary — doctor self-serve vs. ops
 
@@ -377,7 +380,7 @@ Amber = doctor-fixable. Red = needs ops/admin. Full AMD copy + per-error resolut
 | EHR | What's undetectable |
 |---|---|
 | ECW | All note text failures — Lambda gets a 200 regardless |
-| DrChrono | Field / ICD / CPT / stale mapping failures often invisible to Lambda (`save_note` / warnings) — still show doctor error copy when known; not fixable for now |
+| DrChrono | All field-level failures — `save_note` swallows all exceptions |
 | CharmHealth | SOAP mode failures — no per-field errors returned |
 | Centricity (AthenaFlow) | ⚠️ Silently accepts mismatched field names — push appears to succeed even when content goes to the wrong field. Unresolved gap. |
 
@@ -388,29 +391,30 @@ Amber = doctor-fixable. Red = needs ops/admin. Full AMD copy + per-error resolut
 | Question | Context | Owner |
 |---|---|---|
 | Do doctor customizations apply per-doctor or per-practice? | If two doctors share a template, do they share settings or have independent ones? | Vignesh |
-| Write mode restrictions per EHR | Athena is append-only; most others may be append-only too. Confirm which EHRs support each Push setting mode. | Vignesh |
-| Derivatives | Definition and scope unclear — needs a scoping session before adding to the PRD. | Vignesh + Nandini |
+| Write mode restrictions per EHR | Athena is append-only; most others may be append-only too. Needs Vignesh to confirm which EHRs support each mode. Currently only AMD exposes push mode in the prototype. | Vignesh |
+| Derivatives | Definition and scope unclear. Needs a session with Vignesh + Nandini before this can be added to the PRD. Known gap. | Vignesh + Nandini |
 | ECW selective copy — user-level vs. practice-level | Which fields in ECW are owned at the user level vs. practice level? Affects whether remap UI is per-doctor or per-practice. | Vignesh |
 | First-line heading omit — is it configurable? | Whether the section heading is stripped before push. Currently unconfirmed. | Vignesh |
-| AMD checkbox — how is the push value chosen? | Two mechanisms conflict: (A) PRD — AI prompt must output an allowed value; (B) YAML `extract_boolean_value` — if section has content push configured value, else empty. Need one product rule. | TBD |
-| AMD checkbox — prompt authoring for allowed values | Who authors the prompt (ops vs doctor)? Should allowed values be surfaced in the prompt editor (self-serve) and/or blocked when remapping without a checkbox-aware setup (ops-managed — doctor cannot edit prompt)? | TBD |
-| AMD checkbox — remap text section → checkbox (ops-managed) | Doctor can remap to a checkbox field but cannot edit the prompt. Prose prompt will fail push. Block, warn, or route to ops? | TBD |
-| AMD checkbox — empty / default negative | What is pushed when the section is empty — `""`, an allowed “No”, or default negative? Must default negative be an allowed value? | TBD |
-| AMD checkbox — dual field coupling | For CC Text + CC Enable: is Enable independent AI output, or derived from whether Text has content? | TBD |
+| AMD checkbox — prompt authoring for allowed values | Checkbox fields have predefined allowed values (from the AMD template fetch). The section prompt must be written to output one of those values. Who authors this prompt (ops vs. doctor) and whether allowed values are surfaced in the prompt editor is unresolved. | TBD |
 | One section → two EHR fields — ordering conflict | For non-checkbox dual-field cases: if one Marvix section maps to two EHR text fields, does order matter? How is conflict handled at push time? | Vignesh |
 | One section → two EHR fields — is it actually used beyond AMD checkbox? | Confirm with ops whether non-checkbox dual-field mapping is in use before designing a general solution. | Ops |
 | CharmHealth push activation status | Is CharmHealth push currently live? Automation blocked until templates API available — confirm timeline with KJ. | KJ |
-| ICD / CPT map destination | Can ICD/CPT sections map to **any** field on the template, or only specific destinations? Working assumption: anywhere. Confirm with ops. | Ops |
+| DrChrono push activation status | Is DrChrono push currently active for any practices? | Vignesh |
 | Athena rate-limit scope | Is the quota per-practice, per-doctor, or per-API-key? Affects how the error copy is worded. | Vignesh |
+| Cat 3 — what object is connected today? | For Cerner / ModMed: exact ops fields (`ehr_template_id`, name, document type, other). Needed before Connect EHR UX. | Tech / Vignesh |
+| Cat 3 — self-serve Connect EHR? | Destination-only picker in creation flow vs ops-provisioned + read-only label. No field fetch either way. | Product |
+| ModMed `ehr_template_name` parity with Cerner | Does ModMed use template name as PDF/document identity like Cerner’s `file_name`? | Tech |
+| Nereg Connect EHR object | Exact template id/name ops stores for Nereg today. | Tech |
+| Nereg rename warning copy | Locked mapping means doctor can't remap — warn on section rename that breaks `key_name` auto-map. | Product |
 
 ---
 
-## Out of scope
+## Out of scope — v1
 
 | Area | Notes |
 |---|---|
-| Derivatives customization | Needs scoping before planning |
-| Keep bullet points toggle | Not in v1 |
+| Doctor picks their EHR template | Ops sets this during onboarding for most EHRs. Doctor-facing template picker is future scope for Cat 2 (AMD/DrChrono/Charm). **Cat 2 Nereg** and **Cat 3** still need destination template/document connection even without doctor field remap — Connect EHR UX TBD. |
+| Derivatives | Customization of derivative templates is a known gap. Needs a scoping session with Vignesh + Nandini before it can be planned. |
 
 ## Preview output (dry run)
 
@@ -423,33 +427,33 @@ Available in the editor header for every template — both ops-managed and self-
 - The sample transcript is collapsible — shown/hidden via a toggle in the modal
 - Disabled sections are excluded from the preview
 
-**What it is not:** Not an LLM call and not driven by the doctor's live prompt or EHR mapping — a UI dry run of which sections appear.
+**What it is not:** This is not an LLM call. It does not use the doctor's actual prompt or EHR mapping. It is a UI-only dry run to help doctors understand which sections will appear and what they'll roughly look like.
 
 ---
 
 ## Self-serve template creation
 
-Doctors who want a template beyond what ops provides can create one themselves.
+This is separate from template management (the core v1 feature). Doctors who want a template beyond what ops provides can create one themselves. The creation flow is a 3-step modal.
 
-**Template list search required** — practices can have 50+ templates (list + any copy-from picker).
+**Template selector — search bar required.** Practices can have 50+ templates. The template selector (left nav) must include a search/filter bar so doctors can find templates without scrolling. This applies to both the main template list and any template-picker dropdown (e.g. "copy from existing" in the creation flow).
 
 ### Creation flow — all EHRs
 
 | Step | What happens |
 |---|---|
-| 1 — Starting point / Describe | Name, description, document type. Optionally copy sections from an existing template (or start blank / from a starter). |
-| 2 — Connect EHR | **Cat 2 only** (AMD, DrChrono, CharmHealth) — pick which EHR note template to connect (fields fetched here). Cat 1 / 3 / 4 skip. Skip-and-map-later allowed if fetch fails. |
-| 3 — Review | Summary; confirm create. |
+| 1 — Describe | Doctor enters template name, description, and document type (Clinical Note / Letter / Other). Optionally copies sections from an existing template. |
+| 2 — Connect EHR | **Cat 2** (AMD, DrChrono, CharmHealth, **Nereg**): doctor (or ops) connects an EHR note template. AMD/DrChrono/CharmHealth then use a field list for mapping; **Nereg connects the template but does not expose a field picker** — mapping stays locked/auto from `key_name`. **Cat 3** (Cerner, ModMed): **do not skip Connect EHR.** There is no field list to fetch and no section→field mapping, but the Marvix template **must** still be connected to a destination template (or document target) in the EHR. Self-serve presentation TBD — see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md). Cat 1 and Cat 4 skip this step (Cat 1 uses a fixed field list; Cat 4 has no push). |
+| 3 — Review | Summary of name, type, EHR system, and whether sections were copied. Doctor confirms to create. |
 
-**Copy from existing (optional):** Deep copy of section tree (order, enabled state, mappings). No selection → Marvix defaults (Cat 1/3/4) or empty sections (Cat 2).
+**Copy from existing template (step 1, optional):** Doctor selects any of their existing templates from a dropdown. The new template inherits a deep copy of the source section tree — including order, enabled/disabled state, and EHR mappings. If no template is selected, the new template starts from Marvix defaults (Cat 1/3/4) or an empty section list (Cat 2).
 
-> Field fetch is at **Connect EHR** (create), not a later editor action. Stale Cat 2 fields → remap in editor (or Contact support for CharmHealth).
+> **EHR field fetching happens at creation, not in the editor.** Once created, the template editor does not expose a "Fetch fields" action. If Cat 2 fields become stale after the EHR template changes, the remap flow inside the editor is the recovery path (see Cat 2 remap behavior above).
 
 ---
 
 ### Self-serve flow by EHR category
 
-#### Cat 1 — AthenaOne, eCW, Veradigm
+#### Cat 1 — AthenaOne, eCW, Veradigm, Centricity
 
 **What the doctor does:**
 1. Click "+ Create template"
@@ -462,12 +466,13 @@ Doctors who want a template beyond what ops provides can create one themselves.
 - Doctor can remap any section freely from the hardcoded list
 - Doctor can edit per-section prompts
 - Doctor can add or delete sections (up to the EHR's field count cap)
+- Doctor can request new sections from ops
 
 ---
 
-#### Cat 2 — AMD, DrChrono, CharmHealth
+#### Cat 2 — AMD, DrChrono, CharmHealth, Nereg
 
-**What the doctor does:**
+**What the doctor does (AMD / DrChrono / CharmHealth):**
 1. Click "+ Create template"
 2. Enter name, description, document type. Optionally copy sections.
 3. Step 2 (Connect EHR): Doctor sees a list of their EHR note templates fetched from the EHR system. Doctor picks one. This fetch is live — it pulls actual templates from their EHR account. If the fetch fails, they can retry or skip and map manually later.
@@ -478,30 +483,39 @@ Doctors who want a template beyond what ops provides can create one themselves.
 - Doctor can remap any section from the fetched field list
 - Doctor can edit per-section prompts
 - Doctor can add or delete sections
+- Doctor can request new sections from ops
 
-**CharmHealth exception:** Field list cannot be re-fetched after creation. Doctor can remap from the existing list; Contact support if the list is stale.
+**CharmHealth exception:** Field list cannot be re-fetched after creation. Doctor can remap to any field in the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh.
 
-**AMD-specific:** **Push setting** — global with per-section override. Per-field `max_character_length` from AMD informs too-long errors.
+**AMD-specific:** Push mode (Prepend / Append / Replace) and character limit are shown in the output settings per section. AMD is the only EHR where these are configurable by the doctor.
 
-**DrChrono + AMD:** **Character limit** — global only (never per-section). DrChrono has no per-field max from the API in the prototype. Push setting is not exposed for DrChrono.
+**Nereg exception (locked auto-mapping):**
+1–3. Same Connect EHR idea — Marvix template is connected to a Nereg note template.
+4–5. **No field picker and no remap.** Mapping column shows “Auto-mapped from section names.” Fix mapping by aligning section `key_name`s with the connected template (ops/product), not by letting doctors change field targets. Output settings hidden. Warn on section rename.
 
 ---
 
-#### Cat 3 — Cerner, ModMed, Nereg, Centricity
+#### Cat 3 — Cerner, ModMed
+
+**Correction vs earlier PRD wording:** Earlier drafts said Cat 3 skips Connect EHR entirely because there is no field list to fetch. That understates the requirement:
+
+> Cat 3 does **not** need section→field mapping, but it **does** need the Marvix template connected to a destination template (or document target) in the EHR.
+
+How that connection is shown in self-serve My Templates (picker vs ops-only vs display-only name) is TBD.
 
 **What the doctor does:**
 1. Click "+ Create template"
 2. Enter name, description, document type. Optionally copy sections.
-3. Step 2 (Connect EHR) is skipped — a notice explains that this EHR uses automatic push and no field mapping is needed. Doctor clicks through to Review.
+3. Step 2 (Connect EHR): **Required destination connection — not a field-mapping step.** No field fetch. Whether the doctor picks the destination here or ops provisions it (with a display-only name in the editor) is **TBD** (see [`ehr_mapping/CATEGORY_3.md`](ehr_mapping/CATEGORY_3.md)). Do not imply “skip Connect EHR = no EHR attachment.”
 4. Template is created with the default Marvix section set (or copied sections).
-5. In the editor, mapping column shows the auto-push label for every section ("Auto-mapped from section names" or "Whole note pushed as PDF" depending on the EHR). No mapping action needed.
+5. In the editor, mapping column shows “Whole note pushed as PDF.” No per-section field picker.
 
 **What's different from ops-managed templates:**
 - Doctor can edit per-section prompts
 - Doctor can add or delete sections
 - Output settings panel (sliders) is hidden — nothing to configure for auto-push
 
-**Key constraint:** Section names matter for Nereg and Centricity — auto-mapping is keyed on section name or `key_name`. Renaming a section may break push mapping; surface a warning on rename.
+**Subtle differences:** Cerner uses `ehr_template_name` as the PDF filename; ModMed’s encounter lookup can silently drop encounter context.
 
 ---
 
@@ -526,6 +540,7 @@ Doctors who want a template beyond what ops provides can create one themselves.
 
 ### Phase 2 — AI-assisted creation (later)
 
-- Doctor describes what they want (e.g. cardiology follow-up with HPI, ROS, A&P)
-- AI drafts structure with suggested sections and EHR mappings
+- Doctor describes what they want ("a cardiology follow-up note with HPI, ROS, A&P")
+- AI drafts a template structure with suggested sections and EHR mappings
 - Doctor reviews and edits before saving
+- Timeline and spec TBD
