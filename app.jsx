@@ -250,10 +250,10 @@ function App() {
       userCreated: true,
     };
     setTemplates(arr => [...arr, newTpl]);
-    // Cat 2 (fetch-based EHRs) starts blank — a generic default section may not correspond to
-    // anything in the doctor's real EHR template. Cat 1/3/4 start from Marvix's defaults.
-    const baseSections = data.copyFromId && sectionsByTpl[data.copyFromId]
-      ? JSON.parse(JSON.stringify(sectionsByTpl[data.copyFromId]))
+    // Self-serve create starts from a chosen stencil so doctors aren't dropped into a blank template.
+    const starter = (window.STARTER_TEMPLATES || []).find((s) => s.id === data.starterId);
+    const baseSections = starter
+      ? window.sectionsFromStarter(starter)
       : (ehrCat.cat === 2 ? [] : window.makeSections());
     setSectionsByTpl(m => ({ ...m, [newId]: baseSections }));
     setActiveTpl(newId);
@@ -454,8 +454,6 @@ function App() {
       {createTemplateOpen && (
         <window.CreateTemplateModal
           ehr={t.ehr}
-          templates={templates}
-          sectionsByTpl={sectionsByTpl}
           onClose={() => setCreateTemplateOpen(false)}
           onCreate={handleCreateTemplate}
         />

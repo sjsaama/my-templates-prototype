@@ -284,21 +284,13 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
 const DERIVATIVE_OPTIONS = ["Clinical Note", "After Visit Summary", "Letter", "Other"];
 
 // ── Template Gallery Step ─────────────────────────────────────────────────
-function TemplateGalleryStep({ templates, sectionsByTpl, selected, onSelect }) {
+function TemplateGalleryStep({ selected, onSelect }) {
   const [previewId, setPreviewId] = useStateM(null);
   const starters = window.STARTER_TEMPLATES || [];
 
   const getPreviewData = (id) => {
     const starter = starters.find(t => t.id === id);
     if (starter) return { name: starter.name, specialty: starter.specialty, sections: starter.sections, sampleOutput: starter.sampleOutput };
-    const myTpl = (templates || []).find(t => t.id === id);
-    if (myTpl) {
-      const secs = (sectionsByTpl || {})[id] || [];
-      const flat = [];
-      const walk = (list) => list.forEach(s => { flat.push(s); if (s.children) walk(s.children); });
-      walk(secs);
-      return { name: myTpl.name, specialty: myTpl.derivative || "", sections: flat.map(s => ({ id: s.id, name: s.name, prompt: s.prompt || "" })), sampleOutput: window.SAMPLE_OUTPUT || {} };
-    }
     return null;
   };
 
@@ -307,7 +299,7 @@ function TemplateGalleryStep({ templates, sectionsByTpl, selected, onSelect }) {
   if (preview) {
     return (
       <div className="gallery-preview-full">
-        <button className="gallery-preview-back" onClick={() => setPreviewId(null)}>← Back to templates</button>
+        <button className="gallery-preview-back" onClick={() => setPreviewId(null)}>← Back to stencils</button>
         <div className="gallery-preview-meta">
           <span className="gallery-preview-title">{preview.name}</span>
           {preview.specialty && <span className="gallery-card-tag">{preview.specialty}</span>}
@@ -322,7 +314,7 @@ function TemplateGalleryStep({ templates, sectionsByTpl, selected, onSelect }) {
         </div>
         <div className="gallery-preview-foot">
           <button className="btn-teal" onClick={() => { onSelect(previewId); setPreviewId(null); }}>
-            {selected === previewId ? "✓ Selected" : "Use this template"}
+            {selected === previewId ? "✓ Selected" : "Use this stencil"}
           </button>
         </div>
       </div>
@@ -331,16 +323,8 @@ function TemplateGalleryStep({ templates, sectionsByTpl, selected, onSelect }) {
 
   return (
     <div className="gallery-wrap">
+      <p className="gallery-lead">Pick a stencil to get started — you can edit sections after creating.</p>
       <div className="gallery-grid">
-        {/* Blank */}
-        <div className={"gallery-card gallery-card--blank" + (selected === "__blank__" ? " gallery-card--on" : "")}
-          onClick={() => onSelect("__blank__")}>
-          <div className="gallery-card-blank-body">
-            <span className="gallery-blank-plus">+</span>
-            <span className="gallery-blank-label">Start blank</span>
-          </div>
-        </div>
-        {/* Starter templates */}
         {starters.map(t => (
           <div key={t.id} className={"gallery-card" + (selected === t.id ? " gallery-card--on" : "")}
             onClick={() => onSelect(t.id)}>
@@ -361,32 +345,18 @@ function TemplateGalleryStep({ templates, sectionsByTpl, selected, onSelect }) {
           </div>
         ))}
       </div>
-
-      {templates && templates.length > 0 && (
-        <div className="gallery-mytpls">
-          <div className="gallery-section-label">Or copy from my templates</div>
-          <div className="gallery-my-list">
-            {templates.map(t => (
-              <div key={t.id} className={"gallery-my-item" + (selected === t.id ? " gallery-my-item--on" : "")}
-                onClick={() => onSelect(t.id)}>
-                <span className="gallery-my-name">{t.name}</span>
-                <span className="gallery-my-tag">{t.derivative}</span>
-                <button className="gallery-preview-btn" onClick={e => { e.stopPropagation(); setPreviewId(t.id); }}>Preview</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate }) {
+function CreateTemplateModal({ ehr, onClose, onCreate }) {
   const I = window.Icons;
+  const starters = window.STARTER_TEMPLATES || [];
+  const defaultStencilId = (starters[0] && starters[0].id) || null;
   const [step, setStep] = useStateM(1);
-  const [gallerySelection, setGallerySelection] = useStateM("__blank__");
-  const [name, setName] = useStateM("");
-  const [desc, setDesc] = useStateM("");
+  const [gallerySelection, setGallerySelection] = useStateM(defaultStencilId);
+  const [name, setName] = useStateM((starters[0] && starters[0].name) || "");
+  const [desc, setDesc] = useStateM((starters[0] && starters[0].description) || "");
   const [type, setType] = useStateM("Clinical Note");
 
   useEffectM(() => {
@@ -395,31 +365,30 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Pre-fill name/desc/type when a starter is selected
+  // Keep name/desc in sync when the doctor picks a different stencil
   useEffectM(() => {
-    const starter = (window.STARTER_TEMPLATES || []).find(t => t.id === gallerySelection);
+    const starter = starters.find(t => t.id === gallerySelection);
     if (starter) {
-      if (!name) setName(starter.name);
-      if (!desc) setDesc(starter.description);
+      setName(starter.name);
+      setDesc(starter.description);
     }
   }, [gallerySelection]);
 
   const ehrCat = (window.EHR_CATEGORY || {})[ehr];
   const ehrLabel = (ehrCat && ehrCat.label) || ehr || "your EHR";
+  const selectedStencil = starters.find(t => t.id === gallerySelection) || null;
   const totalSteps = 3;
-  const stepLabel = (n) => ({ 1: "Starting point", 2: "Describe", 3: "Review" }[n]);
+  const stepLabel = (n) => ({ 1: "Choose stencil", 2: "Describe", 3: "Review" }[n]);
 
-  const step1Valid = true; // gallery always has a selection (blank by default)
+  const step1Valid = !!selectedStencil;
   const step2Valid = name.trim() && desc.trim();
-
-  const copyFromId = gallerySelection === "__blank__" ? null : gallerySelection;
 
   const handleCreate = () => {
     onCreate({
       name: name.trim(),
       description: desc.trim(),
       type,
-      copyFromId,
+      starterId: gallerySelection,
     });
   };
 
@@ -429,7 +398,7 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
 
         <div className="modal-head">
           <h2>Create a template</h2>
-          <span className="modal-sub">You'll configure sections and EHR mapping after creation</span>
+          <span className="modal-sub">Start from a stencil, then configure sections and EHR mapping</span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
 
@@ -445,11 +414,9 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
 
         <div className={"modal-body" + (step === 1 ? " modal-body--gallery" : "")}>
 
-          {/* ── Step 1: Gallery ── */}
+          {/* ── Step 1: Stencil gallery ── */}
           {step === 1 && (
             <TemplateGalleryStep
-              templates={templates}
-              sectionsByTpl={sectionsByTpl}
               selected={gallerySelection}
               onSelect={setGallerySelection}
             />
@@ -498,10 +465,7 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
                   <tr><td>Type</td><td>{type}</td></tr>
                   <tr><td>Purpose</td><td>{desc}</td></tr>
                   <tr><td>EHR</td><td>{ehrLabel}</td></tr>
-                  <tr><td>Starting point</td><td>{
-                    gallerySelection === "__blank__" ? "Blank template" :
-                    ((window.STARTER_TEMPLATES || []).find(t => t.id === gallerySelection) || (templates || []).find(t => t.id === gallerySelection) || {}).name || "Unknown"
-                  }</td></tr>
+                  <tr><td>Stencil</td><td>{(selectedStencil && selectedStencil.name) || "Unknown"}</td></tr>
                 </tbody>
               </table>
               <p className="create-review-hint">
@@ -518,10 +482,10 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
             : <button className="btn-ghost" onClick={onClose}>Cancel</button>}
           {step < totalSteps
             ? <button className="btn-teal" onClick={() => setStep(s => s + 1)}
-                disabled={step === 2 ? !step2Valid : false}>
+                disabled={step === 1 ? !step1Valid : !step2Valid}>
                 Next
               </button>
-            : <button className="btn-teal" onClick={handleCreate}>Create template</button>}
+            : <button className="btn-teal" onClick={handleCreate} disabled={!step1Valid || !step2Valid}>Create template</button>}
         </div>
 
       </div>
