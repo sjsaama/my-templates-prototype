@@ -80,7 +80,7 @@ const ERROR_SCENARIOS = {
 };
 
 
-const EHR_OPTIONS = ["AMD", "AthenaOne", "Athena", "eCW", "Charm", "DrChrono", "Veradigm", "Centricity", "Cerner", "Nereg", "ECW FHIR", "Greenway", "ModMed", "Tebra"];
+const EHR_OPTIONS = ["AMD", "AthenaOne", "eCW", "Charm", "DrChrono", "Veradigm", "Centricity", "Cerner", "Nereg", "ModMed"];
 
 function mapSectionTree(list, id, fn) {
   return list.map((s) => {
@@ -153,16 +153,10 @@ function App() {
   const [remapTarget, setRemapTarget] = useStateA(null);
   const [previewOpen, setPreviewOpen] = useStateA(false);
   const [addSectionOpen, setAddSectionOpen] = useStateA(null); // { parentId: string|null } | null
-  const [ehrTplPickerOpen, setEhrTplPickerOpen] = useStateA(false);
 
   const tpl = activeTpl ? templates.find((x) => x.id === activeTpl) : null;
+  const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[t.ehr]) || {};
   const caps = (window.ehrCapabilities || (() => ({})))(t.ehr);
-  const connectedTplId = window.connectedEhrTemplateIdOf
-    ? window.connectedEhrTemplateIdOf(tpl)
-    : ((tpl && tpl.connectedEhrTemplateId) || "");
-  const connectedTplName = window.connectedEhrTemplateNameOf
-    ? window.connectedEhrTemplateNameOf(tpl)
-    : ((tpl && tpl.connectedEhrTemplateName) || "");
   const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
   const pendingCount = pendingRequests.length;
   const groups = window.groupsFor(templates);
@@ -255,26 +249,16 @@ function App() {
       ehrSystem: t ? t.ehr : "",
       group: "My Templates",
       userCreated: true,
-      connectedEhrTemplateId: window.connectedEhrTemplateIdOf
-        ? window.connectedEhrTemplateIdOf(data)
-        : (data.ehrTemplateId || ""),
-      connectedEhrTemplateName: window.connectedEhrTemplateNameOf
-        ? window.connectedEhrTemplateNameOf(data)
-        : (data.ehrTemplateName || ""),
     };
     setTemplates(arr => [...arr, newTpl]);
-    // Cat 2 fetch-based EHRs start blank. Nereg locked auto-map still uses Marvix defaults
-    // (routing is by section name, not a fetched field list). Cat 1/3/4 start from defaults.
-    const isFetchCat2 = caps.category === 2 && caps.fieldSource === "fetch";
+    // Fetch-based Cat 2 starts blank. Nereg (locked auto-map) and Cat 1/3/4 start from Marvix defaults.
     const baseSections = data.copyFromId && sectionsByTpl[data.copyFromId]
       ? JSON.parse(JSON.stringify(sectionsByTpl[data.copyFromId]))
-      : (isFetchCat2 ? [] : window.makeSections());
+      : (ehrCat.cat === 2 && ehrCat.fieldSource !== "auto" ? [] : window.makeSections());
     setSectionsByTpl(m => ({ ...m, [newId]: baseSections }));
     setActiveTpl(newId);
     setCreateTemplateOpen(false);
-    flash(caps.lockedAutoMap
-      ? "Template created — sections auto-map by name into the connected Nereg template"
-      : "Template created — configure your sections and EHR mapping below");
+    flash("Template created — configure your sections and EHR mapping below");
   };
 
   const selectTpl = (id) => {
@@ -365,29 +349,6 @@ function App() {
                   )}
                 </div>
               </header>
-              {/* Nereg — locked auto-mapping notice + connected template */}
-              {caps.lockedAutoMap && (
-                <>
-                  <div className="nereg-notice">
-                    <span className="nereg-notice-icon">ℹ</span>
-                    <span className="nereg-notice-text">
-                      <strong>Nereg</strong> maps each section to an EHR field by section name. You can’t change field mapping here — connect the right Nereg note template, and keep section names aligned with Nereg fields.
-                    </span>
-                  </div>
-                  <div className="ehr-tpl-banner">
-                    <div className="ehr-tpl-banner-left">
-                      <span className="ehr-tpl-banner-label">Connected Nereg template</span>
-                      {connectedTplName
-                        ? <span className="ehr-tpl-banner-value">{connectedTplName}</span>
-                        : <span className="ehr-tpl-banner-unset">No template connected yet</span>}
-                    </div>
-                    <button className="btn-outline btn-sm" onClick={() => setEhrTplPickerOpen(true)}>
-                      {connectedTplName ? "Change" : "Connect"}
-                    </button>
-                  </div>
-                </>
-              )}
-
               {/* Cat 4 — no push integration notice */}
               {caps.showCat4Notice && (
                 <div className="cat4-notice">
@@ -416,7 +377,7 @@ function App() {
                     {pushIssues.map(issue => (
                       <div key={issue.id} className="push-issues-item">
                         <span className="push-issues-section">• {issue.section}</span>
-                        {caps.canRemap && (issue.type === "mapping_broken" || issue.selfServe) && (
+                        {(issue.type === "mapping_broken" || issue.selfServe) && ehrCat.canRemap !== false && ehrCat.fieldSource !== "auto" && ehrCat.cat !== 3 && ehrCat.cat !== 4 && (
                           <button className="push-issues-remap" onClick={() => setRemapTarget(issue.section)}>Remap</button>
                         )}
                         {!issue.selfServe && (
@@ -500,24 +461,6 @@ function App() {
         />
       )}
 
-      {ehrTplPickerOpen && tpl && (
-        <window.EhrTemplatePickerModal
-          ehr={t.ehr}
-          ehrLabel={caps.label || t.ehr}
-          selectedId={connectedTplId}
-          onClose={() => setEhrTplPickerOpen(false)}
-          onSelect={({ id, name }) => {
-            setTemplates((arr) => arr.map((x) =>
-              x.id === tpl.id
-                ? { ...x, connectedEhrTemplateId: id, connectedEhrTemplateName: name, ehr: (t.ehr || "Nereg") + "_" + name.replace(/\s+/g, "_") }
-                : x
-            ));
-            setEhrTplPickerOpen(false);
-            flash("Connected to " + name);
-          }}
-        />
-      )}
-
       {sectionRequestOpen && (
         <window.RequestNewSectionModal
           templates={templates}
@@ -531,7 +474,7 @@ function App() {
       {addSectionOpen && (
         <window.AddSectionModal
           ehr={t.ehr}
-          ehrCat={(window.EHR_CATEGORY && window.EHR_CATEGORY[t.ehr]) || {}}
+          ehrCat={ehrCat}
           parentName={addSectionOpen.parentId ? (findSection(sections, addSectionOpen.parentId) || {}).name : null}
           usedFields={collectUsedFields(sections)}
           onClose={() => setAddSectionOpen(null)}

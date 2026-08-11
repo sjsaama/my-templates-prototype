@@ -1,6 +1,6 @@
 // rows.jsx — simplified edit-mode section table
 // User controls: reorder (drag-and-drop) + EHR mapping. Everything else is soft-hidden / read-only.
-const { useState: useStateR, useState: useStateAdv, useEffect: useEffectRow } = React;
+const { useState: useStateR, useState: useStateAdv } = React;
 
 // ── Local utility ──────────────────────────────────────────────────────────
 function findSecR(sections, id) {
@@ -47,10 +47,10 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
   const [pendingEhr, setPendingEhr] = useStateR(currentEhr);
   const [pendingScribeIt, setPendingScribeIt] = useStateR(currentScribeIt || "");
   const I = window.Icons;
-  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
-  const isEcw = !!caps.hasScribeIt;
-  const isFixedList = !!caps.isFixedList;
-  const isCharm = !!caps.showCharmRemapNotice;
+  const isEcw = ehr === "eCW";
+  const ehrCat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
+  const isFixedList = ehrCat && ehrCat.fieldSource === "fixed";
+  const isCharm = ehr === "Charm";
 
   const confirm = () => {
     onSelect(sectionId, pendingEhr, isEcw ? pendingScribeIt : undefined);
@@ -411,16 +411,8 @@ function SectionRow({
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
   const caps = (window.ehrCapabilities || (() => ({})))(ehr);
-  // Nereg is Cat 2 but locked auto-map — no per-section output settings / remap.
-  const lockedAutoMap = !!caps.lockedAutoMap;
   const hasOutputSettings = !!caps.hasOutputSettings;
   const promptOpen = !!s.promptOpen;
-  const [nameDraft, setNameDraft] = useStateR(s.name);
-  const [showRenameWarn, setShowRenameWarn] = useStateR(false);
-  const autoMapKey = s.autoMapKey || s.keyName || s.name;
-
-  // Keep draft in sync when section identity/name changes from outside
-  useEffectRow(() => { setNameDraft(s.name); }, [s.id, s.name]);
 
   // Dual-mapping demo override — applies to "Assessment & Plan" only
   const demoOverride =
@@ -471,25 +463,11 @@ function SectionRow({
           <div className="namecell">
             <input
               className="sname-input"
-              value={nameDraft}
-              onChange={(e) => {
-                setNameDraft(e.target.value);
-                if (lockedAutoMap && e.target.value.trim() !== autoMapKey) setShowRenameWarn(true);
-                else if (lockedAutoMap && e.target.value.trim() === autoMapKey) setShowRenameWarn(false);
-              }}
-              onBlur={() => {
-                const next = nameDraft.trim() || s.name;
-                if (next !== s.name) onUpdate(s.id, { name: next });
-                if (lockedAutoMap && next !== autoMapKey) setShowRenameWarn(true);
-              }}
+              value={s.name}
+              onChange={(e) => onUpdate(s.id, { name: e.target.value })}
               onClick={(e) => e.stopPropagation()}
               aria-label="Section header"
             />
-            {lockedAutoMap && showRenameWarn && (
-              <div className="nereg-rename-warn">
-                Renaming this section may break Nereg auto-mapping. Field mapping can’t be changed in the app — keep the name matched to the Nereg field, or contact support.
-              </div>
-            )}
             <div className="name-icons" style={{position:"relative"}}>
               {/* Macros icon */}
               <button type="button"
@@ -536,18 +514,17 @@ function SectionRow({
             </div>
           </div>
         </div>
-        {/* EHR Mapping — Cat 3 PDF auto-label, or Cat 2 locked auto-map (Nereg).
-            Template/document connection is template-level, not this cell. */}
+        {/* EHR Mapping */}
         <div className="row-mapping">
           {(() => {
-            const meta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
-            if (caps.showAutoMappingLabel && caps.autoMsg) return (
+            if (caps.showAutoMappingLabel) return (
               <span className="mapping-auto-label" title={caps.autoMsg}>{caps.autoMsg}</span>
             );
             if (caps.showCat4Notice) return (
               <span className="mapping-no-push-label">No push</span>
             );
-            if (meta.fieldsPending) return (
+            const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
+            if (cat && cat.fieldsPending) return (
               <span className="mapping-pending-label" title="Field list not yet confirmed — ops will configure this">Field list pending</span>
             );
             // cat 1 or 2 — normal mapping cell
@@ -567,7 +544,7 @@ function SectionRow({
           })()}
         </div>
         {/* eCW secondary column — Scribe-it destination */}
-        {caps.hasScribeIt && (
+        {ehr === "eCW" && (
           <div className="row-ehr-secondary">
             <button className="ehr-scribeit-btn" onClick={() => onOpenMapping(s.id)} title="Edit Scribe-it mapping">
               {s.scribeIt
@@ -625,7 +602,7 @@ function SectionRow({
             <span className="row-push-error-msg">{pushIssue.msg}</span>
           </div>
           <div className="row-push-error-actions">
-            {(pushIssue.type === "mapping_broken") && caps.canRemap && (
+            {(pushIssue.type === "mapping_broken") && hasOutputSettings && (
               <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
             )}
             {pushIssue.selfServe
@@ -790,10 +767,9 @@ function SectionTable({
   const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo };
 
   // ── Add Section availability — varies by EHR category ──
-  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
-  const isCat1 = caps.category === 1;
-  const isCat2 = caps.category === 2;
+  const isCat1 = ehrCat.cat === 1;
+  const isCat2 = ehrCat.cat === 2;
   // Only count fields actually in *this* EHR's field list — sections mapped under a
   // previously-selected EHR (or seeded demo data) shouldn't count against a different EHR's cap.
   const validFieldSet = new Set(
@@ -804,8 +780,8 @@ function SectionTable({
   const capReached = (isCat1 || isCat2) && (totalFieldCount === 0 || usedFieldCount >= totalFieldCount);
 
   let addDisabledReason = "";
-  if (capReached && ehrCat.fieldsPending) addDisabledReason = (caps.label || ehr) + "'s field list isn't confirmed yet — check with ops";
-  else if (capReached) addDisabledReason = "All available " + (caps.label || ehr) + " fields are already used";
+  if (capReached && ehrCat.fieldsPending) addDisabledReason = (ehrCat.label || ehr) + "'s field list isn't confirmed yet — check with ops";
+  else if (capReached) addDisabledReason = "All available " + (ehrCat.label || ehr) + " fields are already used";
 
   return (
     <div className={"table table-edit" + (ehr ? " table--" + ehr.toLowerCase() : "")}>
@@ -822,7 +798,7 @@ function SectionTable({
           </button>
         )}
         {isCat1 && totalFieldCount > 0 && (
-          <span className="section-toolbar-hint">{usedFieldCount}/{totalFieldCount} {caps.label || ehr} fields used</span>
+          <span className="section-toolbar-hint">{usedFieldCount}/{totalFieldCount} {ehrCat.label || ehr} fields used</span>
         )}
       </div>
       <div className="thead">
@@ -831,7 +807,7 @@ function SectionTable({
           EHR Mapping
           {ehr && <span className="th-ehr-badge">{ehr}</span>}
         </div>
-        {caps.hasScribeIt && <div className="th">Scribe-it</div>}
+        {ehr === "eCW" && <div className="th">Scribe-it</div>}
         <div className="th th-enable">Enable</div>
       </div>
       <div className="tbody">
