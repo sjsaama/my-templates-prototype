@@ -42,7 +42,8 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "monoMapping": true,
   "ehr": "AMD",
   "errorScenario": "none",
-  "dualMappingDemo": "none"
+  "dualMappingDemo": "none",
+  "codeSourceDemo": "none"
 }/*EDITMODE-END*/;
 
 const ERROR_SCENARIOS = {
@@ -168,6 +169,23 @@ function App() {
     setSectionsByTpl((m) => ({ ...m, [activeTpl]: fn(m[activeTpl] || window.makeSections()) }));
   };
 
+  // Tweaks demo: inject an ICD/EM section so reviewers don't need Create → Add section.
+  useEffectA(() => {
+    if (!activeTpl) return;
+    setSectionsByTpl((m) => {
+      const cur = (m[activeTpl] || window.makeSections()).filter(
+        (s) => s.id !== "demo_code_icd" && s.id !== "demo_code_em"
+      );
+      if (!t.codeSourceDemo || t.codeSourceDemo === "none") {
+        return { ...m, [activeTpl]: cur };
+      }
+      return {
+        ...m,
+        [activeTpl]: [...cur, window.makeCodeSourceDemoSection(t.codeSourceDemo, t.ehr)],
+      };
+    });
+  }, [t.codeSourceDemo, t.ehr, activeTpl]);
+
   const flash = (msg) => { setToast(msg); clearTimeout(window.__tt); window.__tt = setTimeout(() => setToast(""), 2600); };
 
   const applyToggle = (id, v) => setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, enabled: v })));
@@ -283,6 +301,8 @@ function App() {
         tplIds: data.tplIds,
         daysAgo: 0,
         ehr: data.ehr,
+        contentSource: data.contentSource || "prompt",
+        codeTemplateId: data.codeTemplateId || "",
         isSubsection: data.isSubsection,
         parentName: data.parentName,
         status: "pending",
@@ -413,6 +433,7 @@ function App() {
                 onUpdate={handlers.onUpdate}
                 onAddSection={tpl.userCreated ? handlers.onAddSection : null}
                 canEditPrompt={!!tpl.userCreated}
+                canEditCodeSource
               />
             </>
           )}
@@ -509,6 +530,9 @@ function App() {
         <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}
           options={["none","one_to_two","amd_checkbox"]}
           onChange={(v) => setTweak("dualMappingDemo", v)} />
+        <TweakSelect label="Code source demo" value={t.codeSourceDemo}
+          options={["none","icd","em"]}
+          onChange={(v) => setTweak("codeSourceDemo", v)} />
       </TweaksPanel>
     </div>
   );

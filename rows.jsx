@@ -403,7 +403,7 @@ function SectionRow({
   onOpenMapping, onSetMappingMode, onUpdate,
   onDragStart, onDragEnd, onDragOver, onDrop,
   isDragging, dropBefore, dropAfter, isDuplicate,
-  parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo,
+  parentMappingMode, ehr, pushIssue, canEditPrompt, canEditCodeSource, dualMappingDemo,
 }) {
   const I = window.Icons;
   if (s.ghost) return null;
@@ -587,7 +587,7 @@ function SectionRow({
               {!s.stylePrompt && <span className="row-prompt-missing" title="No prompt written yet">!</span>}
             </button>
           )}
-          {canEditPrompt && isCodeSource && (
+          {(canEditPrompt || canEditCodeSource) && isCodeSource && (
             <button
               type="button"
               className={"row-icon-btn row-icon-btn--prompt row-icon-btn--active" + (promptOpen ? " row-icon-btn--open" : "")}
@@ -643,7 +643,7 @@ function SectionRow({
           </div>
         </div>
       )}
-      {promptOpen && !isCodeSource && (
+      {promptOpen && !isCodeSource && canEditPrompt && (
         <div className="row-prompt-panel">
           <label className="row-prompt-label">
             Prompt
@@ -656,15 +656,53 @@ function SectionRow({
             placeholder="e.g. Summarize the patient's chief complaint in one or two sentences, in their own words where possible."
             onChange={(e) => onUpdate(s.id, { stylePrompt: e.target.value })}
           />
+          {canEditPrompt && (
+            <div className="content-source-switch">
+              <span className="code-source-panel-k">Or derive from</span>
+              <button type="button" className="content-source-switch-btn" onClick={() => onUpdate(s.id, { contentSource: "icd", codeTemplateId: "icd_std", stylePrompt: "", promptOpen: true })}>ICD codes</button>
+              <button type="button" className="content-source-switch-btn" onClick={() => onUpdate(s.id, { contentSource: "em", codeTemplateId: "em_std", stylePrompt: "", promptOpen: true })}>EM codes</button>
+            </div>
+          )}
         </div>
       )}
-      {promptOpen && isCodeSource && (
+      {promptOpen && isCodeSource && (canEditPrompt || canEditCodeSource) && (
         <div className="row-prompt-panel row-prompt-panel--code">
           <label className="row-prompt-label">
             {contentSource === "icd" ? "ICD" : "EM"} code source
             <span className="row-prompt-label-hint">— content is derived from codes, then mapped to the EHR field</span>
           </label>
           <div className="code-source-panel">
+            {canEditPrompt && (
+              <div className="code-source-panel-row">
+                <span className="code-source-panel-k">Source</span>
+                <div className="content-source-row content-source-row--compact">
+                  {((window.CODE_CONTENT_SOURCES || [])).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className={"content-source-btn" + (contentSource === opt.id ? " content-source-btn--on" : "")}
+                      onClick={() => {
+                        if (opt.id === "prompt") {
+                          onUpdate(s.id, { contentSource: "prompt", codeTemplateId: "", stylePrompt: s.stylePrompt || "", promptOpen: true });
+                        } else {
+                          const gens = ((window.CODE_GENERATOR_TEMPLATES || {})[opt.id]) || [];
+                          onUpdate(s.id, {
+                            contentSource: opt.id,
+                            codeTemplateId: s.codeTemplateId && ((window.CODE_GENERATOR_TEMPLATES || {})[opt.id] || []).some((g) => g.id === s.codeTemplateId)
+                              ? s.codeTemplateId
+                              : (gens[0] && gens[0].id) || "",
+                            stylePrompt: "",
+                            promptOpen: true,
+                          });
+                        }
+                      }}
+                    >
+                      {opt.short || opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="code-source-panel-row">
               <span className="code-source-panel-k">Generator</span>
               <select
@@ -716,7 +754,7 @@ function AddSubsectionGhostRow({ depth, onClick }) {
 
 // ── Render tree recursively ────────────────────────────────────────────────
 function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
-  const { handlers, dragId, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo } = ctx;
+  const { handlers, dragId, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, canEditCodeSource, dualMappingDemo } = ctx;
   const isDragging = dragId === s.id;
   const dropBefore = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'before');
   const dropAfter = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'after');
@@ -737,6 +775,7 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
       ehr={ehr}
       pushIssue={pushIssuesByName ? pushIssuesByName[s.name] : null}
       canEditPrompt={canEditPrompt}
+      canEditCodeSource={canEditCodeSource}
       dualMappingDemo={dualMappingDemo}
       {...handlers}
     />,
@@ -759,7 +798,7 @@ function SectionTable({
   sections, ehr, pushIssues,
   onToggle, onExpand, onToggleDetails, onTogglePrompt, onDeleteSection,
   onReorder, onRemap, onSetMappingMode, onUpdate, remapTarget, onRemapTargetHandled,
-  onAddSection, canEditPrompt, dualMappingDemo,
+  onAddSection, canEditPrompt, canEditCodeSource, dualMappingDemo,
 }) {
   const { useEffect: useEffectR } = React;
   const [dragState, setDragState] = useStateR(null);   // { id }
@@ -825,7 +864,7 @@ function SectionTable({
 
   const pushIssuesByName = {};
   (pushIssues || []).forEach(pi => { pushIssuesByName[pi.section] = pi; });
-  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo };
+  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, canEditCodeSource, dualMappingDemo };
 
   // ── Add Section availability — varies by EHR category ──
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};

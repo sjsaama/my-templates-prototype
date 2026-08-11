@@ -268,6 +268,36 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     expanded: false,
     defaultNegative: "Patient understands diagnosis, plan, and when to seek urgent care.",
   },
+  {
+    id: "s_icd",
+    name: "ICD Codes",
+    ehr: "Administrative > Diagnosis Codes",
+    config: "Replace",
+    enabled: true,
+    macros: [],
+    summarizers: [],
+    staticStart: "",
+    staticEnd: "",
+    expanded: false,
+    contentSource: "icd",
+    codeTemplateId: "icd_std",
+    defaultNegative: "",
+  },
+  {
+    id: "s_em",
+    name: "EM Codes",
+    ehr: "Administrative > Billing Notes",
+    config: "Replace",
+    enabled: true,
+    macros: [],
+    summarizers: [],
+    staticStart: "",
+    staticEnd: "",
+    expanded: false,
+    contentSource: "em",
+    codeTemplateId: "em_std",
+    defaultNegative: "",
+  },
 ]));
 
 // Ensure every template section has a defaultNegative field (ghost sections excluded).
@@ -374,6 +404,20 @@ const INITIAL_PENDING_REQUESTS = [
     status: "pending",
     ops_note: "",
     seenByDoctor: true,
+    contentSource: "prompt",
+  },
+  {
+    id: "req_icd",
+    name: "ICD Codes",
+    description: "Generate ICD-10 diagnosis codes from the encounter and map to the EHR diagnosis field.",
+    tplIds: ["gen1"],
+    daysAgo: 0,
+    status: "pending",
+    ops_note: "",
+    seenByDoctor: true,
+    contentSource: "icd",
+    codeTemplateId: "icd_std",
+    ehr: "Diagnosis Codes",
   },
 ];
 
@@ -735,6 +779,8 @@ const SAMPLE_OUTPUT = {
   s_exam_c2:     "Clear to auscultation bilaterally. No wheezes, rhonchi, or crackles.",
   s_labs:        "HbA1c: 7.1% (last month) — at goal.\nEKG today: Normal sinus rhythm, no acute ischemic changes.",
   s_ap:          "Assessment:\n1. Stable angina — new onset, exertional, EKG without acute changes.\n2. Hypertension — BP mildly elevated at 138/84.\n3. Type 2 DM — A1c 7.1%, reasonably controlled.\n\nPlan:\n1. Add aspirin 81mg daily for cardiovascular protection.\n2. Stress test ordered, to be completed within 2 weeks.\n3. Follow up after stress test results.\n4. Continue current medications: lisinopril, metformin, atorvastatin.",
+  s_icd:         "I20.9  Angina pectoris, unspecified\nI10    Essential (primary) hypertension\nE11.9  Type 2 diabetes mellitus without complications",
+  s_em:          "99214  Office/outpatient visit, established patient, moderate complexity",
 };
 
 const STARTER_TEMPLATES = [
@@ -749,6 +795,7 @@ const STARTER_TEMPLATES = [
       { id: "s_ros",  name: "Review of Systems",            prompt: "Cardiovascular and relevant system review. Note positive and pertinent negative findings." },
       { id: "s_exam", name: "Physical Exam",                prompt: "Vital signs, cardiac and pulmonary exam findings." },
       { id: "s_ap",   name: "Assessment & Plan",            prompt: "List each problem with ICD-10 code and the corresponding plan, including medications, orders, and follow-up." },
+      { id: "s_icd",  name: "ICD Codes", contentSource: "icd", codeTemplateId: "icd_std", ehr: "" },
     ],
     sampleOutput: {
       s_cc:   "Chest tightness × 3 days, exertional, worse with stair climbing.",
@@ -756,6 +803,7 @@ const STARTER_TEMPLATES = [
       s_ros:  "Cardiovascular: chest tightness, exertional dyspnea. Denies palpitations.\nRespiratory: mild dyspnea on exertion. Denies cough or wheezing.\nAll other systems reviewed and negative.",
       s_exam: "BP 142/88 mmHg, HR 76 bpm, regular. Lungs clear to auscultation bilaterally. Heart: regular rate and rhythm, no murmurs, rubs, or gallops.",
       s_ap:   "1. Stable angina — stress test ordered, aspirin 81 mg daily added.\n2. Hypertension — BP elevated; increase lisinopril to 20 mg daily.\n3. Follow up in 2 weeks after stress test results.",
+      s_icd:  "I20.9  Angina pectoris, unspecified\nI10    Essential (primary) hypertension\nE11.9  Type 2 diabetes mellitus without complications",
     },
   },
   {
@@ -836,21 +884,54 @@ function collectEnabledSections(sections) {
 function sectionsFromStarter(starter) {
   if (!starter || !starter.sections) return [];
   return withDefaultPrompts(withDefaultNegatives(
-    starter.sections.map((s) => ({
-      id: s.id,
-      name: s.name,
-      ehr: "",
-      config: "Prepend",
-      enabled: true,
-      macros: [],
-      summarizers: [],
-      staticStart: "",
-      staticEnd: "",
-      expanded: false,
-      stylePrompt: s.prompt || "",
-      defaultNegative: "",
-    }))
+    starter.sections.map((s) => {
+      const contentSource = s.contentSource || "prompt";
+      const isCode = contentSource === "icd" || contentSource === "em";
+      return {
+        id: s.id,
+        name: s.name,
+        ehr: s.ehr || "",
+        config: "Prepend",
+        enabled: true,
+        macros: [],
+        summarizers: [],
+        staticStart: "",
+        staticEnd: "",
+        expanded: false,
+        stylePrompt: isCode ? "" : (s.prompt || ""),
+        defaultNegative: "",
+        contentSource,
+        codeTemplateId: isCode ? (s.codeTemplateId || "") : "",
+        custom: !!s.custom,
+      };
+    })
   ));
+}
+
+// Demo section injected by Tweaks → Code source demo (doesn't require Create → Add section).
+function makeCodeSourceDemoSection(kind, ehr) {
+  const preferred = ((window.CODE_PREFERRED_FIELDS || {})[kind] || {});
+  const hints = preferred[ehr] || preferred.default || [];
+  const isIcd = kind === "icd";
+  return {
+    id: "demo_code_" + kind,
+    name: isIcd ? "ICD Codes" : "EM Codes",
+    custom: true,
+    ehr: hints[0] || "",
+    config: "Prepend",
+    enabled: true,
+    macros: [],
+    summarizers: [],
+    staticStart: "",
+    staticEnd: "",
+    expanded: false,
+    detailsExpanded: false,
+    promptOpen: true,
+    defaultNegative: "",
+    stylePrompt: "",
+    contentSource: kind,
+    codeTemplateId: isIcd ? "icd_std" : "em_std",
+  };
 }
 
 Object.assign(window, {
@@ -879,4 +960,5 @@ Object.assign(window, {
   CODE_GENERATOR_TEMPLATES,
   CODE_PREFERRED_FIELDS,
   collectEnabledSections,
+  makeCodeSourceDemoSection,
 });

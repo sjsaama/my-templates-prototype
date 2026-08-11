@@ -118,6 +118,8 @@ Doctor can submit a request for a section that doesn't exist yet:
 |---|---|
 | Section name | ✅ |
 | Description | ✅ |
+| Content source (AI prompt / ICD / EM) | ✅ |
+| Code generator (when ICD or EM) | ✅ |
 | EHR field hint | ✅ |
 | Is it a subsection? | ✅ |
 | Which templates to add it to | ✅ |
@@ -387,6 +389,10 @@ The section-level inline strip is the primary action surface — the banner is a
 | CharmHealth push activation status | Is CharmHealth push currently live? Automation blocked until templates API available — confirm timeline with KJ. | KJ |
 | DrChrono push activation status | Is DrChrono push currently active for any practices? | Vignesh |
 | Athena rate-limit scope | Is the quota per-practice, per-doctor, or per-API-key? Affects how the error copy is worded. | Vignesh |
+| ICD/EM — who owns `sub_template_ids` / generator choice? | Ops onboarding vs doctor override on My Templates. Prototype allows doctor to pick/change generator. | Vignesh |
+| ICD/EM — ops-managed vs self-serve | Can ops-managed templates expose ICD/EM sections for generator/remap only, or is Add Section the only path? Prototype seeds ICD/EM on default sections and allows generator edit everywhere. | Product |
+| ICD/EM — Cat 3 PDF / Cat 4 no-push | Is code-derived content meaningful when there is no structured diagnosis/EM push? Prototype still generates for copy/paste / auto-map. | Product |
+| ICD/EM — `codeTemplateId` → `sub_template_ids` mapping | Exact contract: one generator id per section → which JSONB entry on `EHRMapping`? | Engineering |
 
 ---
 

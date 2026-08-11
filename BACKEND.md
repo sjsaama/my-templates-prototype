@@ -10,6 +10,20 @@ Per-section settings the doctor can save:
 - `default_negative` — fallback text when section has no content
 - `pre_literal` / `post_literal` — fixed text before/after section on push
 - `push_mode` — prepend / append / replace (AMD only)
+- `content_source` — `prompt` | `icd` | `em` — how section content is produced
+- `code_template_id` — when `content_source` is `icd` or `em`, the generator template id (maps to `EHRMapping.sub_template_ids`; see `ehr_mapping/SHARED_CONFIG.md`)
+
+### ICD / EM code sections
+
+Doctors can create (self-serve) or request (ops review) a section whose content is derived from ICD or EM code generators instead of a free-text prompt. Flow:
+
+1. UI stores `content_source` + `code_template_id` on the section customization (or on the section request payload for ops).
+2. At push time, Lambda resolves `code_template_id` via `EHRMapping.sub_template_ids` and runs the code generator.
+3. Generated content is written to the mapped `ehr_field` (suggested destinations vary by EHR; any field is allowed).
+
+Ops-managed templates may already include ICD/EM sections; doctors can change the generator and remap the destination field. Switching `content_source` between prompt ↔ ICD ↔ EM is a self-serve customization on user-created templates.
+
+Open: whether `content_source` / `code_template_id` live on `doctor_section_customizations`, on `json_template`, or only as ops `sub_template_ids` — needs the same Lambda merge decision as other overrides below.
 
 ---
 
