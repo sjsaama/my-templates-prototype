@@ -58,7 +58,7 @@ Same product idea, two backend paths today — treat as one doctor-facing model:
 - **AMD**: templates are practice-level. Ops fetches field IDs from 2–3 templates per onboarding.
 - **DrChrono**: ICD/CPT fields supported; template API access needed.
 - **CharmHealth**: no templates API. Workaround — create a dummy note, pull it via API, extract field IDs manually. API access shared with Shrutesh; pricing is extra cost, outcome unknown.
-- **Doctor-facing**: picker UI (select from templates), not raw ID entry.
+- **Doctor-facing (all EHRs):** Add Section → content source **ICD codes** or **EM codes** → pick a generator template (stored as `sub_template_ids`) → map generated content to any EHR field. Suggested destinations are highlighted per EHR; Cat 3/4 skip the field picker.
 
 ### Derivative append
 

@@ -36,13 +36,12 @@ function modeTagClass(mode) {
 // ── Mapping picker (right-side drawer) ────────────────────────────────────
 
 function fieldLabel(f) {
-  if (!f) return "";
   const labels = window.EHR_FIELD_LABELS || {};
   const raw = f.split(" > ").pop();
   return labels[raw] || labels[f] || raw;
 }
 
-function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeIt, ehr, onSelect, onClose }) {
+function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeIt, ehr, contentSource, onSelect, onClose }) {
   const [query, setQuery] = useStateR("");
   const [scribeQuery, setScribeQuery] = useStateR("");
   const [pendingEhr, setPendingEhr] = useStateR(currentEhr);
@@ -52,9 +51,57 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
   const ehrCat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
   const isFixedList = ehrCat && ehrCat.fieldSource === "fixed";
   const isCharm = ehr === "Charm";
+  const isCodeSource = contentSource === "icd" || contentSource === "em";
+  const preferredMap = ((window.CODE_PREFERRED_FIELDS || {})[contentSource]) || {};
+  const preferredFields = preferredMap[ehr] || preferredMap.default || [];
 
   const confirm = () => {
     onSelect(sectionId, pendingEhr, isEcw ? pendingScribeIt : undefined);
+  };
+
+  const renderFieldGroups = (groups, selectedVal, onPick, q) => {
+    const filtered = groups.map(g => ({
+      ...g,
+      fields: g.fields.filter(f => {
+        const label = fieldLabel(f);
+        return label.toLowerCase().includes(q.toLowerCase()) || g.group.toLowerCase().includes(q.toLowerCase());
+      }),
+    })).filter(g => g.fields.length > 0);
+
+    let ordered = filtered;
+    if (isCodeSource && preferredFields.length) {
+      const preferredSet = new Set(preferredFields);
+      const preferred = [];
+      const rest = [];
+      filtered.forEach((g) => {
+        const prefFields = g.fields.filter((f) => preferredSet.has(f));
+        const otherFields = g.fields.filter((f) => !preferredSet.has(f));
+        if (prefFields.length) preferred.push({ group: g.group + " · suggested", fields: prefFields });
+        if (otherFields.length) rest.push({ ...g, fields: otherFields });
+      });
+      ordered = [...preferred, ...rest];
+    }
+
+    if (ordered.length === 0) return <div className="mapping-picker-empty">No fields match "{q}"</div>;
+    return ordered.map(g => (
+      <div key={g.group}>
+        <div className="mapping-picker-group-label">{g.group}</div>
+        {g.fields.map(f => {
+          const isSelected = f === selectedVal;
+          const isPreferred = preferredFields.includes(f);
+          return (
+            <button key={f}
+              className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "") + (isPreferred ? " mapping-picker-field--preferred" : "")}
+              onClick={() => onPick(f)}
+            >
+              <span>{fieldLabel(f)}</span>
+              {isPreferred && <span className="mapping-preferred-chip">Suggested</span>}
+              {isSelected && <span className="mapping-picker-check"><I.check /></span>}
+            </button>
+          );
+        })}
+      </div>
+    ));
   };
 
   return (
@@ -78,6 +125,11 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
               <button className="mapping-picker-support-btn" onClick={() => {}}>Contact support</button>
             </div>
           )}
+          {isCodeSource && (
+            <div className="mapping-picker-code-notice">
+              This section derives content from {contentSource === "icd" ? "ICD" : "EM"} codes — map the generated output to an EHR field below.
+            </div>
+          )}
           {pendingEhr && (
             <div className="mapping-picker-current">
               Primary: <span className="mapping-picker-current-val">{isEcw ? pendingEhr : fieldLabel(pendingEhr)}</span>
@@ -94,35 +146,12 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                   value={query} onChange={e => setQuery(e.target.value)} autoFocus />
               </div>
               <div className="mapping-picker-body">
-                {(() => {
-                  const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [];
-                  const filtered = groups.map(g => ({
-                    ...g,
-                    fields: g.fields.filter(f => {
-                      const label = f.split(" > ").pop();
-                      return label.toLowerCase().includes(query.toLowerCase()) || g.group.toLowerCase().includes(query.toLowerCase());
-                    }),
-                  })).filter(g => g.fields.length > 0);
-                  return filtered.length === 0
-                    ? <div className="mapping-picker-empty">No fields match "{query}"</div>
-                    : filtered.map(g => (
-                      <div key={g.group}>
-                        <div className="mapping-picker-group-label">{g.group}</div>
-                        {g.fields.map(f => {
-                          const isSelected = f === pendingEhr;
-                          return (
-                            <button key={f}
-                              className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
-                              onClick={() => setPendingEhr(f)}
-                            >
-                              <span>{fieldLabel(f)}</span>
-                              {isSelected && <span className="mapping-picker-check"><I.check /></span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ));
-                })()}
+                {renderFieldGroups(
+                  (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [],
+                  pendingEhr,
+                  setPendingEhr,
+                  query
+                )}
               </div>
               <div className="mapping-picker-foot">
                 <button className="mapping-picker-clear" onClick={() => setPendingEhr("")}>Clear primary mapping</button>
@@ -181,39 +210,12 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                 value={query} onChange={e => setQuery(e.target.value)} autoFocus />
             </div>
             <div className="mapping-picker-body">
-              {(() => {
-                const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [];
-                const filtered = groups.map(g => ({
-                  ...g,
-                  fields: g.fields.filter(f => {
-                    const q = query.toLowerCase();
-                    const raw = f.split(" > ").pop();
-                    const pretty = fieldLabel(f).toLowerCase();
-                    return raw.toLowerCase().includes(q) || pretty.includes(q) || g.group.toLowerCase().includes(q);
-                  }),
-                })).filter(g => g.fields.length > 0);
-                return filtered.length === 0
-                  ? <div className="mapping-picker-empty">No fields match "{query}"</div>
-                  : filtered.map(g => (
-                    <div key={g.group}>
-                      <div className="mapping-picker-group-label">{g.group}</div>
-                      {g.fields.map(f => {
-                        const isSelected = f === pendingEhr;
-                        return (
-                          <button key={f}
-                            className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
-                            onClick={() => setPendingEhr(f)}
-                          >
-                            <span className="mapping-picker-field-main">
-                              <span>{fieldLabel(f)}</span>
-                            </span>
-                            {isSelected && <span className="mapping-picker-check"><I.check /></span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ));
-              })()}
+              {renderFieldGroups(
+                (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [],
+                pendingEhr,
+                setPendingEhr,
+                query
+              )}
             </div>
             <div className="mapping-picker-foot">
               <button className="mapping-picker-clear" onClick={() => setPendingEhr("")}>Clear mapping — remove EHR destination</button>
@@ -239,6 +241,10 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride 
     background:"#F9FAFB", border:"1px solid #E7E7E9", borderRadius:5,
     padding:"3px 8px", fontSize:12, color:"#444", marginBottom:3,
   };
+  const typeTag = {
+    fontSize:10, color:"#888", background:"#fff", border:"1px solid #E7E7E9",
+    borderRadius:3, padding:"0 4px", marginLeft:2,
+  };
 
   // Item 48: one Marvix section → two EHR fields
   if (demoOverride === "one_to_two") {
@@ -246,14 +252,34 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride 
       <div style={{display:"flex",flexDirection:"column",gap:4}}>
         <div style={chipBase}>
           <span style={{fontSize:11,fontWeight:700,color:"#747AF7"}}>①</span>
-          <span style={{fontWeight:500}}>Assessment &amp; Problem List</span>
+          <span style={{fontWeight:500}}>Assessment &gt; Clinical Notes</span>
         </div>
         <div style={chipBase}>
           <span style={{fontSize:11,fontWeight:700,color:"#747AF7"}}>②</span>
-          <span style={{fontWeight:500}}>Discussion Notes</span>
+          <span style={{fontWeight:500}}>Assessment &gt; Free Text</span>
         </div>
         <div style={{fontSize:11.5,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:4,padding:"3px 8px",marginTop:2}}>
           ⚠ Push order follows section order in the list — drag to change
+        </div>
+      </div>
+    );
+  }
+
+  // Item 49: AMD checkbox + text dual-field
+  if (demoOverride === "amd_checkbox") {
+    return (
+      <div style={{display:"flex",flexDirection:"column",gap:4}}>
+        <div style={chipBase}>
+          <span style={{fontWeight:500}}>CC Text</span>
+          <span style={typeTag}>text</span>
+        </div>
+        <div style={{...chipBase,background:"#fefce8",border:"1px solid #fde68a",color:"#78350f",marginBottom:0}}>
+          <span>☑</span>
+          <span style={{fontWeight:500}}>CC Enable</span>
+          <span style={{...typeTag,border:"1px solid #fde68a",color:"#92400e"}}>checkbox</span>
+        </div>
+        <div style={{fontSize:11.5,color:"#888",marginTop:2}}>
+          Selected from the same field picker — prompt must output one of its allowed values
         </div>
       </div>
     );
@@ -306,8 +332,9 @@ function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, eh
   );
 }
 
-// ── Soft-hidden details panel ─────────────────────────────────────────────
-function InlineAdvPanel({ s, onUpdate }) {
+// ── Soft-hidden details panel — 4 tabs ────────────────────────────────────
+function InlineAdvPanel({ s, onUpdate, ehr }) {
+  const I = window.Icons;
   return (
     <div className="adv">
 
@@ -334,7 +361,34 @@ function InlineAdvPanel({ s, onUpdate }) {
               placeholder='e.g. "Not reported" or "None"'
               onChange={e => onUpdate(s.id, { defaultNegative: e.target.value })} />
           </div>
-          {/* Push setting is AMD-only. Character limit is global-only (template bar) — never local. */}
+          {ehr === "AMD" && s.ehr && (() => {
+            const limit = (window.AMD_CHAR_LIMITS || {})[s.ehr];
+            if (!limit) return null;
+            return (
+              <div className="adv-char-limit">
+                <span className="adv-char-limit-label">AMD field limit</span>
+                <span className="adv-char-limit-val">{limit.toLocaleString()} characters</span>
+              </div>
+            );
+          })()}
+
+          {ehr === "AMD" && (
+            <>
+              <div className="adv-field adv-field--push-mode">
+                <label className="adv-field-label">Push mode</label>
+                <div className="adv-seg-row">
+                  {["Prepend", "Append", "Replace"].map(mode => (
+                    <button key={mode}
+                      className={"seg-btn" + ((s.config || "Prepend") === mode ? " seg-btn--on" : "")}
+                      onClick={() => onUpdate(s.id, { config: mode })}>
+                      {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
       )}
 
@@ -352,10 +406,16 @@ function SectionRow({
   parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo,
 }) {
   const I = window.Icons;
+  if (s.ghost) return null;
   const [popover, setPopover] = useStateR(null);
 
   const hasMacros = !!(s.macros && s.macros.length);
   const hasSums = !!(s.summarizers && s.summarizers.length);
+  const contentSource = s.contentSource || "prompt";
+  const isCodeSource = contentSource === "icd" || contentSource === "em";
+  const codeTemplates = ((window.CODE_GENERATOR_TEMPLATES || {})[contentSource]) || [];
+  const codeTemplate = codeTemplates.find((t) => t.id === s.codeTemplateId);
+  const sourceMeta = ((window.CODE_CONTENT_SOURCES || []).find((c) => c.id === contentSource));
 
   const togglePopover = (key) => setPopover(p => p === key ? null : key);
 
@@ -369,6 +429,7 @@ function SectionRow({
   // Dual-mapping demo override — applies to "Assessment & Plan" only
   const demoOverride =
     dualMappingDemo === "one_to_two" && s.name === "Assessment & Plan" ? "one_to_two" :
+    dualMappingDemo === "amd_checkbox" && s.name === "Assessment & Plan" ? "amd_checkbox" :
     null;
 
   const rowCls = [
@@ -419,10 +480,15 @@ function SectionRow({
               onClick={(e) => e.stopPropagation()}
               aria-label="Section header"
             />
-            {s.codeSource === "icd" && <span className="mapping-type-tag" title="icd10_codes absorbed into this section">ICD</span>}
-            {s.codeSource === "cpt" && <span className="mapping-type-tag" title="cpt_codes absorbed into this section">CPT</span>}
-            {s.codeSource === "em" && <span className="mapping-type-tag" title="Legacy EM — treat as CPT (cpt_codes)">CPT</span>}
             <div className="name-icons" style={{position:"relative"}}>
+              {isCodeSource && (
+                <span
+                  className={"content-source-chip content-source-chip--" + contentSource}
+                  title={sourceMeta ? sourceMeta.hint : (contentSource === "icd" ? "Derived from ICD codes" : "Derived from EM codes")}
+                >
+                  {contentSource === "icd" ? "ICD" : "EM"}
+                </span>
+              )}
               {/* Macros icon */}
               <button type="button"
                 className={"row-icon-btn" + (hasMacros ? " row-icon-btn--active" : "") + (popover === "macros" ? " row-icon-btn--open" : "")}
@@ -509,7 +575,7 @@ function SectionRow({
         )}
         {/* Actions */}
         <div className="row-actions">
-          {canEditPrompt && (
+          {canEditPrompt && !isCodeSource && (
             <button
               type="button"
               className={"row-icon-btn row-icon-btn--prompt" + (s.stylePrompt ? " row-icon-btn--active" : "") + (promptOpen ? " row-icon-btn--open" : "")}
@@ -519,6 +585,17 @@ function SectionRow({
             >
               Prompt
               {!s.stylePrompt && <span className="row-prompt-missing" title="No prompt written yet">!</span>}
+            </button>
+          )}
+          {canEditPrompt && isCodeSource && (
+            <button
+              type="button"
+              className={"row-icon-btn row-icon-btn--prompt row-icon-btn--active" + (promptOpen ? " row-icon-btn--open" : "")}
+              onClick={() => onTogglePrompt(s.id)}
+              title={promptOpen ? "Hide code source" : "View code source"}
+              aria-expanded={promptOpen}
+            >
+              {contentSource === "icd" ? "ICD source" : "EM source"}
             </button>
           )}
           {s.custom && (
@@ -556,26 +633,17 @@ function SectionRow({
             <span className="row-push-error-msg">{pushIssue.msg}</span>
           </div>
           <div className="row-push-error-actions">
-            {(() => {
-              const actions = (window.pushIssueActions || (() => ({})))(pushIssue);
-              return (
-                <>
-                  {actions.remap && hasOutputSettings && (
-                    <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
-                  )}
-                  {actions.gotIt && (
-                    <button className="row-push-error-dismiss">Got it</button>
-                  )}
-                  {actions.support && (
-                    <button className="row-push-error-support">Contact support</button>
-                  )}
-                </>
-              );
-            })()}
+            {(pushIssue.type === "mapping_broken") && hasOutputSettings && (
+              <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
+            )}
+            {pushIssue.selfServe
+              ? <button className="row-push-error-dismiss">Got it</button>
+              : <button className="row-push-error-support">Contact support</button>
+            }
           </div>
         </div>
       )}
-      {promptOpen && (
+      {promptOpen && !isCodeSource && (
         <div className="row-prompt-panel">
           <label className="row-prompt-label">
             Prompt
@@ -590,7 +658,37 @@ function SectionRow({
           />
         </div>
       )}
-      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} />}
+      {promptOpen && isCodeSource && (
+        <div className="row-prompt-panel row-prompt-panel--code">
+          <label className="row-prompt-label">
+            {contentSource === "icd" ? "ICD" : "EM"} code source
+            <span className="row-prompt-label-hint">— content is derived from codes, then mapped to the EHR field</span>
+          </label>
+          <div className="code-source-panel">
+            <div className="code-source-panel-row">
+              <span className="code-source-panel-k">Generator</span>
+              <select
+                className="code-source-panel-select"
+                value={s.codeTemplateId || ""}
+                onChange={(e) => onUpdate(s.id, { codeTemplateId: e.target.value })}
+              >
+                <option value="" disabled>Select generator…</option>
+                {codeTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            {codeTemplate && (
+              <div className="code-source-panel-desc">{codeTemplate.description}</div>
+            )}
+            <div className="code-source-panel-sample">
+              <span className="code-source-panel-k">Sample output</span>
+              <pre className="code-source-panel-pre">{((window.SAMPLE_CODE_OUTPUT || {})[contentSource]) || "—"}</pre>
+            </div>
+          </div>
+        </div>
+      )}
+      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} ehr={ehr} />}
     </div>
   );
 
@@ -622,7 +720,7 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
   const isDragging = dragId === s.id;
   const dropBefore = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'before');
   const dropAfter = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'after');
-  const isDuplicate = !!s.ehr && (ehrCounts[s.ehr] || 0) > 1;
+  const isDuplicate = !s.ghost && !!s.ehr && (ehrCounts[s.ehr] || 0) > 1;
   const isLast = index === siblings.length - 1;
 
   const nodes = [
@@ -678,7 +776,7 @@ function SectionTable({
       return null;
     };
     const sec = findByName(sections);
-    if (sec) setMappingPanel({ sectionId: sec.id, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "" });
+    if (sec) setMappingPanel({ sectionId: sec.id, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "", contentSource: sec.contentSource || "prompt" });
     onRemapTargetHandled && onRemapTargetHandled();
   }, [remapTarget]);
 
@@ -686,7 +784,7 @@ function SectionTable({
   const ehrCounts = {};
   const walkEhr = (list) => {
     for (const s of list) {
-      if (s.ehr) ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
+      if (!s.ghost && s.ehr) ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
       if (s.children) walkEhr(s.children);
     }
   };
@@ -695,7 +793,7 @@ function SectionTable({
   const openMapping = (sectionId) => {
     const sec = findSecR(sections, sectionId);
     if (!sec) return;
-    setMappingPanel({ sectionId, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "" });
+    setMappingPanel({ sectionId, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "", contentSource: sec.contentSource || "prompt" });
   };
 
   const pickEhr = (sectionId, ehrVal, scribeIt) => {
@@ -782,6 +880,7 @@ function SectionTable({
           sectionName={mappingPanel.sectionName}
           currentEhr={mappingPanel.currentEhr}
           currentScribeIt={mappingPanel.currentScribeIt}
+          contentSource={mappingPanel.contentSource}
           ehr={ehr}
           onSelect={pickEhr}
           onClose={() => setMappingPanel(null)}

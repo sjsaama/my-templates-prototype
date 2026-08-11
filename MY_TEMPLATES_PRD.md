@@ -99,7 +99,7 @@ Setting is **template-level**, not user-level. Whether content is pushed as a no
 | Mechanism | What it is |
 |---|---|
 | Append other derivative | A section can pull content from a derivative template (e.g. a summary template) and append it to the main note on push. Mechanism TBD — needs clarification from Vignesh. |
-| ICD / EM code mapping | Uses template ID in the mapping editor — a **separate mechanism** from append-other-derivative. ICD/CPT fields are not in the standard mapping table. |
+| ICD / EM code mapping | **Available for all EHRs.** When adding a section, the doctor chooses a content source: AI prompt, ICD codes, or EM codes. For ICD/EM, they pick a code generator template (maps to backend `sub_template_ids`) and map the generated content to an EHR field. Suggested destinations are highlighted per EHR (e.g. Veradigm `ICD`, DrChrono `icd10_codes` / `cpt_codes`, AthenaOne `billingnotes`, eCW `EM:`), but any field can be chosen. Cat 3/4 skip the field picker — content is still generated for auto-map or copy/paste. |
 | One section → two EHR fields | A single logical section (e.g. chief complaint) may map to two separate EHR destination fields — confirmed for AMD (checkbox field + text field). Both fields are mapped independently. For non-checkbox pairs, ordering may matter for how the EHR renders them — handling TBD. See open questions. |
 | Two sections → same EHR field | Multiple Marvix sections can share the same EHR destination field. This is valid and supported. Content from all mapped sections is combined in section order. The UI shows a neutral "Shared" label on the mapping chip (not a warning). |
 | First-line heading omit | Whether the first line (section heading) is stripped before push. Configurability unconfirmed — see open questions. |
@@ -134,17 +134,15 @@ These decisions were made during prototype review and should be treated as locke
 
 - **Template meta:** EHR system and derivative type shown as chip badges in the editor header — not text labels.
 - **Save / Reset buttons:** Live in the header row alongside the template title. No separate toolbar bar.
-- **"Request New Section" button:** Header, right side — **ops-managed only**. Self-serve templates use **+ Add section** instead.
-- **"+ Add section" button:** Only shown for user-created (self-serve) templates. Hidden for ops-managed templates where the section structure is controlled by ops.
+- **"Request New Section" button:** Header, right side — only shown for user-created (self-serve) templates. Ops-managed templates do not show this button.
+- **"+ Add section" button:** Only shown for user-created templates. Hidden for ops-managed templates where the section structure is controlled by ops.
+- **Content source on add:** Every EHR gets the same three options — **AI prompt**, **ICD codes**, or **EM codes**. Prompt sections require a free-text instruction. ICD/EM sections require a generator template and (for Cat 1/2) an EHR field mapping. Rows show an ICD/EM chip; the prompt button becomes "ICD source" / "EM source" to change the generator.
 - **"Request from ops" (sidebar):** Simplified to a plain ghost text link — no subtitle, no secondary line.
-- **Ownership:** Template list tabs for Ops-managed / Self-serve; header shows ownership badge + short hint.
-- **Reset to default:** **Ops-managed only** — not shown on self-serve (no ops default to restore).
-- **Prompt:** Inline on each row — **self-serve only** (editable). Hidden on ops-managed. Shows a `!` indicator if no prompt has been written yet.
 
 ### Section row
 
 - **Macro / summarizer icons:** Labeled `M` (macros) and `S` (summarizers). Not symbols. Active state shown with a dot indicator when at least one item is connected.
-- **Prompt button:** Inline on each row — labeled "Prompt". **Self-serve only** (hidden on ops-managed). Shows a `!` indicator if no prompt has been written yet.
+- **Prompt button:** Inline on each row — labeled "Prompt". Shows a `!` indicator if no prompt has been written yet.
 - **Output settings button (sliders):** Only shown for Cat 1 and Cat 2 EHRs. Hidden for Cat 3 and Cat 4 — there is nothing to configure.
 - **Remap button on push error strip:** Only shown for Cat 1 / Cat 2 EHRs (where remap is possible). Cat 3 / Cat 4 error strips show "Contact support" only.
 
@@ -181,7 +179,7 @@ Fields come from the doctor's EHR note template. The field list is populated at 
 | EHR | Format | Remap / refresh behavior |
 |---|---|---|
 | AMD | `Page Name > Field Name` | Push mode (prepend/append/replace) and character limit shown in output settings. Doctor can remap freely from the field list. |
-| DrChrono | Snake_case field names | ICD/CPT fields handled separately — not in mapping table. Doctor can remap. |
+| DrChrono | Snake_case field names | ICD/EM code sections use a separate content source (generator + field map). Doctor can still remap freely, including to `icd10_codes` / `cpt_codes`. |
 | CharmHealth | `entry_chart_section` value if set, otherwise field name | Field list cannot be re-fetched. Doctor can remap from the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh. |
 
 > **Design decision:** EHR field fetching is not part of the creation flow. After a Cat 2 template is created, the doctor opens it in the editor and fetches fields there — a "Fetch fields from [EHR]" action inside the template editor, not a creation step. The creation flow is identical for all EHR categories. CharmHealth cannot re-fetch — the editor shows an amber notice explaining this, with a "Contact support" button.
@@ -271,23 +269,18 @@ The section-level inline strip is the primary action surface — the banner is a
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
-| Encounter check-in not complete | Doctor | ✅ Yes | "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again." | Self-serve — **Got it**, finish check-in / Go to Exam, retry (`athena_checkin`) |
-| Per-section push failure / wrong `ehr_field_name` | Ops mapping / EHR | ✅ Yes | "One or more sections failed to push. Support has been notified." + Remap | Remap from fixed 9-field list + Contact support (`athena_section`) |
+| Encounter check-in not complete | Doctor | ✅ Yes | "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again." | Self-serve — retry after check-in |
+| Per-section push failure | Ops mapping / EHR | ✅ Yes | "One or more sections failed to push. Support has been notified." + Remap button | Ops reviews field mapping; doctor can remap |
 | Quota exceeded / token refresh | EHR rate limit / auth | ✅ Yes | "Push is temporarily unavailable — we'll retry automatically. If this keeps happening, contact support." | Auto-retry; ops if persistent. ⚠️ Confirm Athena rate-limit scope before finalizing copy. |
-| Transient API 500 | Athena infra | ✅ Yes | "Something went wrong on Athena's end — we'll retry automatically." | Auto-retry; ops if persistent. Observed as burst (48 errors on 2026-07-27 — likely outage). Prototype: `athena_transient` |
-| Auth token empty | Auth / creds | ✅ Yes | "Push failed due to an authentication issue. Contact support." | Ops refreshes credentials. Prototype: `athena_auth` |
-
-> **Prototype branch:** `cursor/athenaone-ehr-b63b` locks My Templates to AthenaOne (Cat 1). Mapping picker shows human-readable labels for the 9 encounter fields; no Push setting; no Connect EHR on create. See `ehr_mapping/AthenaOne.md`.
+| Transient API 500 | Athena infra | ✅ Yes | "Something went wrong on Athena's end — we'll retry automatically." | Auto-retry; ops if persistent. Observed as burst (48 errors on 2026-07-27 — likely outage) |
+| Auth token empty | Auth / creds | ✅ Yes | "Push failed due to an authentication issue. Contact support." | Ops refreshes credentials |
 
 **ECW**
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
-| Note text push failure (HL7 ORU) | Any | ❌ Undetectable | Nothing — Lambda gets a 200 from S3; ECW processes asynchronously with no callback | Ops spot-checks chart; doctor can Remap if ops flags a wrong shortcut |
-| Order section push failure (lab, rx, referral, imaging, procedure, vaccine) | Ops config | ⚠️ Partial — surfaces as WARNING in Lambda logs | If promoted to in-app: "Couldn't find any Orders of type: … Support has been notified." | Ops fixes order type config — Contact support (Remap of note fields will not fix) |
-| Wrong Scribe-it paste target | Doctor / mapping | ❌ Manual only | Doctor may notice wrong field in eCW | Remap Scribe-it destination |
-
-> **Footnote:** “All ECW failures undetectable” is overstated. **Note text** HL7 failures remain undetectable (S3 200 ≠ ECW accept). **Order-section** failures (~2,100 WARNINGs over 3 months — see `EHR_PUSH_FAILURE_LOG_ANALYSIS.md`) do surface in Lambda.
+| Note text push failure | Any | ❌ Undetectable | Nothing — Lambda gets a 200 regardless; ECW processes silently | Ops investigates manually |
+| Order section push failure (lab, rx, referral, imaging, procedure, vaccine) | Ops config | ⚠️ Partial — surfaces as WARNING in Lambda logs, not visible to doctor | Nothing | Ops fixes order type config |
 
 **Veradigm**
 
@@ -372,7 +365,7 @@ The section-level inline strip is the primary action surface — the banner is a
 
 | EHR | What's undetectable |
 |---|---|
-| ECW | Note *text* HL7 failures — Lambda gets a 200 from S3 regardless; order-section WARNINGs are a separate path (see ECW table footnote) |
+| ECW | All note text failures — Lambda gets a 200 regardless |
 | DrChrono | All field-level failures — `save_note` swallows all exceptions |
 | CharmHealth | SOAP mode failures — no per-field errors returned |
 | Centricity (AthenaFlow) | ⚠️ Silently accepts mismatched field names — push appears to succeed even when content goes to the wrong field. Unresolved gap. |
@@ -451,10 +444,10 @@ This is separate from template management (the core v1 feature). Doctors who wan
 5. In the editor, each section row shows the fixed field list in the mapping picker. Doctor maps each section to the appropriate field.
 
 **What's different from ops-managed templates:**
-- Doctor can remap any section freely from the hardcoded list (AthenaOne: 9 labeled encounter fields; eCW: Primary + optional Scribe-it)
+- Doctor can remap any section freely from the hardcoded list
 - Doctor can edit per-section prompts
 - Doctor can add or delete sections (up to the EHR's field count cap)
-- **Request New Section** / **Reset to default** stay on **ops-managed** templates; self-serve uses **+ Add section** instead of Request
+- Doctor can request new sections from ops
 
 ---
 
