@@ -407,9 +407,10 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
   }, [gallerySelection]);
 
   const ehrCat = (window.EHR_CATEGORY || {})[ehr];
-  const ehrLabel = (ehrCat && ehrCat.label) || ehr || "your EHR";
-  // Connect EHR: Cat 2 self-serve create only (AMD branch always Cat 2).
-  const needsConnectEhr = ehr === "AMD" || !!(ehrCat && ehrCat.cat === 2);
+  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
+  const ehrLabel = caps.label || ehr || "your EHR";
+  // Connect EHR: Cat 2 self-serve create only.
+  const needsConnectEhr = !!caps.needsConnectEhr;
   const totalSteps = needsConnectEhr ? 4 : 3;
   const reviewStep = totalSteps;
   const connectStep = needsConnectEhr ? 3 : null;
@@ -454,7 +455,7 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
           <h2>Create a template</h2>
           <span className="modal-sub">
             {needsConnectEhr
-              ? "Self-serve — pick an AMD note template so field mapping uses your EHR fields"
+              ? "Self-serve — pick a " + ehrLabel + " note template so field mapping uses your EHR fields"
               : "You'll configure sections and EHR mapping after creation"}
           </span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
