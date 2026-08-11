@@ -5,8 +5,6 @@ Per-EHR docs for the Extra Fields YAML used in the ops portal (`/v5/update_ehr_m
 See [SHARED_CONFIG.md](SHARED_CONFIG.md) for config keys and `append_other_derivatives_v2` that apply to all EHRs.
 See [PROPERTY_CHANGE_IMPACT.md](PROPERTY_CHANGE_IMPACT.md) for what breaks when template or section properties change, per EHR.
 See [ERROR_UX.md](ERROR_UX.md) for the error detection, popup, and self-service remap UX spec.
-See [CATEGORY_3.md](CATEGORY_3.md) for Cat 3 shared model (Cerner / ModMed — no field mapping, template connection required).
-See [Nereg.md](Nereg.md) for Cat 2 locked auto-mapping UI (connect template, no doctor remap).
 
 ---
 
@@ -30,21 +28,15 @@ Fields come from the doctor's EHR template. Portal needs a "fetch template" / Co
 | CharmHealth | [CharmHealth.md](CharmHealth.md) | `ehr_field_id` | Remap from existing list (no re-fetch) |
 | Nereg | [Nereg.md](Nereg.md) | None — auto from section `key_name` | **Locked** — no picker / no remap; fix via `key_name` + connected template |
 
-## Category 3 — Auto push, no field mapping (template connection required)
+## Category 3 — Auto push, no field mapping
+Note pushed automatically. No mapping rows or dropdown. Ops may define section names in YAML but no template fetch is needed.
 
-No per-section field mapping / dropdown. Destination template / document connection in the EHR is still required. Self-serve Connect EHR presentation is an **open question** — see [CATEGORY_3.md](CATEGORY_3.md)#open-questions.
-
-| EHR | File | How note is pushed | Subtle difference |
-|---|---|---|---|
-| Cerner | [Cerner.md](Cerner.md) | Whole note as PDF via FHIR `DocumentReference` | `ehr_template_name` → PDF filename in chart |
-| ModMed | [ModMed.md](ModMed.md) | Whole note as PDF via FHIR `Binary` + S3 + `DocumentReference` | Same PDF outcome as Cerner; encounter lookup can silently omit encounter link |
+| EHR | File | How note is pushed |
+|---|---|---|
+| Cerner | [Cerner.md](Cerner.md) | Whole note as PDF via FHIR `DocumentReference` |
+| ModMed | [ModMed.md](ModMed.md) | Whole note as PDF via FHIR `DocumentReference` |
 
 ## Category 4 — No push capability
 Marvix generates the note but cannot push it. Doctor copies manually. App should show "Copy Note" prompt.
 
-| EHR | File | Status |
-|---|---|---|
-| Athena (legacy) | [Athena_Legacy.md](Athena_Legacy.md) | `save_note` returns `False` — read-only |
-| ECW FHIR | [ECW_FHIR.md](ECW_FHIR.md) | `save_note` stub — auth and note-read implemented, push not |
-| Greenway (Prime Suites) | [Greenway.md](Greenway.md) | On-prem — no cloud API; stub not implemented. ⚠️ Unconfirmed — verify with Vignesh. |
-| Tebra | [Tebra.md](Tebra.md) | `save_note` is empty stub — not implemented. Moved from Cat 3. |
+No EHRs are assigned here yet. EHRs confirmed to have **no push capability** will be listed in this section.

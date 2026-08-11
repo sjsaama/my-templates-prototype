@@ -1,6 +1,6 @@
 // rows.jsx — simplified edit-mode section table
 // User controls: reorder (drag-and-drop) + EHR mapping. Everything else is soft-hidden / read-only.
-const { useState: useStateR, useState: useStateAdv, useEffect: useEffectRow } = React;
+const { useState: useStateR, useState: useStateAdv } = React;
 
 // ── Local utility ──────────────────────────────────────────────────────────
 function findSecR(sections, id) {
@@ -410,18 +410,10 @@ function SectionRow({
   const hasKids = !!(s.children && s.children.length);
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
-  const ehrCatMeta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
-  const ehrRowCat = ehrCatMeta.cat;
-  // Nereg is Cat 2 but locked auto-map — no per-section output settings / remap.
-  const lockedAutoMap = ehrCatMeta.fieldSource === "auto" || ehrCatMeta.canRemap === false;
-  const hasOutputSettings = (ehrRowCat === 1 || ehrRowCat === 2) && !lockedAutoMap;
+  const ehrRowCat = ((window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {}).cat;
+  const ehrRowMeta = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
+  const hasOutputSettings = (ehrRowCat === 1 || ehrRowCat === 2) && ehrRowMeta.fieldSource !== "auto" && ehrRowMeta.canRemap !== false;
   const promptOpen = !!s.promptOpen;
-  const [nameDraft, setNameDraft] = useStateR(s.name);
-  const [showRenameWarn, setShowRenameWarn] = useStateR(false);
-  const autoMapKey = s.autoMapKey || s.keyName || s.name;
-
-  // Keep draft in sync when section identity/name changes from outside
-  useEffectRow(() => { setNameDraft(s.name); }, [s.id, s.name]);
 
   // Dual-mapping demo override — applies to "Assessment & Plan" only
   const demoOverride =
@@ -472,25 +464,11 @@ function SectionRow({
           <div className="namecell">
             <input
               className="sname-input"
-              value={nameDraft}
-              onChange={(e) => {
-                setNameDraft(e.target.value);
-                if (lockedAutoMap && e.target.value.trim() !== autoMapKey) setShowRenameWarn(true);
-                else if (lockedAutoMap && e.target.value.trim() === autoMapKey) setShowRenameWarn(false);
-              }}
-              onBlur={() => {
-                const next = nameDraft.trim() || s.name;
-                if (next !== s.name) onUpdate(s.id, { name: next });
-                if (lockedAutoMap && next !== autoMapKey) setShowRenameWarn(true);
-              }}
+              value={s.name}
+              onChange={(e) => onUpdate(s.id, { name: e.target.value })}
               onClick={(e) => e.stopPropagation()}
               aria-label="Section header"
             />
-            {lockedAutoMap && showRenameWarn && (
-              <div className="nereg-rename-warn">
-                Renaming this section may break Nereg auto-mapping. Field mapping can’t be changed in the app — keep the name matched to the Nereg field, or contact support.
-              </div>
-            )}
             <div className="name-icons" style={{position:"relative"}}>
               {/* Macros icon */}
               <button type="button"
@@ -537,12 +515,11 @@ function SectionRow({
             </div>
           </div>
         </div>
-        {/* EHR Mapping — Cat 3 PDF auto-label, or Cat 2 locked auto-map (Nereg).
-            Template/document connection is template-level, not this cell. */}
+        {/* EHR Mapping */}
         <div className="row-mapping">
           {(() => {
             const cat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
-            if (cat && (cat.cat === 3 || cat.fieldSource === "auto" || cat.canRemap === false) && cat.autoMsg) return (
+            if (cat && (cat.cat === 3 || cat.fieldSource === "auto")) return (
               <span className="mapping-auto-label" title={cat.autoMsg}>{cat.autoMsg}</span>
             );
             if (cat && cat.cat === 4) return (
@@ -626,7 +603,7 @@ function SectionRow({
             <span className="row-push-error-msg">{pushIssue.msg}</span>
           </div>
           <div className="row-push-error-actions">
-            {(pushIssue.type === "mapping_broken") && hasOutputSettings && !lockedAutoMap && (
+            {(pushIssue.type === "mapping_broken") && hasOutputSettings && (
               <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
             )}
             {pushIssue.selfServe

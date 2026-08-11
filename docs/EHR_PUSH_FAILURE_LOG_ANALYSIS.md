@@ -82,7 +82,7 @@ Zero log records confirms the blind spot. Failures exist but are invisible witho
 
 ---
 
-### Veradigm, Cerner, ModMed, Tebra, Centricity, Nereg, Greenway — 0 records
+### Veradigm, Cerner, ModMed, Centricity, Nereg — 0 records
 
 No errors found in 3 months. Either very stable or very low push volume. PRD scenarios remain theoretical.
 
