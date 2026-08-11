@@ -774,12 +774,34 @@ function collectEnabledSections(sections) {
   return result;
 }
 
+// Turn a starter stencil into editor sections so self-serve create never starts blank.
+function sectionsFromStarter(starter) {
+  if (!starter || !starter.sections) return [];
+  return withDefaultPrompts(withDefaultNegatives(
+    starter.sections.map((s) => ({
+      id: s.id,
+      name: s.name,
+      ehr: "",
+      config: "Prepend",
+      enabled: true,
+      macros: [],
+      summarizers: [],
+      staticStart: "",
+      staticEnd: "",
+      expanded: false,
+      stylePrompt: s.prompt || "",
+      defaultNegative: "",
+    }))
+  ));
+}
+
 Object.assign(window, {
   TEMPLATES,
   groupsFor,
   ECW_SCRIBEIT_FIELDS,
   EHR_FIELD_LABELS,
   makeSections,
+  sectionsFromStarter,
   INITIAL_PENDING_REQUESTS,
   sectionImpact,
   amdPushDetail,
