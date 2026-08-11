@@ -2,56 +2,37 @@
 
 Per-section config options. Every key here lives in the Extra Fields YAML for a mapping row — one row = one section. Some keys go inside the `config:` sub-object; the rest are top-level in the YAML. Both are read by `section_text_builder.py` at push time.
 
-> **Category 3 (Cerner, ModMed):** No per-section Extra Fields YAML / field mapping rows — most keys below do not apply. Destination template / document connection is still required; self-serve Connect EHR UI is an **open question** ([CATEGORY_3.md](CATEGORY_3.md)#open-questions).
->
-> **Nereg (Category 2, locked auto-mapping):** No doctor-editable Extra Fields YAML; formatting keys are hardcoded in push logic. Connect EHR template like other Cat 2 EHRs, but doctors cannot change mapping — see [Nereg.md](Nereg.md).
-
 ---
 
 ## Common — applies to all push EHRs
 
-> **Planned — Template Settings:** The keys `separator`, `char_limit`, `push_subsections`, `retain_headings`, `skip_empty_subsections`, and `line_separator` are being promoted from per-section YAML to a global **Template Settings** level. **Push setting** (`append` / `prepend` / overwrite) is a template default applied to each section and overridable locally. **Character limit** (`char_limit`, informed by AMD `max_character_length`) is **global only** — no per-section value. Doctors will set globals once per template rather than only per mapping row. The per-section YAML path remains the source of truth until migration is complete.
+> **Planned — Template Settings:** The keys `separator` (section + subsection), `char_limit`, `push_subsections`, `retain_headings`, `skip_empty_subsections`, `line_separator` (ECW HL7; Veradigm uses hardcoded `\r\n`), and `keep_bullet_points` are **global template settings** — doctors set them once per template, not in the per-section content-shaping panel. See [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md) → Template-level settings. The per-section YAML path remains the source of truth until migration is complete.
 
 ### How subsections are combined into one EHR field
 These three work together: first decide whether to include subsections, then whether to label them, then what to put between them.
 
-Product UI distinguishes two separator roles (both may map to `config.separator` / Template Settings today; naming may split later):
-
-| UI label | Used when |
-|---|---|
-| **Section separator** | Two+ **parent** sections map to the same EHR field (shared-field join). Order of parents in the Marvix UI list is push order. |
-| **Subsection separator** | **Child** sections under one parent are joined into one field. |
-
 | Key | Where in YAML | Type | Default | What it does | Doctor-facing? |
 |---|---|---|---|---|---|
 | `push_subsections` | `config.push_subsections` | Boolean | true | Include child subsections in the pushed text. If false, only the parent section's own text is pushed — subsections are ignored. | Yes — Cat 1 + Cat 2, parent sections. **→ Moving to Template Settings** |
-| `retain_headings` | `config.retain_headings` | Boolean | false | Prefix each subsection's content with its name (e.g. "Onset: …"). Only applies when `push_subsections` is true. | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings** |
-| `separator` | `config.separator` | Text | `\n` | Text inserted between joined blocks. Role depends on join type: **section separator** (parents sharing a field) or **subsection separator** (children under one parent). Only applies when joining is on (`push_subsections` / shared field). | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings** |
+| `retain_headings` | `config.retain_headings` | Boolean | false | When joining sections/subsections into one EHR field, prefix each block with its name (e.g. "Onset: …"). Off = omit headings (same intent as “first-line heading omit”). Only applies when `push_subsections` is true. | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings (global)** |
+| `separator` | `config.separator` | Text | `\n` | Text inserted between subsections when joined into one block. Only applies when `push_subsections` is true. | Yes — Cat 1 + Cat 2, parent sections. **→ Moving to Template Settings** |
 | `skip_separator_between_children` | top-level | Boolean | false | Use no separator between child subsections — tighter spacing. Overrides `separator` at the child level. | Yes — Cat 1 + Cat 2, parent sections |
 | `skip_empty_subsections` | `config.skip_empty_subsections` | Boolean | false | Exclude subsections that have no generated content from the joined output. | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings** |
 
 ### Content shaping
 | Key | Where in YAML | Type | Default | What it does | Doctor-facing? |
 |---|---|---|---|---|---|
-| `keep_bullet_points` | top-level | Boolean | false | Keep bullet characters in pushed text. By default bullets are stripped before push. | Yes — all push EHRs |
+| `keep_bullet_points` | top-level | Boolean | false | Keep bullet characters in pushed text. By default bullets are stripped before push. | Yes — all push EHRs. **→ Moving to Template Settings (global)** |
 | `pre_literal` | top-level | Text | — | Fixed text prepended before section content on push (supports unicode escapes e.g. `•` for `•`). Skipped if already present in target field. | Yes — all push EHRs |
 | `post_literal` | top-level | Text | — | Fixed text appended after section content on push. Planned — not yet in codebase. | Yes — all push EHRs |
 | `default_negative` | top-level | Text | — | Text pushed when the section has no generated content (e.g. "Not reported"). Without this, empty sections push nothing. | Yes — all push EHRs |
-| `char_limit` | `config.char_limit` | Number | — | Truncates pushed text to N characters. **→ Global Template Setting only** (no per-section override). For AMD, informed by auto-fetched per-field `max_character_length`. | Yes — template settings only |
+| `char_limit` | `config.char_limit` | Number | — | Truncates pushed text to N characters. Limit is set by the EHR field, not the doctor. **→ Moving to Template Settings** | Read-only display only |
 
-### Push setting / write mode (where EHR supports read-before-write)
-
-Doctor-facing UI combines these into **one Push setting**: Insert before / Insert after / Overwrite.
-
-**Hierarchy (AMD):** set globally on the template → applied to each section as the default → any section can override locally.
-
-**Doctor UI:** **AMD only** today. Backend may still use `append`/`prepend` for DrChrono (and AthenaOne) via YAML/ops — not exposed in My Templates for those EHRs.
-
+### Write mode (where EHR supports read-before-write)
 | Key | Where in YAML | Type | Default | What it does | Doctor-facing? |
 |---|---|---|---|---|---|
-| `append` | `config.append` | Boolean | false | Append Marvix content after existing content already in the EHR field (= Insert after) | Yes — **AMD only** (Push setting). Backend also used for DrChrono / AthenaOne via YAML |
-| `prepend` | `config.prepend` | Boolean | false | Prepend Marvix content before existing content already in the EHR field (= Insert before) | Yes — **AMD only** (Push setting). Backend also used for DrChrono / AthenaOne via YAML |
-| *(neither)* | — | — | — | Overwrite / replace existing EHR field content | Yes — same AMD Push setting control |
+| `append` | `config.append` | Boolean | false | Append Marvix content after existing content already in the EHR field | Yes — AMD, AthenaOne, DrChrono only |
+| `prepend` | `config.prepend` | Boolean | false | Prepend Marvix content before existing content already in the EHR field | Yes — AMD, AthenaOne, DrChrono only |
 
 ---
 
@@ -66,18 +47,20 @@ Doctor-facing UI combines these into **one Push setting**: Insert before / Inser
 
 ---
 
-## Sub-template IDs
+## Pull from another template
 
-`sub_template_ids` is a JSONB column on `EHRMapping` — not a YAML key. Updated via ops endpoint `/update_ehr_mapping_subtemplates`. Used for template-driven fields like ICD / CPT codes where the doctor selects from available templates rather than pushing free text.
+Same product idea, two backend paths today — treat as one doctor-facing model: **content from another Marvix template is attached to a section on this template and mapped to an EHR destination.**
+
+### Sub-template IDs (ICD / CPT / EM, etc.)
+
+`sub_template_ids` is a JSONB column on `EHRMapping` — not a YAML key. Updated via ops endpoint `/update_ehr_mapping_subtemplates`. Used when the source is a code/sub-template rather than free text.
 
 - **AMD**: templates are practice-level. Ops fetches field IDs from 2–3 templates per onboarding.
 - **DrChrono**: ICD/CPT fields supported; template API access needed.
 - **CharmHealth**: no templates API. Workaround — create a dummy note, pull it via API, extract field IDs manually. API access shared with Shrutesh; pricing is extra cost, outcome unknown.
 - **Doctor-facing**: picker UI (select from templates), not raw ID entry.
 
----
-
-## Derivative append
+### Derivative append
 
 | YAML key | Type | What it does |
 |---|---|---|
@@ -90,6 +73,8 @@ append_other_derivatives_v2:
 ```
 
 > Spacing between main content and appended derivative is controlled by `config.separator`. `separator` is **not** valid inside this list.
+
+> **PRD:** Do not present derivative append and ICD/CPT/EM as unrelated features — both are “pull from another template into this section.” Unify UX pending Vignesh + Nandini.
 
 ---
 

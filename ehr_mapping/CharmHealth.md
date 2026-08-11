@@ -1,5 +1,10 @@
 # EHR Mapping — CharmHealth
 
+## Category
+**Category 2 — Flexible field list.** Fields come from the doctor's CharmHealth template. Re-fetch not available — remap from existing list or Contact support.
+
+---
+
 ## Extra Fields YAML keys
 
 | YAML key | Required? | Type | Purpose | Example | Source |

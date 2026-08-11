@@ -16,7 +16,7 @@ Field names defined by the EHR's API/spec. Dropdown hardcoded in portal. No depe
 | AthenaOne | [AthenaOne.md](AthenaOne.md) | `ehr_field_name` (from fixed list) |
 | ECW (main + Selective Copy) | [ECW.md](ECW.md) | `ehr_field_name`, `section_code` |
 | Veradigm | [Veradigm.md](Veradigm.md) | `ehr_field_name` (from fixed list) |
-| Centricity (Athena Flow) | [Centricity.md](Centricity.md) | `ehr_field_name` (from fixed list) |
+| Centricity (Athena Flow) | [Centricity.md](Centricity.md) | `ehr_field_name` (from fixed list) — same product as Athena Flow |
 
 ## Category 2 — Flexible field list (doctor's template)
 Fields come from the doctor's EHR template. Portal needs a "fetch template" / Connect EHR step. Most Cat 2 EHRs expose a doctor field picker; **Nereg is the exception** — connected template + auto `key_name` mapping, doctor cannot remap.
@@ -28,15 +28,13 @@ Fields come from the doctor's EHR template. Portal needs a "fetch template" / Co
 | CharmHealth | [CharmHealth.md](CharmHealth.md) | `ehr_field_id` | Remap from existing list (no re-fetch) |
 | Nereg | [Nereg.md](Nereg.md) | None — auto from section `key_name` | **Locked** — no picker / no remap; fix via `key_name` + connected template |
 
-## Category 3 — Auto push, no field mapping
-Note pushed automatically. No mapping rows or dropdown. Ops may define section names in YAML but no template fetch is needed.
+## Category 3 — Auto push, no field mapping (template connection required)
+
+No per-section field mapping / dropdown. **EHR template connection is still required** (destination document or note template).
 
 | EHR | File | How note is pushed |
 |---|---|---|
 | Cerner | [Cerner.md](Cerner.md) | Whole note as PDF via FHIR `DocumentReference` |
-| ModMed | [ModMed.md](ModMed.md) | Whole note as PDF via FHIR `DocumentReference` |
+| ModMed | [ModMed.md](ModMed.md) | Whole note as PDF via FHIR |
 
-## Category 4 — No push capability
-Marvix generates the note but cannot push it. Doctor copies manually. App should show "Copy Note" prompt.
-
-No EHRs are assigned here yet. EHRs confirmed to have **no push capability** will be listed in this section.
+> **No Category 4.** Athena legacy, ECW FHIR, Greenway, and Tebra are **not** in the My Templates taxonomy. Backend stub docs may remain under `ehr_mapping/` for engineering reference only — they are not doctor-facing categories.

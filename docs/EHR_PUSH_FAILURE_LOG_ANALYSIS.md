@@ -86,6 +86,8 @@ Zero log records confirms the blind spot. Failures exist but are invisible witho
 
 No errors found in 3 months. Either very stable or very low push volume. PRD scenarios remain theoretical.
 
+> **Out of taxonomy:** Tebra and Greenway also had 0 records in this window — they are engineering stubs, not My Templates Cat 1–3 EHRs.
+
 ---
 
 ## PRD gaps to address

@@ -2,9 +2,9 @@
 
 ## Category
 
-**Category 1 — Fixed field list.** Field names are a fixed set from the Centricity/Athena Flow integration. Dropdown is hardcoded — no template fetch. Centricity routes section content based on `ehr_field_name`.
+**Category 1 — Fixed field list.** Field names are a fixed set from the Centricity / Athena Flow integration. Dropdown is hardcoded — no template fetch. Centricity routes section content based on `ehr_field_name`.
 
-> Centricity is the same product as **Athena Flow** (`ehr_layer/athenaflow.py`). It is a separate integration from AthenaOne.
+> **Centricity and Athena Flow are the same product** — one integration (`athenaflow.py`). Separate from AthenaOne.
 
 ---
 
@@ -14,7 +14,6 @@
 |---|---|---|---|---|---|
 | `ehr_field_name` | Yes | Text | Section name passed to the Centricity push — Centricity routes content based on this value | `"hpi"` | Fixed list (see below) |
 
-**Example YAML:**
 ```yaml
 ehr_field_name: "hpi"
 ```
@@ -40,11 +39,11 @@ ehr_field_name: "hpi"
 |---|---|---|
 | `append` | ❌ No | Centricity does not fetch existing note content |
 | `prepend` | ❌ No | Same as above |
-| `separator` | ✅ Yes | |
-| `char_limit` | ✅ Yes | |
-| `push_subsections` | ✅ Yes | |
-| `retain_headings` | ✅ Yes | |
-| `skip_empty_subsections` | ✅ Yes | |
+| `separator` | ✅ Yes | **→ Template Settings (global)** |
+| `char_limit` | ✅ Yes | **→ Template Settings (global)** |
+| `push_subsections` | ✅ Yes | **→ Template Settings** |
+| `retain_headings` | ✅ Yes | **→ Template Settings** |
+| `skip_empty_subsections` | ✅ Yes | **→ Template Settings** |
 | `line_separator` | ❌ No | ECW HL7 only |
 
 ---

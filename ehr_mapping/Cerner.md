@@ -1,24 +1,7 @@
 # EHR Mapping — Cerner
 
 ## Category
-**Category 3 — Auto push, no field mapping (template connection required).** Whole note → one PDF. No section-level routing or Extra Fields YAML.
-
-Destination template / document connection is still required; self-serve Connect EHR UI is an **open question** — see [CATEGORY_3.md](CATEGORY_3.md)#open-questions.
-
-See [CATEGORY_3.md](CATEGORY_3.md) for shared Cat 3 model and how Cerner differs from ModMed.
-
----
-
-## Template connection (required)
-
-No per-section field mapping, but the Marvix template still must be **connected to a destination in Cerner**.
-
-| Property | Role |
-|---|---|
-| `ehr_template_name` | Used as the PDF **filename** attached to the chart (`file_name`). Affects the document name doctors see in Cerner, not field routing. |
-| `ehr_template_id` | Not used for field routing |
-
-How this connection is exposed in My Templates self-serve is an **open question** — see [CATEGORY_3.md](CATEGORY_3.md)#open-questions.
+**Category 3 — Auto push (PDF).** Marvix pushes the entire note as a single PDF via FHIR. No section-level field mapping / Remap. **EHR template / destination document connection is still required.** Mapping column label: "Whole note pushed as PDF".
 
 ---
 
@@ -46,7 +29,7 @@ Not applicable — the note is pushed as a single PDF. Config keys that control 
 
 ## What doctors can change
 
-No section→field mapping to break. Reshaping the Marvix note template does not change Cerner field routing. Push still depends on FHIR auth, correct doctor/patient IDs, and a valid template/document connection for the PDF name/destination.
+No mapping to break. As long as the FHIR integration is active and the doctor/patient IDs are correct, the PDF will land in the chart regardless of how the doctor structures their note template.
 
 ---
 

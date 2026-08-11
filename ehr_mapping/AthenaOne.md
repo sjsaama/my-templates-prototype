@@ -1,5 +1,10 @@
 # EHR Mapping — AthenaOne
 
+## Category
+**Category 1 — Fixed field list.** Hardcoded AthenaOne field names. Separate from Centricity / Athena Flow (`athenaflow.py`).
+
+---
+
 ## Extra Fields YAML keys
 
 | YAML key | Required? | Type | Purpose | Example | Source |
@@ -115,5 +120,5 @@ Marvix appears as **Marvix AI Scribe** in the Athena Embedded App Access list. E
 
 | Location | Role |
 |---|---|
-| `ehr_layer/athenaflow.py` | Uses `ehr_field_name` for AthenaOne push |
+| `ehr_layer/athenaone.py` | Uses `ehr_field_name` for AthenaOne push — **not** `athenaflow.py` (that is Centricity / Athena Flow) |
 | `ehr_layer/section_text_builder.py` | Reads `config` keys and `keep_bullet_points` at push time |

@@ -1,9 +1,7 @@
 # EHR Mapping — Greenway
 
 ## Category
-**Category 4 — No push capability.** `save_note()` delegates to the base class which has no push implementation. Not implemented.
-
-> ⚠️ **Unconfirmed** — Cat 4 classification needs verification with Vignesh before My Templates launch.
+**Out of My Templates taxonomy (not Cat 1–3).** Engineering stub only — not a doctor-facing EHR category. `save_note()` delegates to the base class which has no push implementation. Not implemented.
 
 ---
 
@@ -21,8 +19,7 @@ None — not implemented.
 
 ## App UX
 
-Since no push happens, the app should show a prominent **"Copy Note"** prompt after the note is generated:
-> *"Your EHR doesn't support auto-push — copy and paste into Greenway."*
+Not in the My Templates doctor-facing taxonomy. Do not surface a Cat 4 / "No push" product experience for Greenway.
 
 ---
 

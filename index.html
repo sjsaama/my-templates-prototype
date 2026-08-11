@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>My Templates — Section Editor</title>
+<title>My Templates — ECW EHR</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -78,7 +78,26 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .tpl-panel--collapsed .tpl-collapse svg{transform:rotate(-90deg);}
 .tpl-title{font-size:24px;font-weight:700;color:var(--ink);margin:0 0 28px;padding:0 24px;}
 .tpl-create{margin:0 20px 10px;width:calc(100% - 40px);padding:10px 16px;border-radius:8px;font-size:14px;font-weight:700;}
-.tpl-request{margin:0 20px 26px;width:calc(100% - 40px);font-size:13px;color:var(--gray);text-align:left;padding:6px 0;}
+.tpl-request{margin:0 20px 10px;width:calc(100% - 40px);font-size:13px;color:var(--gray);text-align:left;padding:6px 0;}
+.tpl-tabs{display:flex;gap:0;margin:0 16px 14px;padding:3px;background:var(--bg-chip);border-radius:10px;}
+.tpl-tab{flex:1;border:0;background:transparent;border-radius:8px;padding:8px 6px;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;transition:background .12s,color .12s,box-shadow .12s;}
+.tpl-tab:hover{color:var(--ink);}
+.tpl-tab--active{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(40,47,111,.12);}
+.tpl-tab-count{display:inline-block;margin-left:4px;font-size:11px;font-weight:700;color:var(--gray-light);}
+.tpl-tab--active .tpl-tab-count{color:var(--accent);}
+.tpl-empty-tab,.tpl-no-results{padding:18px 24px;font-size:13px;line-height:1.45;color:var(--gray);}
+.ed-ownership{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;}
+.ed-ownership--self{background:var(--teal-50);color:var(--teal-text);}
+.ed-ownership--ops{background:var(--bg-chip);color:var(--gray);}
+.ed-ownership-hint{margin:8px 0 0;font-size:13px;line-height:1.4;color:var(--gray);max-width:52ch;}
+.tpl-settings-stack{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.tpl-settings-bar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface,#F9FAFB);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;}
+.tpl-settings-label{font-size:13px;font-weight:600;color:var(--ink);flex:0 0 auto;}
+.tpl-settings-input{width:110px;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit;color:var(--ink);background:#fff;}
+.tpl-settings-input:focus{outline:none;border-color:var(--accent);}
+.tpl-settings-hint{font-size:12px;color:var(--gray);flex:1;min-width:180px;}
+.tpl-settings-select{border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px;font-family:inherit;color:var(--ink);background:#fff;cursor:pointer;}
+.tpl-settings-select:focus{outline:none;border-color:var(--accent);}
 .adv-field--push-mode{margin-top:16px;padding-top:16px;border-top:1px solid var(--border);}
 .modal--create-tpl{width:min(600px,100%);}
 .create-steps{display:flex;gap:0;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--bg-soft);}
@@ -614,14 +633,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .ehr-scribeit-chip{font-size:11px;font-weight:500;color:var(--ink);background:var(--bg-chip);padding:2px 8px;border-radius:5px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ehr-scribeit-empty{font-size:11px;color:var(--gray-light);font-style:italic;}
 
-/* Cat 4 — no push banner */
-.ehr-no-push-banner {
-  display: flex; align-items: center; gap: 12px;
-  background: #fff8ec; border: 1px solid #f5c842;
-  border-radius: 10px; padding: 12px 16px; margin-bottom: 12px;
-}
-.ehr-no-push-icon { font-size: 18px; flex-shrink: 0; }
-.ehr-no-push-body { flex: 1; font-size: 13px; color: #5c4a00; }
+/* (No Cat 4 / no-push doctor UX — taxonomy is Cat 1–3 only.) */
 
 /* Push issues banner */
 .row-push-error{display:flex;align-items:center;gap:8px;padding:8px 16px;background:#fff5f5;border-top:1px solid #fecaca;font-size:13px;}
@@ -717,24 +729,13 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .mapping-picker-support-btn{flex:0 0 auto;font-size:12px;font-weight:700;color:var(--amber-text);border:1px solid var(--amber-text);border-radius:5px;padding:3px 10px;background:transparent;white-space:nowrap;cursor:pointer;}
 .mapping-picker-support-btn:hover{background:var(--amber-text);color:#fff;}
 
-/* Auto-mapped / no-push labels in mapping cell */
+/* Auto-mapped labels in mapping cell (Cat 3 PDF / Nereg locked-auto) */
 .mapping-auto-label {
   font-size: 12px; color: #059669; font-style: italic;
-}
-.mapping-no-push-label {
-  font-size: 12px; color: #9ca3af; font-style: italic;
 }
 .mapping-pending-label {
   font-size: 12px; color: var(--amber-text); font-style: italic; cursor: default;
 }
-.cat4-notice {
-  display: flex; align-items: flex-start; gap: 10px;
-  background: #f0f4ff; border: 1px solid #c7d2fe;
-  border-radius: 8px; padding: 10px 14px; margin: 0 0 16px;
-  font-size: 13px; color: #3730a3;
-}
-.cat4-notice-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
-.cat4-notice-text { line-height: 1.5; }
 
 /* Nereg locked auto-mapping notice */
 .nereg-notice {

@@ -79,28 +79,25 @@ Raised per field when `SaveXNote` returns an error for a specific field. Bubbles
 - `"Template mapping error."` → `FatalException`
 - Generic save failure → bare `Exception` → retry
 
-### Nereg
-
-- Auth failure → `Exception` → retry
-- `save_note` silently handles per-field errors via `logger.error` — no exceptions raised per field
-- Wrong / renamed `key_name` → field silently skipped
-- **Cat 2 locked mapping:** Connect to EHR note template like other Cat 2 EHRs, but **no doctor remap / field picker**. Fix mapping via `key_name` + template alignment ([Nereg.md](Nereg.md)).
-
 ### Cerner
 
 - Token refresh failure → `ValueError` → retry
 - Note push failure → bare `Exception` (`"Note push failed: ..."`) → retry
-- **Cat 3 note:** No section→field remap. Destination connection required; self-serve Connect EHR UI open question ([CATEGORY_3.md](CATEGORY_3.md)#open-questions).
 
-### ModMed
+### Nereg
 
-- Binary / S3 / DocumentReference failures → detectable via `response.ok` → ops
-- Encounter lookup from appointment can fail silently — push continues without encounter link
-- **Cat 3 note:** Same as Cerner ([CATEGORY_3.md](CATEGORY_3.md)#open-questions).
+- Auth failure → `Exception` → retry
+- `save_note` silently handles per-field errors via `logger.error` — no exceptions raised per field
 
 ### ECW (main / HL7)
 
-No error detection — Lambda uploads the HL7 file to S3 and gets a 200. ECW processes it asynchronously with no callback. Lambda never knows if ECW rejected the note.
+No error detection for **note text** — Lambda uploads the HL7 file to S3 and gets a 200. ECW processes it asynchronously with no callback. Lambda never knows if ECW rejected the note text.
+
+**Order sections are different:** lab / rx / referral / imaging / procedure / vaccine pushes log WARNINGs when pattern matching fails (`Couldn't find any Orders of type: …`). Those are ops-facing today; see `ECW.md` → Push errors and `EHR_PUSH_FAILURE_LOG_ANALYSIS.md`.
+
+### ECW (Scribe-it)
+
+Entirely manual paste — no Lambda push, no automated error signal.
 
 ---
 
@@ -116,12 +113,10 @@ Based on the above, the errors that require the doctor (or ops on behalf of the 
 | MA account missing "Create Pt Notes" permission | AMD | Fix permissions in AMD | Practice admin |
 | Field failed to save | Veradigm | Remap the field | Ops |
 | Check-in not complete in Athena | AthenaOne | Complete check-in in Athena (or click "Go to Exam") then push again | Doctor |
+| Order config mismatch (lab/rx/referral/…) | ECW | Fix order type config in YAML / ops tooling | Ops |
+| Wrong shortcut / section code (after spot-check) | ECW | Remap from fixed list or update `section_code` | Doctor Remap / ops |
 
-All other errors (auth, account locked, signed encounter, quota, DrChrono/Cerner/ModMed/Nereg failures) are ops-only — they don't require anything in My Templates today.
-
-**Cat 3 (Cerner / ModMed):** No section→field remap. Destination template / document connection is still required; self-serve Connect EHR UI is an **open question** — see [CATEGORY_3.md](CATEGORY_3.md)#open-questions.
-
-**Nereg (Cat 2, locked mapping):** Remap button is not shown. Wrong `key_name` / template alignment is ops-facing — doctors are not given a mapping picker.
+All other errors (auth, account locked, signed encounter, quota, DrChrono/Cerner/Nereg failures) are ops-only — they don't require anything in My Templates.
 
 **Note on DrChrono**: `save_note` swallows all field-level exceptions and returns `False` silently. Lambda currently has no visibility into which DrChrono fields failed. This is a gap — if we want push issues for DrChrono, Lambda needs to be updated to surface field failures.
 
@@ -163,11 +158,12 @@ Catch broken mappings before push — feasible for fixed-list EHRs without an AP
 | AthenaOne | ✅ Free | Check `ehr_field_name` is in the hardcoded 9-item list |
 | ECW (main) | ✅ Free | Check `ehr_field_name` is in the known shortcut list |
 | Veradigm | ✅ Free | Check `ehr_field_name` is in the known 7-item list |
-| Centricity | ✅ Free | Check `ehr_field_name` is in the hardcoded fixed list |
+| Centricity (Athena Flow) | ✅ Free | Check `ehr_field_name` is in the hardcoded fixed list |
 | AMD | ✅ Feasible | Re-fetch AMD template, flag any `ehr_field_id` that no longer exists |
 | DrChrono | ⚠️ Partial | Needs DrChrono API call |
 | CharmHealth | ❌ Hard | No live fetch available |
-| Nereg | ❌ N/A | No doctor remap — auto from `key_name`; validate names vs connected template (ops) |
+| Nereg | ⚠️ Partial | No field picker — validate section `key_name` values against connected template / known Nereg fields |
+| Cerner / ModMed | N/A | Whole-note PDF — no per-section field mapping to validate |
 
 ### When to run
 - On mapping save in ops portal
@@ -180,26 +176,49 @@ Catch broken mappings before push — feasible for fixed-list EHRs without an AP
 
 | EHR | Scenario | Why |
 |---|---|---|
-| ECW (main) | ECW rejects HL7 silently after S3 upload | Lambda gets 200 from S3 — never knows if ECW rejected |
+| ECW (main) | ECW rejects **note text** HL7 silently after S3 upload | Lambda gets 200 from S3 — never knows if ECW rejected |
 | ECW (Scribe-it) | Doctor pastes into wrong field | Entirely manual |
 | CharmHealth (SOAP) | Field silently skipped | SOAP mode returns no per-field errors |
+
+> ECW **order-section** failures are *not* in this table — they surface as Lambda WARNINGs (ops-visible). See `ECW.md`.
+
+---
+
+## Resolution mechanisms (doctor-facing)
+
+| Action | When to show |
+|---|---|
+| **Remap** | Mapping is wrong / stale and doctor can pick another field from the list (Flow A for ECW) |
+| **Got it** | Doctor must fix outside My Templates (check-in, open chart, shorten note) then retry push |
+| **Contact support** | Ops / practice admin must act (order config, auth, permissions) |
+
+Generic resolve loop: surface issue → doctor takes allowed action → retry push (or ops fixes) → clear `push_errors` row.
+
+ECW-specific copy and per-error step flows: **`ECW.md` → Push errors**.
 
 ---
 
 ## Remap flows
 
-### Flow A — Fixed list (AthenaOne, ECW, Veradigm, Centricity)
+### Flow A — Fixed list (AthenaOne, ECW, Veradigm, Centricity / Athena Flow)
 Re-open the dropdown. Hardcoded known list, no API call needed.
 
-### Flow B — Flexible list (AMD, DrChrono, CharmHealth)
-Re-fetch current fields from EHR live (CharmHealth: existing list only — no re-fetch), pick correct field.
-If `ehr_template_id` deleted: go back to the template-level picker first.
+**ECW:** dual-column picker — Primary (shortcut commands) + optional Scribe-it note-panel fields.
 
-### Flow C — Locked auto-map (Nereg)
-No Remap UI. Fix via `key_name` / connected template alignment (ops/product). Rename warning in editor only.
+**Centricity (Athena Flow):** same product — fixed `ehr_field_name` list; separate from AthenaOne.
+
+### Flow B — Flexible list (AMD, DrChrono)
+Re-fetch current fields from EHR live, pick correct field.
+If `ehr_template_id` deleted: go back to the template-level picker first.
 
 ### Flow C — CharmHealth
 Can't re-fetch automatically. Escalate to tech.
+
+### Flow D — Nereg (Cat 2 locked / auto)
+No Remap button. Mapping is auto from section `key_name` after EHR template connection. Doctor uses Contact support; ops fixes `key_name` / connected template.
+
+### No remap — Cat 3 (Cerner, ModMed)
+Whole note as PDF. Remap not shown.
 
 ---
 
@@ -209,3 +228,4 @@ Can't re-fetch automatically. Escalate to tech.
 2. For the push issues banner, Lambda would need to write per-section failure rows. Is there appetite to add this?
 3. AMD "Value is too long" already includes the section name and character limit in the error message — can Lambda parse and forward this to the doctor rather than just emailing ops?
 4. Does Lambda know at push time whether CharmHealth is in SOAP mode? If so, it could tag the row as undetectable and alert ops to spot-check.
+5. Should ECW order-section WARNINGs be written to `push_errors` for in-app Contact support, or remain ops-log-only?
