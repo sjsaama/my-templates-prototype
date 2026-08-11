@@ -36,4 +36,4 @@ gh pr create --base design/02-table-hierarchy --head design/03-modals-a11y \
 
 ## Verify locally
 
-Open `My Templates.html` in a browser. Use **Tweaks → Row density** and confirm template list, editor padding, row height, and column header alignment change together.
+Open `../My Templates.html` in a browser. Use **Tweaks → Row density** and confirm template list, editor padding, row height, and column header alignment change together.

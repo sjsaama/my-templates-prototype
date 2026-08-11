@@ -1,15 +1,14 @@
 # EHR Mapping Reference
 
-Per-EHR docs for the Extra Fields YAML used in the ops portal (`/v5/update_ehr_mapping/{id}`).
+Per-EHR docs for My Templates — YAML keys, what doctors can change, what breaks the mapping, and push errors.
 
-See [SHARED_CONFIG.md](SHARED_CONFIG.md) for config keys and `append_other_derivatives_v2` that apply to all EHRs.
-See [PROPERTY_CHANGE_IMPACT.md](PROPERTY_CHANGE_IMPACT.md) for what breaks when template or section properties change, per EHR.
-See [ERROR_UX.md](ERROR_UX.md) for the error detection, popup, and self-service remap UX spec.
+Canonical product decisions (categories, doctor UX, push error copy) live in [`MY_TEMPLATES_PRD.md`](../MY_TEMPLATES_PRD.md). Docs for EHRs / shared notes outside that scope live in [`not_needed/`](not_needed/).
 
 ---
 
 ## Category 1 — Fixed field list
-Field names defined by the EHR's API/spec. Dropdown hardcoded in portal. No dependency on doctor's EHR setup.
+
+Field names defined by the EHR's API/spec. Dropdown hardcoded — no dependency on doctor's EHR setup.
 
 | EHR | File | YAML keys needed |
 |---|---|---|
@@ -18,7 +17,8 @@ Field names defined by the EHR's API/spec. Dropdown hardcoded in portal. No depe
 | Veradigm | [Veradigm.md](Veradigm.md) | `ehr_field_name` (from fixed list) |
 
 ## Category 2 — Flexible field list (doctor's template)
-Fields come from the doctor's EHR template. Portal needs a "fetch template" step before dropdown can be populated.
+
+Fields come from the doctor's EHR template.
 
 | EHR | File | YAML keys needed |
 |---|---|---|
@@ -27,7 +27,8 @@ Fields come from the doctor's EHR template. Portal needs a "fetch template" step
 | CharmHealth | [CharmHealth.md](CharmHealth.md) | `ehr_field_id` |
 
 ## Category 3 — Auto push, no field mapping
-Note pushed automatically. No mapping rows or dropdown. Ops may define section names in YAML but no template fetch is needed.
+
+Note pushed automatically. No mapping rows or doctor field picker.
 
 | EHR | File | How note is pushed |
 |---|---|---|
@@ -36,12 +37,6 @@ Note pushed automatically. No mapping rows or dropdown. Ops may define section n
 | Nereg | [Nereg.md](Nereg.md) | Auto-mapped from section `key_name` at push time |
 | Centricity (Athena Flow) | [Centricity.md](Centricity.md) | Ops defines `ehr_field_name` per section; Centricity routes content |
 
-## Category 4 — No push capability
-Marvix generates the note but cannot push it. Doctor copies manually. App should show "Copy Note" prompt.
+## Not needed
 
-| EHR | File | Status |
-|---|---|---|
-| Athena (legacy) | [Athena_Legacy.md](Athena_Legacy.md) | `save_note` returns `False` — read-only |
-| ECW FHIR | [ECW_FHIR.md](ECW_FHIR.md) | `save_note` stub — auth and note-read implemented, push not |
-| Greenway (Prime Suites) | [Greenway.md](Greenway.md) | On-prem — no cloud API; stub not implemented. ⚠️ Unconfirmed — verify with Vignesh. |
-| Tebra | [Tebra.md](Tebra.md) | `save_note` is empty stub — not implemented. Moved from Cat 3. |
+Archived under [`not_needed/`](not_needed/) — out-of-scope EHRs and superseded shared drafts. See that folder's README.
