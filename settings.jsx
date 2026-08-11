@@ -75,11 +75,7 @@ function ToggleRow({ checked, onChange, disabled, label }) {
   );
 }
 
-function GlobalSettingsPanel({ practice, onChange, ehr }) {
-  const showAmd = !ehr || ehr === "AMD";
-  const showVeradigm = !ehr || ehr === "Veradigm";
-  const showCharm = !ehr || ehr === "Charm" || ehr === "CharmHealth";
-
+function GlobalSettingsPanel({ practice }) {
   return (
     <div className="set-panel">
       <header className="set-panel-head">
@@ -96,19 +92,17 @@ function GlobalSettingsPanel({ practice, onChange, ehr }) {
       <section className="set-section">
         <h3 className="set-section-title">Practice / EHR</h3>
         <div className="set-fields">
-          {(showAmd || !ehr) && (
-            <FieldRow
-              label="EHR template selection"
-              hint="AMD — which note template is connected for this practice. Determines the field list for all doctors."
-              opsOnly
-            >
-              <input className="set-input" value={practice.amdEhrTemplate} disabled readOnly />
-            </FieldRow>
-          )}
+          <FieldRow
+            label="EHR template selection"
+            hint="AMD — which note template is connected for this practice. Determines the field list for all doctors."
+            opsOnly
+          >
+            <input className="set-input" value={practice.amdEhrTemplate} disabled readOnly />
+          </FieldRow>
 
           <FieldRow
             label="EHR credentials"
-            hint="API keys, OAuth tokens, and practice ID for push EHRs. Set at onboarding."
+            hint="API keys, OAuth tokens, and practice ID for all push EHRs. Set at onboarding."
             opsOnly
           >
             <SegControl
@@ -122,50 +116,45 @@ function GlobalSettingsPanel({ practice, onChange, ehr }) {
             />
           </FieldRow>
 
-          {(showVeradigm || !ehr) && (
-            <>
-              <FieldRow
-                label="Veradigm field list"
-                hint="Field names configured by tech at onboarding — not app-hardcoded."
-                opsOnly
-              >
-                <input className="set-input" value={practice.veradigmFieldList} disabled readOnly />
-              </FieldRow>
-              <FieldRow
-                label="Push as note vs. document"
-                hint="Veradigm — set at template configuration time by ops. Doctor does not control this."
-                opsOnly
-              >
-                <SegControl
-                  value={practice.veradigmPushMode}
-                  options={[
-                    { value: "note", label: "Push as note" },
-                    { value: "document", label: "Push as document" },
-                  ]}
-                  onChange={() => {}}
-                  disabled
-                />
-              </FieldRow>
-            </>
-          )}
+          <FieldRow
+            label="Veradigm field list"
+            hint="Veradigm — field names configured by tech at onboarding — not app-hardcoded."
+            opsOnly
+          >
+            <input className="set-input" value={practice.veradigmFieldList} disabled readOnly />
+          </FieldRow>
 
-          {(showCharm || !ehr) && (
-            <FieldRow
-              label="CharmHealth push mode"
-              hint="SOAP vs. standard — determined by whether the template name has a soap prefix. Ops controls this."
-              opsOnly
-            >
-              <SegControl
-                value={practice.charmPushMode}
-                options={[
-                  { value: "standard", label: "Standard" },
-                  { value: "soap", label: "SOAP" },
-                ]}
-                onChange={() => {}}
-                disabled
-              />
-            </FieldRow>
-          )}
+          <FieldRow
+            label="Push as note vs. document"
+            hint="Veradigm — set at template configuration time by ops. Doctor does not control this."
+            opsOnly
+          >
+            <SegControl
+              value={practice.veradigmPushMode}
+              options={[
+                { value: "note", label: "Push as note" },
+                { value: "document", label: "Push as document" },
+              ]}
+              onChange={() => {}}
+              disabled
+            />
+          </FieldRow>
+
+          <FieldRow
+            label="CharmHealth push mode"
+            hint="CharmHealth — SOAP vs. standard, determined by whether the template name has a soap prefix. Ops controls this."
+            opsOnly
+          >
+            <SegControl
+              value={practice.charmPushMode}
+              options={[
+                { value: "standard", label: "Standard" },
+                { value: "soap", label: "SOAP" },
+              ]}
+              onChange={() => {}}
+              disabled
+            />
+          </FieldRow>
         </div>
       </section>
     </div>
@@ -204,7 +193,6 @@ function LocalSettingsPanel({
     );
   }
 
-  const showVeradigm = ehr === "Veradigm";
   const set = (patch) => onChange({ ...settings, ...patch });
 
   return (
@@ -212,7 +200,7 @@ function LocalSettingsPanel({
       <header className="set-panel-head">
         <h2 className="set-panel-title">Local settings</h2>
         <p className="set-panel-sub">
-          Global-per-template settings for <strong>{tpl.name}</strong>. Section-level output settings stay on each section row.
+          Template-level settings for <strong>{tpl.name}</strong>. Section-level output settings stay on each section row.
         </p>
         <div className="set-tpl-switch">
           <label className="set-field-label" htmlFor="set-tpl-select">Template</label>
@@ -285,9 +273,9 @@ function LocalSettingsPanel({
       </section>
 
       <section className="set-section">
-        <h3 className="set-section-title">Separators {showVeradigm ? "" : "(Veradigm)"}</h3>
+        <h3 className="set-section-title">Separators</h3>
         <p className="set-section-lead">
-          Doctor-settable template-level separators. Most relevant for Veradigm push formatting.
+          Doctor-settable template-level separators (PRD: Veradigm). Defaults use CRLF-safe values.
         </p>
         <div className="set-fields">
           <FieldRow
