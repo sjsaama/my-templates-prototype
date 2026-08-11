@@ -40,52 +40,47 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "density": "regular",
   "showAdvancedInline": true,
   "monoMapping": true,
-  "ehr": "DrChrono",
+  "ehr": "AMD",
   "errorScenario": "none",
   "dualMappingDemo": "none"
 }/*EDITMODE-END*/;
 
-// This branch is scoped to DrChrono only — other EHR systems live on their own branches.
-const EHR_OPTIONS = ["DrChrono"];
-const EHR_LOCKED = true;
-
-// DrChrono-scoped branch — only DrChrono push-error demos are wired into Tweaks.
-// Field-level failures often invisible to Lambda — still show error copy when mocked.
 const ERROR_SCENARIOS = {
   none: [],
-  drchrono_auth: [
-    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to a DrChrono authentication issue. Contact support.", selfServe: false },
+  athena_checkin: [
+    { id: "pi1", section: "History of Present Illness", error: "Check-in not complete", type: "checkin", msg: "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again.", selfServe: true },
+    { id: "pi2", section: "Assessment & Plan", error: "Check-in not complete", type: "checkin", msg: "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again.", selfServe: true },
   ],
-  drchrono_field_failed: [
-    { id: "pi1", section: "History of Present Illness", error: "Field push failed", type: "push_failed", msg: "One or more sections failed to push to DrChrono. Contact support.", selfServe: false },
-    { id: "pi2", section: "Assessment & Plan", error: "Field push failed", type: "push_failed", msg: "One or more sections failed to push to DrChrono. Contact support.", selfServe: false },
+  athena_section: [
+    { id: "pi1", section: "History of Present Illness", error: "Field mapping broken", type: "mapping_broken", msg: "One or more sections failed to push. Support has been notified.", selfServe: false },
+    { id: "pi2", section: "Assessment & Plan", error: "Field mapping broken", type: "mapping_broken", msg: "One or more sections failed to push. Support has been notified.", selfServe: false },
   ],
-  drchrono_stale_mapping: [
-    { id: "pi1", section: "Past Medical History", error: "Field no longer available", type: "mapping_broken", msg: "A mapped field is no longer available in DrChrono. Remap the section or contact support.", selfServe: false },
+  athena_transient: [
+    { id: "pi1", section: "History of Present Illness", error: "Athena API error", type: "transient", msg: "Something went wrong on Athena's end — we'll retry automatically. If this keeps happening, contact support.", selfServe: false },
   ],
-  drchrono_icd_cpt_failed: [
-    { id: "pi1", section: "ICD Codes", error: "ICD/CPT push failed", type: "push_failed", msg: "ICD/CPT codes for 'ICD Codes' failed to push to DrChrono. Contact support.", selfServe: false },
+  athena_auth: [
+    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to an authentication issue. Contact support.", selfServe: false },
+  ],
+  amd_template_changed: [
+    { id: "pi1", section: "History of Present Illness", error: "AMD template updated", type: "template_changed", msg: "Your AMD template was updated and some field mappings are no longer valid. Support has been notified.", selfServe: false },
+    { id: "pi2", section: "Assessment & Plan", error: "AMD template updated", type: "template_changed", msg: "Your AMD template was updated and some field mappings are no longer valid. Support has been notified.", selfServe: false },
+  ],
+  amd_too_long: [
+    { id: "pi1", section: "History of Present Illness", error: "Content too long", type: "too_long", msg: "'History of Present Illness' is too long for this field (max 1,000 chars). Shorten your note and push again.", selfServe: true },
+  ],
+  amd_no_permission: [
+    { id: "pi1", section: "History of Present Illness", error: "Permission denied", type: "permission", msg: "Marvix doesn't have permission to write to AMD. Ask your practice admin to check account permissions.", selfServe: false },
+  ],
+  veradigm_chart: [
+    { id: "pi1", section: "History of Present Illness", error: "Chart not open", type: "chart_closed", msg: "Veradigm requires the patient's chart to be open before pushing. Open the chart and try again.", selfServe: true },
+  ],
+  veradigm_locked: [
+    { id: "pi1", section: "Assessment & Plan", error: "Encounter locked", type: "locked", msg: "This encounter is locked in Veradigm and can't be edited.", selfServe: false },
   ],
 };
 
-const ERROR_SCENARIO_OPTIONS = Object.keys(ERROR_SCENARIOS);
 
-function PushIssueActionButtons({ issue, remapClass, gotItClass, supportClass, onRemap, onGotIt, showRemap }) {
-  const actions = (window.pushIssueActions || (() => ({})))(issue);
-  return (
-    <>
-      {actions.remap && showRemap !== false && onRemap && (
-        <button className={remapClass} onClick={onRemap}>Remap</button>
-      )}
-      {actions.gotIt && (
-        <button className={gotItClass} onClick={onGotIt || undefined}>Got it</button>
-      )}
-      {actions.support && (
-        <button className={supportClass}>Contact support</button>
-      )}
-    </>
-  );
-}
+const EHR_OPTIONS = ["AMD", "AthenaOne", "Athena", "eCW", "Charm", "DrChrono", "Veradigm", "Centricity", "Cerner", "Nereg", "ECW FHIR", "Greenway", "ModMed", "Tebra"];
 
 function mapSectionTree(list, id, fn) {
   return list.map((s) => {
@@ -138,7 +133,6 @@ function Toast({ msg }) {
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const ehr = EHR_LOCKED ? "DrChrono" : t.ehr;
   const [templates, setTemplates] = useStateA(window.TEMPLATES);
   const [createTemplateOpen, setCreateTemplateOpen] = useStateA(false);
   const [activeTpl, setActiveTpl] = useStateA("gen3");
@@ -147,7 +141,6 @@ function App() {
     window.INITIAL_PENDING_REQUESTS.map((r) => ({ ...r }))
   );
   const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
-  const [charLimitByTpl, setCharLimitByTpl] = useStateA({});
   const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
   const [disableTarget, setDisableTarget] = useStateA(null);
   const [toast, setToast] = useStateA("");
@@ -160,31 +153,26 @@ function App() {
   const [remapTarget, setRemapTarget] = useStateA(null);
   const [previewOpen, setPreviewOpen] = useStateA(false);
   const [addSectionOpen, setAddSectionOpen] = useStateA(null); // { parentId: string|null } | null
+  const [ehrTplPickerOpen, setEhrTplPickerOpen] = useStateA(false);
 
   const tpl = activeTpl ? templates.find((x) => x.id === activeTpl) : null;
-  const caps = (window.ehrCapabilities || (() => ({})))(ehr);
-  const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
+  const caps = (window.ehrCapabilities || (() => ({})))(t.ehr);
+  const connectedTplId = window.connectedEhrTemplateIdOf
+    ? window.connectedEhrTemplateIdOf(tpl)
+    : ((tpl && tpl.connectedEhrTemplateId) || "");
+  const connectedTplName = window.connectedEhrTemplateNameOf
+    ? window.connectedEhrTemplateNameOf(tpl)
+    : ((tpl && tpl.connectedEhrTemplateName) || "");
   const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
   const pendingCount = pendingRequests.length;
-  const visibleTemplates = EHR_LOCKED
-    ? templates.filter((t) => !t.ehrSystem || t.ehrSystem === "DrChrono")
-    : templates;
+  const groups = window.groupsFor(templates);
   const sections = activeTpl
     ? (sectionsByTpl[activeTpl] || (sectionsByTpl[activeTpl] = window.makeSections()))
     : [];
-  const templateCharLimit = (activeTpl && charLimitByTpl[activeTpl]) || 2000;
-  const showTemplateSettings = caps.hasPushMode || caps.hasCharLimit;
 
   const setSections = (fn) => {
     if (!activeTpl) return;
     setSectionsByTpl((m) => ({ ...m, [activeTpl]: fn(m[activeTpl] || window.makeSections()) }));
-  };
-
-  const applyTemplateCharLimit = (limit) => {
-    if (!activeTpl) return;
-    const n = Math.max(0, parseInt(limit, 10) || 0);
-    setCharLimitByTpl((m) => ({ ...m, [activeTpl]: n }));
-    flash("Character limit updated for this template");
   };
 
   const flash = (msg) => { setToast(msg); clearTimeout(window.__tt); window.__tt = setTimeout(() => setToast(""), 2600); };
@@ -240,7 +228,6 @@ function App() {
       styleDetail: "Standard",
       styleFormat: "Prose",
       stylePrompt: data.prompt,
-      codeSource: data.codeSource || "none", // none | icd | cpt
     };
     const parentId = addSectionOpen.parentId;
     if (parentId) {
@@ -255,40 +242,38 @@ function App() {
       setSections((arr) => [...arr, newSection]);
     }
     setAddSectionOpen(null);
-    flash(data.codeSource === "icd"
-      ? "Section added — ICD (icd10_codes) absorbed"
-      : data.codeSource === "cpt"
-      ? "Section added — CPT (cpt_codes) absorbed"
-      : "Section added");
+    flash("Section added");
   };
 
   const handleCreateTemplate = (data) => {
     const newId = "user_" + Date.now().toString(36);
-    const connectedName = data.ehrTemplateName || "";
     const newTpl = {
       id: newId,
       name: data.name,
       derivative: data.type,
-      ehr: connectedName
-        ? ((ehr || "DrChrono") + "_" + connectedName.replace(/\s+/g, "_"))
-        : ((ehr || "DrChrono") + "_Unconnected"),
-      ehrSystem: ehr || "DrChrono",
-      ehrTemplateId: data.ehrTemplateId || "",
-      ehrTemplateName: connectedName,
+      ehr: data.ehrTemplateName ? (t && t.ehr ? t.ehr.split("_")[0] + "_" + data.ehrTemplateName.replace(/\s+/g, "_") : data.ehrTemplateName) : "",
+      ehrSystem: t ? t.ehr : "",
       group: "My Templates",
       userCreated: true,
+      connectedEhrTemplateId: window.connectedEhrTemplateIdOf
+        ? window.connectedEhrTemplateIdOf(data)
+        : (data.ehrTemplateId || ""),
+      connectedEhrTemplateName: window.connectedEhrTemplateNameOf
+        ? window.connectedEhrTemplateNameOf(data)
+        : (data.ehrTemplateName || ""),
     };
     setTemplates(arr => [...arr, newTpl]);
-    // Cat 2 (fetch-based EHRs) starts blank — a generic default section may not correspond to
-    // anything in the doctor's real EHR template. Cat 1/3/4 start from Marvix's defaults.
+    // Cat 2 fetch-based EHRs start blank. Nereg locked auto-map still uses Marvix defaults
+    // (routing is by section name, not a fetched field list). Cat 1/3/4 start from defaults.
+    const isFetchCat2 = caps.category === 2 && caps.fieldSource === "fetch";
     const baseSections = data.copyFromId && sectionsByTpl[data.copyFromId]
       ? JSON.parse(JSON.stringify(sectionsByTpl[data.copyFromId]))
-      : (caps.category === 2 ? [] : window.makeSections());
+      : (isFetchCat2 ? [] : window.makeSections());
     setSectionsByTpl(m => ({ ...m, [newId]: baseSections }));
     setActiveTpl(newId);
     setCreateTemplateOpen(false);
-    flash(connectedName
-      ? "Template created — connected to " + connectedName
+    flash(caps.lockedAutoMap
+      ? "Template created — sections auto-map by name into the connected Nereg template"
       : "Template created — configure your sections and EHR mapping below");
   };
 
@@ -335,7 +320,7 @@ function App() {
       )}
       <window.Sidebar />
       <window.TemplateList
-        templates={visibleTemplates}
+        groups={groups}
         activeId={activeTpl}
         onSelect={selectTpl}
         onRequest={() => flash("Request from ops → Style Transfer")}
@@ -352,29 +337,17 @@ function App() {
             <>
               <header className="ed-head">
                 <div className="ed-head-left">
-                  <h2 className="ed-title">
-                    {tpl.name}
-                    {tpl.userCreated
-                      ? <span className="ed-ownership ed-ownership--self">Self-serve</span>
-                      : <span className="ed-ownership ed-ownership--ops">Ops-managed</span>}
-                  </h2>
+                  <h2 className="ed-title">{tpl.name}</h2>
                   <div className="ed-meta">
                     {tpl.derivative && <span className="ed-meta-tag">{tpl.derivative}</span>}
                     {tpl.ehr && <span className="ed-meta-tag ed-meta-tag--mono">{tpl.ehr}</span>}
                   </div>
-                  {tpl.userCreated ? (
-                    <p className="ed-ownership-hint">You manage this template’s structure and EHR mappings — add sections, edit prompts, and remap fields.</p>
-                  ) : (
-                    <p className="ed-ownership-hint">Ops manages the section structure. Remap fields, adjust output settings, or request a new section from ops.</p>
-                  )}
                 </div>
                 <div className="ed-head-right">
                   <button className="btn-ghost btn-sm" onClick={() => setPreviewOpen(true)}>Preview output</button>
-                  {!tpl.userCreated && (
-                    <button className="btn-ghost btn-sm" onClick={() => setResetConfirm(true)}>Reset to default</button>
-                  )}
+                  <button className="btn-ghost btn-sm" onClick={() => setResetConfirm(true)}>Reset to default</button>
                   <button className="btn-teal btn-sm" onClick={() => flash("Changes saved")}>Save changes</button>
-                  {!tpl.userCreated && (
+                  {tpl.userCreated && (
                     <button className="btn-outline btn-outline--req" onClick={() => {
                       setSectionRequestOpen(true);
                       setPendingRequests(arr => arr.map(r => ({ ...r, seenByDoctor: true })));
@@ -387,44 +360,32 @@ function App() {
                         ? <span className="btn-outline-sub btn-outline-sub--coral">{unseenCount} update{unseenCount === 1 ? "" : "s"}</span>
                         : pendingCount > 0
                         ? <span className="btn-outline-sub">{pendingCount} request{pendingCount === 1 ? "" : "s"}</span>
-                        : <span className="btn-outline-sub">Ask ops to add a section</span>}
+                        : <span className="btn-outline-sub">Add a section to any template</span>}
                     </button>
                   )}
                 </div>
               </header>
-              {/* Connected note template (self-serve Cat 2) */}
-              {tpl.userCreated && caps.needsConnectEhr && (
-                <div className="ehr-tpl-banner">
-                  <div className="ehr-tpl-banner-left">
-                    <span className="ehr-tpl-banner-label">Connected {caps.label} note template</span>
-                    {tpl.ehrTemplateName
-                      ? <span className="ehr-tpl-banner-value">{tpl.ehrTemplateName}</span>
-                      : <span className="ehr-tpl-banner-unset">Not connected — map fields from the list, or reconnect later</span>}
+              {/* Nereg — locked auto-mapping notice + connected template */}
+              {caps.lockedAutoMap && (
+                <>
+                  <div className="nereg-notice">
+                    <span className="nereg-notice-icon">ℹ</span>
+                    <span className="nereg-notice-text">
+                      <strong>Nereg</strong> maps each section to an EHR field by section name. You can’t change field mapping here — connect the right Nereg note template, and keep section names aligned with Nereg fields.
+                    </span>
                   </div>
-                </div>
-              )}
-
-              {/* Template-level settings driven by EHR capabilities (DrChrono: char limit only) */}
-              {showTemplateSettings && caps.hasOutputSettings && (
-                <div className="tpl-settings-stack">
-                  {caps.hasCharLimit && (
-                    <div className="tpl-settings-bar">
-                      <span className="tpl-settings-label">Character limit</span>
-                      <input
-                        className="tpl-settings-input"
-                        type="number"
-                        min="0"
-                        step="100"
-                        value={templateCharLimit}
-                        onChange={(e) => applyTemplateCharLimit(e.target.value)}
-                        aria-label="Template character limit"
-                      />
-                      <span className="tpl-settings-hint">
-                        Global only — applies to the whole template. Not editable per section.
-                      </span>
+                  <div className="ehr-tpl-banner">
+                    <div className="ehr-tpl-banner-left">
+                      <span className="ehr-tpl-banner-label">Connected Nereg template</span>
+                      {connectedTplName
+                        ? <span className="ehr-tpl-banner-value">{connectedTplName}</span>
+                        : <span className="ehr-tpl-banner-unset">No template connected yet</span>}
                     </div>
-                  )}
-                </div>
+                    <button className="btn-outline btn-sm" onClick={() => setEhrTplPickerOpen(true)}>
+                      {connectedTplName ? "Change" : "Connect"}
+                    </button>
+                  </div>
+                </>
               )}
 
               {/* Cat 4 — no push integration notice */}
@@ -455,14 +416,12 @@ function App() {
                     {pushIssues.map(issue => (
                       <div key={issue.id} className="push-issues-item">
                         <span className="push-issues-section">• {issue.section}</span>
-                        <PushIssueActionButtons
-                          issue={issue}
-                          remapClass="push-issues-remap"
-                          gotItClass="push-issues-remap"
-                          supportClass="push-issues-support"
-                          onRemap={() => setRemapTarget(issue.section)}
-                          onGotIt={() => setPushIssuesDismissed(true)}
-                        />
+                        {caps.canRemap && (issue.type === "mapping_broken" || issue.selfServe) && (
+                          <button className="push-issues-remap" onClick={() => setRemapTarget(issue.section)}>Remap</button>
+                        )}
+                        {!issue.selfServe && (
+                          <button className="push-issues-support">Contact support</button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -471,7 +430,7 @@ function App() {
 
               <window.SectionTable
                 sections={sections}
-                ehr={ehr}
+                ehr={t.ehr}
                 pushIssues={pushIssues}
                 dualMappingDemo={t.dualMappingDemo}
                 remapTarget={remapTarget}
@@ -533,17 +492,35 @@ function App() {
 
       {createTemplateOpen && (
         <window.CreateTemplateModal
-          ehr={ehr}
-          templates={visibleTemplates}
+          ehr={t.ehr}
+          templates={templates}
           sectionsByTpl={sectionsByTpl}
           onClose={() => setCreateTemplateOpen(false)}
           onCreate={handleCreateTemplate}
         />
       )}
 
+      {ehrTplPickerOpen && tpl && (
+        <window.EhrTemplatePickerModal
+          ehr={t.ehr}
+          ehrLabel={caps.label || t.ehr}
+          selectedId={connectedTplId}
+          onClose={() => setEhrTplPickerOpen(false)}
+          onSelect={({ id, name }) => {
+            setTemplates((arr) => arr.map((x) =>
+              x.id === tpl.id
+                ? { ...x, connectedEhrTemplateId: id, connectedEhrTemplateName: name, ehr: (t.ehr || "Nereg") + "_" + name.replace(/\s+/g, "_") }
+                : x
+            ));
+            setEhrTplPickerOpen(false);
+            flash("Connected to " + name);
+          }}
+        />
+      )}
+
       {sectionRequestOpen && (
         <window.RequestNewSectionModal
-          templates={visibleTemplates}
+          templates={templates}
           activeTplId={activeTpl}
           pending={pendingRequests}
           onClose={() => setSectionRequestOpen(false)}
@@ -553,8 +530,8 @@ function App() {
 
       {addSectionOpen && (
         <window.AddSectionModal
-          ehr={ehr}
-          ehrCat={ehrCat}
+          ehr={t.ehr}
+          ehrCat={(window.EHR_CATEGORY && window.EHR_CATEGORY[t.ehr]) || {}}
           parentName={addSectionOpen.parentId ? (findSection(sections, addSectionOpen.parentId) || {}).name : null}
           usedFields={collectUsedFields(sections)}
           onClose={() => setAddSectionOpen(null)}
@@ -574,30 +551,20 @@ function App() {
           options={["compact", "regular", "comfy"]}
           onChange={(v) => setTweak("density", v)} />
         <TweakSection label="EHR" />
-        {EHR_LOCKED ? (
-          <TweakRadio
-            label="EHR system (DrChrono branch)"
-            value="DrChrono"
-            options={["DrChrono"]}
-            onChange={() => setTweak("ehr", "DrChrono")}
-          />
-        ) : (
-          <TweakSelect label="EHR system" value={t.ehr}
-            options={EHR_OPTIONS}
-            onChange={(v) => setTweak("ehr", v)} />
-        )}
+        <TweakSelect label="EHR system" value={t.ehr}
+          options={EHR_OPTIONS}
+          onChange={(v) => setTweak("ehr", v)} />
         <TweakSection label="Simulate push error" />
         <TweakSelect label="Error scenario" value={t.errorScenario}
-          options={ERROR_SCENARIO_OPTIONS}
+          options={["none","athena_checkin","athena_section","athena_transient","athena_auth","amd_template_changed","amd_too_long","amd_no_permission","veradigm_chart","veradigm_locked"]}
           onChange={(v) => setTweak("errorScenario", v)} />
         <TweakSection label="Advanced mapping demos" />
         <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}
-          options={["none","one_to_two"]}
+          options={["none","one_to_two","amd_checkbox"]}
           onChange={(v) => setTweak("dualMappingDemo", v)} />
       </TweaksPanel>
     </div>
   );
 }
 
-Object.assign(window, { PushIssueActionButtons });
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
