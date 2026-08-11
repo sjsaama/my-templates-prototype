@@ -70,7 +70,7 @@ Per-section settings opened via the sliders (⊟) button on each section row. On
 |---|---|---|
 | Additional text | Fixed text placed before or after section content on push. Doctor picks Before or After from a dropdown. | Output settings panel |
 | Default negative | Text pushed when section has no generated content (e.g. "Not reported") | Output settings panel |
-| Character limit | **AMD: global template setting only** (`char_limit` / `max_character_length`) — no per-section value | Template settings (global) |
+| Character limit | **Global template setting only** (`char_limit`) — no per-section value. Shown for AMD and DrChrono | Template settings (global) |
 | AMD checkbox fields | Distinct AMD field type in the **same** picker as text. Section maps to one checkbox destination (allowed values from AMD fetch). Dual mapping (e.g. CC Enable + CC Text) = two sections. **How the pushed value is chosen is open** — see Open questions. | Field picker (AMD) |
 | Section separator | Separator between top-level / parent sections when joined (e.g. two parents → one EHR field) | Template settings (global); Veradigm also surfaces in output settings |
 | Subsection separator | Separator between child subsections when a parent is joined into one field | Template settings (global); Veradigm also surfaces in output settings |
@@ -98,7 +98,7 @@ Setting is **template-level**, not user-level. Whether content is pushed as a no
 | Mechanism | What it is |
 |---|---|
 | Append other derivative | A section can pull content from a derivative template (e.g. a summary template) and append it to the main note on push. Mechanism TBD — needs clarification from Vignesh. |
-| ICD / EM code mapping | Uses template ID in the mapping editor — a **separate mechanism** from append-other-derivative. ICD/CPT fields are not in the standard mapping table. |
+| **ICD / CPT codes (Add Section)** | **Self-serve only.** Sub-templates for now: **`icd10_codes`** and **`cpt_codes` only**. On **+ Add section**, content type: **Nothing / ICD / CPT** → Header → Prompt → Map. Codes are absorbed into that section. Ops-managed: remap only. **Assumption:** can map to any field on this template. **Open with ops:** confirm any-field vs specific destinations only. |
 | One section → two EHR fields | A single logical section (e.g. chief complaint) may map to two separate EHR destination fields — confirmed for AMD (checkbox field + text field). Both fields are mapped independently. For non-checkbox pairs, ordering may matter for how the EHR renders them — handling TBD. See open questions. |
 | Two sections → same EHR field | Multiple Marvix **parent** sections can share one EHR destination. Valid. Content is combined in **Marvix UI section list order** (reorder parents in the list to change push order). Neutral **Shared** chip — not a warning. |
 | First-line heading omit | Whether the first line (section heading) is stripped before push. Configurability unconfirmed — see open questions. |
@@ -176,7 +176,7 @@ Fields come from the doctor's EHR note template. The field list is populated at 
 | EHR | Format | Remap / refresh behavior |
 |---|---|---|
 | AMD | `Page Name > Field Name` (Title Case) | **Push setting** (global + per-section override) and **Character limit** (global only). Doctor remaps from the field list fetched at Connect EHR (self-serve create) or set by ops. |
-| DrChrono | Snake_case field names | ICD/CPT fields handled separately — not in mapping table. Doctor can remap. |
+| DrChrono | Snake_case field names | **Character limit** (global only). Sub-templates for now: `icd10_codes` / `cpt_codes` via Add Section (self-serve). **Push setting is AMD-only.** |
 | CharmHealth | `entry_chart_section` value if set, otherwise field name | Field list cannot be re-fetched. Doctor can remap from the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh. |
 
 > **Self-serve Cat 2:** EHR note template is chosen at **create** (Connect EHR step); fields come from that template. There is no separate "Fetch fields" action in the editor. If fields go stale after an EHR template change, remap (or Contact support for CharmHealth) is the recovery path.  
@@ -240,8 +240,8 @@ Apply to the whole template — not per section. Doctor can set these.
 
 | Setting | EHR | What it controls |
 |---|---|---|
-| **Push setting** (Insert before / Insert after / Overwrite) | AMD (and other read-before-write EHRs) | How Marvix content relates to text already in the EHR field. **Set globally → applied to each section → overridable per section.** Combines former append / prepend / replace toggles into one control. |
-| **Character limit** | AMD (and other EHRs that enforce limits) | Truncates / guides pushed length. **Global only — no per-section override.** AMD still auto-fetches per-field `max_character_length` from the API for error copy / guidance. |
+| **Push setting** (Insert before / Insert after / Overwrite) | AMD only | How Marvix content relates to text already in the EHR field. **Set globally → applied to each section → overridable per section.** Combines former append / prepend / replace toggles into one control. |
+| **Character limit** | AMD, DrChrono (and other EHRs that enforce limits) | Truncates / guides pushed length. **Global only — no per-section override.** AMD may still auto-fetch per-field `max_character_length` for error copy / guidance. |
 | Default line separator | Veradigm | Separator used for all line breaks in pushed content. |
 | Section separator | Veradigm, AMD (and any EHR that allows multi-parent → one field) | Between **parent** sections that share one EHR field (shared-field join). Default `\n\n`. |
 | Subsection separator | Veradigm, AMD (and any EHR that allows parent→children → one field) | Between **child** sections under one parent. Default `\n`. Subsection join may use either separator depending on what is being joined (parents sharing a field vs children under one parent). |
@@ -320,9 +320,11 @@ Amber = doctor-fixable. Red = needs ops/admin. Full AMD copy + per-error resolut
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
-| EHR template changed | EHR admin | ❌ Undetectable | Nothing | Ops investigates; Lambda change required to surface failures |
-| Any field-level failure | Any | ❌ Undetectable | Nothing — `save_note` swallows all exceptions | Ops investigates |
-| Auth / credentials expired | Any | ✅ Yes | — | Ops |
+| Free-text field push failed | Any | ❌ Often invisible (`save_note` swallows) — not fixable for now | "One or more sections failed to push to DrChrono. Contact support." | Ops — Contact support (no Remap) |
+| ICD / CPT push failed | Any | ❌ `logger.warning` only | "ICD/CPT codes for '[Section]' failed to push to DrChrono. Contact support." | Ops — Contact support (no Remap) |
+| Stale / archived field mapping | EHR admin | ❌ Silent fail today | "A mapped field is no longer available in DrChrono. Remap the section or contact support." | Remap or ops |
+| Auth / credentials expired | Any | ✅ Yes | "Push failed due to a DrChrono authentication issue. Contact support." | Ops |
+| Rate limit | DrChrono | ✅ Yes | — (auto-retry) | Auto |
 
 **CharmHealth**
 
@@ -375,7 +377,7 @@ Amber = doctor-fixable. Red = needs ops/admin. Full AMD copy + per-error resolut
 | EHR | What's undetectable |
 |---|---|
 | ECW | All note text failures — Lambda gets a 200 regardless |
-| DrChrono | All field-level failures — `save_note` swallows all exceptions |
+| DrChrono | Field / ICD / CPT / stale mapping failures often invisible to Lambda (`save_note` / warnings) — still show doctor error copy when known; not fixable for now |
 | CharmHealth | SOAP mode failures — no per-field errors returned |
 | Centricity (AthenaFlow) | ⚠️ Silently accepts mismatched field names — push appears to succeed even when content goes to the wrong field. Unresolved gap. |
 
@@ -398,7 +400,7 @@ Amber = doctor-fixable. Red = needs ops/admin. Full AMD copy + per-error resolut
 | One section → two EHR fields — ordering conflict | For non-checkbox dual-field cases: if one Marvix section maps to two EHR text fields, does order matter? How is conflict handled at push time? | Vignesh |
 | One section → two EHR fields — is it actually used beyond AMD checkbox? | Confirm with ops whether non-checkbox dual-field mapping is in use before designing a general solution. | Ops |
 | CharmHealth push activation status | Is CharmHealth push currently live? Automation blocked until templates API available — confirm timeline with KJ. | KJ |
-| DrChrono push activation status | Is DrChrono push currently active for any practices? | Vignesh |
+| ICD / CPT map destination | Can ICD/CPT sections map to **any** field on the template, or only specific destinations? Working assumption: anywhere. Confirm with ops. | Ops |
 | Athena rate-limit scope | Is the quota per-practice, per-doctor, or per-API-key? Affects how the error copy is worded. | Vignesh |
 
 ---
@@ -479,7 +481,9 @@ Doctors who want a template beyond what ops provides can create one themselves.
 
 **CharmHealth exception:** Field list cannot be re-fetched after creation. Doctor can remap from the existing list; Contact support if the list is stale.
 
-**AMD-specific:** **Push setting** — global with per-section override. **Character limit** — global only. Per-field `max_character_length` from AMD informs too-long errors.
+**AMD-specific:** **Push setting** — global with per-section override. Per-field `max_character_length` from AMD informs too-long errors.
+
+**DrChrono + AMD:** **Character limit** — global only (never per-section). DrChrono has no per-field max from the API in the prototype. Push setting is not exposed for DrChrono.
 
 ---
 

@@ -1,79 +1,108 @@
 # EHR Mapping — DrChrono
 
+Backend mapping reference + My Templates prototype notes (`cursor/drchrono-ehr-9d4d`).  
+Related: [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md), [ERROR_UX.md](ERROR_UX.md), [SHARED_CONFIG.md](SHARED_CONFIG.md).
+
+---
+
 ## Extra Fields YAML keys
 
 | YAML key | Required? | Type | Purpose | Example | Source |
-|---|---|---|---|---|---|
-| `ehr_field_id` | Yes | Number | DrChrono clinical note field ID — sent in the POST to `/clinical_note_field_values` to identify the target field | `84213206` | Template file (tech) |
-| `ehr_field_name` | Yes | Text | Field display name — used to route special fields (e.g. `icd10_codes`, `cpt_codes`) to separate push handlers | `"Past Medical History Freewrite"` | Template file (tech) |
+| --- | --- | --- | --- | --- | --- |
+| `ehr_field_id` | Yes | Number | Clinical note field ID — POST `/clinical_note_field_values` | `84213206` | Template file (tech) |
+| `ehr_field_name` | Yes | Text | Display name; routes special handlers (`icd10_codes`, `cpt_codes`) | `"Past Medical History Freewrite"` | Template file (tech) |
 
-**Example YAML:**
 ```yaml
 ehr_field_id: 84213206
 ehr_field_name: "Past Medical History Freewrite"
 ```
 
-**Special fields routed by `ehr_field_name`:**
-
-| `ehr_field_name` value | What happens |
-|---|---|
-| `icd10_codes` | Routed to ICD-10 code push handler (not a free-text field) |
-| `cpt_codes` | Routed to CPT code push handler |
+No `ordinal` / `page_name` / per-field `max_character_length` (those are AMD).
 
 ---
 
-## Relevant `config` keys
+## Mapping
 
-| Key | Useful? | Notes |
-|---|---|---|
-| `append` | ✅ Yes | DrChrono fetches existing note content before pushing |
-| `prepend` | ✅ Yes | Same as above |
-| `separator` | ✅ Yes | **→ Moving to Template Settings** |
-| `char_limit` | ✅ Yes | **→ Moving to Template Settings** |
-| `push_subsections` | ✅ Yes | **→ Moving to Template Settings** |
-| `retain_headings` | ✅ Yes | **→ Moving to Template Settings** |
-| `skip_empty_subsections` | ✅ Yes | **→ Moving to Template Settings** |
-| `line_separator` | ❌ No | ECW HL7 only |
+Standard section → free-text EHR field mapping (general Cat 2). DrChrono field IDs are snake_case with human labels in the picker.
 
-> `separator`, `char_limit`, `push_subsections`, `retain_headings`, and `skip_empty_subsections` are being promoted to a global **Template Settings** level. Doctors will configure them once per template rather than per mapping row.
+### Sub-templates — ICD / CPT only (for now)
+
+Backend names: `icd10_codes`, `cpt_codes` (via `sub_template_ids`). **Only these two** sub-templates for now.
+
+| Who | What they can do |
+| --- | --- |
+| **Self-serve** | **+ Add section** → content type **Nothing / ICD (`icd10_codes`) / CPT (`cpt_codes`)** → Header → Prompt → Map. Codes are absorbed into that section. |
+| **Ops-managed** | Section already exists. Doctor **remaps only** (no add section, no prompt edit). |
+
+**Working assumption:** ICD/CPT sections can map to **any** field on this template.  
+**Open with ops:** Confirm whether mapping must be limited to specific destinations, or anywhere is fine.
+
+DrChrono push is **live** (product to double-check).
 
 ---
 
 ## What doctors can change
 
-| Why doctor does this | Doctor / Admin action | Effect on mapping | Needs ops? |
-|---|---|---|---|
-| Practice cleaning up old fields no longer used; changed specialty focus | Archives a clinical note field in DrChrono | `ehr_field_id` becomes invalid — push silently fails, logged only | ❌ Yes — get new field ID from updated template file |
-| New visit type; practice added or restructured note sections | Changes template / adds new fields | Existing field IDs may no longer match | ❌ Yes — obtain new field IDs from updated template file |
+| Why | Effect | Needs ops? |
+| --- | --- | --- |
+| Remap to another field on this template | Points at a different `ehr_field_id` | No — if list is current |
+| Field archived / template restructured | Stale mapping — see Push errors | Yes if remap can’t recover |
+
+No AMD-style auto-remap.
 
 ---
 
-## What breaks the mapping
+## Settings — global and local
 
-| What breaks it | How it fails | Visible to doctor? |
-|---|---|---|
-| `ehr_field_id` archived or deleted | Returns `False`, logged only | No — silently dropped |
+Same hierarchy as AMD: Global → sections → optional local override.
+
+| Scope | Settings |
+| --- | --- |
+| **Global** | **Character limit** (`char_limit`) — global only. Subsection join → Template Settings |
+| **Local** | Additional text, Default negative |
+| **Not on DrChrono** | **Push setting** (`append` / `prepend`) — **AMD-only**. `line_separator` — ECW only |
 
 ---
 
 ## Push errors
 
-| Error | Exception | Behaviour | Doctor-actionable? |
-|---|---|---|---|
-| Any field-level failure | Caught internally by `save_note` — returns `False` silently | **Lambda has no visibility** — nothing logged, no email | ❌ Unknown — failure is invisible |
-| ICD/CPT/chief complaint push failure | `logger.warning` only | Not raised, not retried | ❌ No — ops must check CloudWatch |
-| Auth failure | `CredentialsException` | Not caught at Lambda level — bubbles to generic retry | ❌ No — ops reconnects integration |
-| Rate limit | `ThrottledException` | Not caught at Lambda level — bubbles to generic retry | ❌ No — resolves automatically |
+Field-level failures are often invisible to Lambda today (`save_note` swallows them) — **not fixable for now**. Still treat as errors and show copy when surfaced / in mocks.
 
-**Known gap**: `save_note` swallows all field-level exceptions and returns `False` silently. Lambda currently has zero visibility into which DrChrono fields failed. Push issues banner cannot work for DrChrono without a Lambda change to surface failures.
+| Error | Behaviour today | Doctor sees | Actions |
+| --- | --- | --- | --- |
+| Free-text field push failed | `save_note` → `False`; Lambda may not see it | "One or more sections failed to push to DrChrono. Contact support." | Contact support (`push_failed`) |
+| ICD / CPT push failed | `logger.warning` only | "ICD/CPT codes for '[Section]' failed to push to DrChrono. Contact support." | Contact support (`push_failed`) |
+| Stale / archived field mapping | Invalid `ehr_field_id`; silent fail | "A mapped field is no longer available in DrChrono. Remap the section or contact support." | Remap + Contact support (`mapping_broken`) |
+| Auth / credentials | `CredentialsException` | "Push failed due to a DrChrono authentication issue. Contact support." | Contact support (`auth`) |
+| Rate limit | `ThrottledException` | Auto-retry — no doctor action | — |
 
-**No `push_errors` DB table exists today** — all failures go to ops email and CloudWatch only.
+**Remap only for stale mapping.** Field / ICD / CPT push failures are ops — no Remap.
+
+Prototype tweaks: `drchrono_auth`, `drchrono_field_failed`, `drchrono_stale_mapping`, `drchrono_icd_cpt_failed`.
 
 ---
 
-## Where this lives in the code
+## Code
 
 | Location | Role |
-|---|---|
-| `ehr_layer/drchrono.py` | Uses `ehr_field_id` + `ehr_field_name` |
-| `ehr_layer/section_text_builder.py` | Reads `config` keys at push time |
+| --- | --- |
+| `ehr_layer/drchrono.py` | `ehr_field_id` + `ehr_field_name`; `icd10_codes` / `cpt_codes` by name |
+| `ehr_layer/section_text_builder.py` | Reads `config` at push time |
+| Ops `/update_ehr_mapping_subtemplates` | `sub_template_ids` for ICD/CPT |
+
+---
+
+## My Templates prototype
+
+Branch `cursor/drchrono-ehr-9d4d` — EHR locked to DrChrono. Entry: `index.html`.
+
+| | Ops-managed | Self-serve |
+| --- | --- | --- |
+| Remap, output settings, global Character limit | ✅ | ✅ |
+| Reset / Request New Section | ✅ | ❌ |
+| Add section (Nothing / ICD / CPT) + Prompt | ❌ | ✅ |
+| Create → Connect EHR | ❌ | ✅ |
+
+**DrChrono deltas vs AMD:** snake_case picker (no checkboxes); Character limit global-only; no Push setting; Connect EHR uses `EHR_TEMPLATES_BY_SYSTEM.DrChrono`.
+
+**Open (ops):** Can ICD/CPT map to any section/field on the template, or only specific destinations?

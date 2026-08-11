@@ -40,65 +40,30 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "density": "regular",
   "showAdvancedInline": true,
   "monoMapping": true,
-  "ehr": "AMD",
+  "ehr": "DrChrono",
   "errorScenario": "none",
   "dualMappingDemo": "none"
 }/*EDITMODE-END*/;
 
-// This branch is scoped to AMD only — other EHR systems live on their own branches.
-const EHR_OPTIONS = ["AMD"];
+// This branch is scoped to DrChrono only — other EHR systems live on their own branches.
+const EHR_OPTIONS = ["DrChrono"];
 const EHR_LOCKED = true;
 
+// DrChrono: field-level failures often invisible to Lambda — still show error copy when mocked.
 const ERROR_SCENARIOS = {
   none: [],
-  athena_checkin: [
-    { id: "pi1", section: "History of Present Illness", error: "Check-in not complete", type: "checkin", msg: "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again.", selfServe: true },
-    { id: "pi2", section: "Assessment & Plan", error: "Check-in not complete", type: "checkin", msg: "This note couldn't be pushed because the patient's check-in isn't complete in Athena. Finish check-in, then push again.", selfServe: true },
+  drchrono_auth: [
+    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to a DrChrono authentication issue. Contact support.", selfServe: false },
   ],
-  athena_section: [
-    { id: "pi1", section: "History of Present Illness", error: "Field mapping broken", type: "mapping_broken", msg: "One or more sections failed to push. Support has been notified.", selfServe: false },
-    { id: "pi2", section: "Assessment & Plan", error: "Field mapping broken", type: "mapping_broken", msg: "One or more sections failed to push. Support has been notified.", selfServe: false },
+  drchrono_field_failed: [
+    { id: "pi1", section: "History of Present Illness", error: "Field push failed", type: "push_failed", msg: "One or more sections failed to push to DrChrono. Contact support.", selfServe: false },
+    { id: "pi2", section: "Assessment & Plan", error: "Field push failed", type: "push_failed", msg: "One or more sections failed to push to DrChrono. Contact support.", selfServe: false },
   ],
-  athena_transient: [
-    { id: "pi1", section: "History of Present Illness", error: "Athena API error", type: "transient", msg: "Something went wrong on Athena's end — we'll retry automatically. If this keeps happening, contact support.", selfServe: false },
+  drchrono_stale_mapping: [
+    { id: "pi1", section: "Past Medical History", error: "Field no longer available", type: "mapping_broken", msg: "A mapped field is no longer available in DrChrono. Remap the section or contact support.", selfServe: false },
   ],
-  athena_auth: [
-    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to an authentication issue. Contact support.", selfServe: false },
-  ],
-  amd_template_changed: [
-    { id: "pi1", section: "History of Present Illness", error: "AMD template updated", type: "template_changed", msg: "Your AMD template was updated and some field mappings are no longer valid. Support has been notified.", selfServe: false },
-    { id: "pi2", section: "Assessment & Plan", error: "AMD template updated", type: "template_changed", msg: "Your AMD template was updated and some field mappings are no longer valid. Support has been notified.", selfServe: false },
-  ],
-  amd_too_long: [
-    { id: "pi1", section: "History of Present Illness", error: "Content too long", type: "too_long", msg: "'History of Present Illness' is too long for this field (max 2,000 chars). Shorten your note and push again.", selfServe: true },
-  ],
-  amd_no_permission: [
-    { id: "pi1", section: "History of Present Illness", error: "Permission denied", type: "permission", msg: "Marvix doesn't have permission to write to AMD. Ask your practice admin to check account permissions.", selfServe: false },
-  ],
-  amd_invalid_value: [
-    { id: "pi1", section: "Chief Complaint Enable", error: "Invalid field value", type: "invalid_value", msg: "'Chief Complaint Enable' contains a value AMD doesn't accept for this checkbox field. Contact support.", selfServe: false },
-  ],
-  amd_template_deleted: [
-    { id: "pi1", section: "History of Present Illness", error: "AMD template removed", type: "template_deleted", msg: "Your AMD template was removed. Support has been notified to reconnect your template.", selfServe: false },
-    { id: "pi2", section: "Assessment & Plan", error: "AMD template removed", type: "template_deleted", msg: "Your AMD template was removed. Support has been notified to reconnect your template.", selfServe: false },
-  ],
-  amd_locked: [
-    { id: "pi1", section: "History of Present Illness", error: "Note locked", type: "locked", msg: "This note is locked in AMD and can't be edited. Contact support if this is unexpected.", selfServe: false },
-  ],
-  amd_provider_not_found: [
-    { id: "pi1", section: "History of Present Illness", error: "Provider not found", type: "provider_not_found", msg: "Your provider account wasn't found in AMD. Contact support.", selfServe: false },
-  ],
-  amd_prev_note_fetch: [
-    { id: "pi1", section: "History of Present Illness", error: "Previous note unavailable", type: "prev_note_fetch", msg: "Couldn't retrieve your previous note from AMD. Push was stopped — contact support.", selfServe: false },
-  ],
-  amd_auth: [
-    { id: "pi1", section: "History of Present Illness", error: "Authentication error", type: "auth", msg: "Push failed due to an authentication issue. Contact support.", selfServe: false },
-  ],
-  veradigm_chart: [
-    { id: "pi1", section: "History of Present Illness", error: "Chart not open", type: "chart_closed", msg: "Veradigm requires the patient's chart to be open before pushing. Open the chart and try again.", selfServe: true },
-  ],
-  veradigm_locked: [
-    { id: "pi1", section: "Assessment & Plan", error: "Encounter locked", type: "locked", msg: "This encounter is locked in Veradigm and can't be edited.", selfServe: false },
+  drchrono_icd_cpt_failed: [
+    { id: "pi1", section: "ICD Codes", error: "ICD/CPT push failed", type: "push_failed", msg: "ICD/CPT codes for 'ICD Codes' failed to push to DrChrono. Contact support.", selfServe: false },
   ],
 };
 
@@ -107,13 +72,6 @@ function mapSectionTree(list, id, fn) {
     if (s.id === id) return fn(s);
     if (!s.children) return s;
     return { ...s, children: mapSectionTree(s.children, id, fn) };
-  });
-}
-function mapAllSections(list, fn) {
-  return list.map((s) => {
-    const next = fn(s);
-    if (!s.children) return next;
-    return { ...next, children: mapAllSections(s.children, fn) };
   });
 }
 function findSection(sections, id) {
@@ -160,7 +118,7 @@ function Toast({ msg }) {
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const ehr = EHR_LOCKED ? "AMD" : t.ehr;
+  const ehr = EHR_LOCKED ? "DrChrono" : t.ehr;
   const [templates, setTemplates] = useStateA(window.TEMPLATES);
   const [createTemplateOpen, setCreateTemplateOpen] = useStateA(false);
   const [activeTpl, setActiveTpl] = useStateA("gen3");
@@ -169,7 +127,6 @@ function App() {
     window.INITIAL_PENDING_REQUESTS.map((r) => ({ ...r }))
   );
   const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
-  const [pushModeByTpl, setPushModeByTpl] = useStateA({});
   const [charLimitByTpl, setCharLimitByTpl] = useStateA({});
   const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
   const [disableTarget, setDisableTarget] = useStateA(null);
@@ -189,24 +146,16 @@ function App() {
   const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
   const pendingCount = pendingRequests.length;
   const visibleTemplates = EHR_LOCKED
-    ? templates.filter((t) => !t.ehrSystem || t.ehrSystem === "AMD")
+    ? templates.filter((t) => !t.ehrSystem || t.ehrSystem === "DrChrono")
     : templates;
   const sections = activeTpl
     ? (sectionsByTpl[activeTpl] || (sectionsByTpl[activeTpl] = window.makeSections()))
     : [];
-  const templatePushMode = (activeTpl && pushModeByTpl[activeTpl]) || "Prepend";
   const templateCharLimit = (activeTpl && charLimitByTpl[activeTpl]) || 2000;
 
   const setSections = (fn) => {
     if (!activeTpl) return;
     setSectionsByTpl((m) => ({ ...m, [activeTpl]: fn(m[activeTpl] || window.makeSections()) }));
-  };
-
-  const applyTemplatePushMode = (mode) => {
-    if (!activeTpl) return;
-    setPushModeByTpl((m) => ({ ...m, [activeTpl]: mode }));
-    setSections((arr) => mapAllSections(arr, (s) => (s.ghost ? s : { ...s, config: mode })));
-    flash("Push setting applied to all sections — change any section to override");
   };
 
   const applyTemplateCharLimit = (limit) => {
@@ -256,7 +205,7 @@ function App() {
       name: data.name,
       custom: true,
       ehr: data.field || "",
-      config: templatePushMode || "Prepend",
+      config: "Prepend",
       enabled: true,
       macros: [],
       summarizers: [],
@@ -269,6 +218,7 @@ function App() {
       styleDetail: "Standard",
       styleFormat: "Prose",
       stylePrompt: data.prompt,
+      codeSource: data.codeSource || "none", // none | icd | cpt
     };
     const parentId = addSectionOpen.parentId;
     if (parentId) {
@@ -283,7 +233,11 @@ function App() {
       setSections((arr) => [...arr, newSection]);
     }
     setAddSectionOpen(null);
-    flash("Section added");
+    flash(data.codeSource === "icd"
+      ? "Section added — ICD (icd10_codes) absorbed"
+      : data.codeSource === "cpt"
+      ? "Section added — CPT (cpt_codes) absorbed"
+      : "Section added");
   };
 
   const handleCreateTemplate = (data) => {
@@ -294,9 +248,9 @@ function App() {
       name: data.name,
       derivative: data.type,
       ehr: connectedName
-        ? ((ehr || "AMD") + "_" + connectedName.replace(/\s+/g, "_"))
-        : ((ehr || "AMD") + "_Unconnected"),
-      ehrSystem: ehr || "AMD",
+        ? ((ehr || "DrChrono") + "_" + connectedName.replace(/\s+/g, "_"))
+        : ((ehr || "DrChrono") + "_Unconnected"),
+      ehrSystem: ehr || "DrChrono",
       ehrTemplateId: data.ehrTemplateId || "",
       ehrTemplateName: connectedName,
       group: "My Templates",
@@ -416,11 +370,11 @@ function App() {
                   )}
                 </div>
               </header>
-              {/* Connected AMD note template (self-serve Cat 2) */}
-              {tpl.userCreated && ehr === "AMD" && (
+              {/* Connected DrChrono note template (self-serve Cat 2) */}
+              {tpl.userCreated && ehr === "DrChrono" && (
                 <div className="ehr-tpl-banner">
                   <div className="ehr-tpl-banner-left">
-                    <span className="ehr-tpl-banner-label">Connected AMD note template</span>
+                    <span className="ehr-tpl-banner-label">Connected DrChrono note template</span>
                     {tpl.ehrTemplateName
                       ? <span className="ehr-tpl-banner-value">{tpl.ehrTemplateName}</span>
                       : <span className="ehr-tpl-banner-unset">Not connected — map fields from the list, or reconnect later</span>}
@@ -428,27 +382,9 @@ function App() {
                 </div>
               )}
 
-              {/* AMD global settings — Push setting + Character limit */}
-              {ehr === "AMD" && ehrCat.cat <= 2 && (
+              {/* Global settings — Character limit only (Push setting is AMD-only) */}
+              {ehr === "DrChrono" && ehrCat.cat <= 2 && (
                 <div className="tpl-settings-stack">
-                  <div className="tpl-settings-bar">
-                    <span className="tpl-settings-label">Push setting</span>
-                    <div className="tpl-settings-seg" role="group" aria-label="Template push setting">
-                      {["Prepend", "Append", "Replace"].map((mode) => (
-                        <button
-                          key={mode}
-                          type="button"
-                          className={"tpl-settings-seg-btn" + (templatePushMode === mode ? " tpl-settings-seg-btn--on" : "")}
-                          onClick={() => applyTemplatePushMode(mode)}
-                        >
-                          {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
-                        </button>
-                      ))}
-                    </div>
-                    <span className="tpl-settings-hint">
-                      Template default — applies to every section. Override per section in output settings.
-                    </span>
-                  </div>
                   <div className="tpl-settings-bar">
                     <span className="tpl-settings-label">Character limit</span>
                     <input
@@ -461,7 +397,7 @@ function App() {
                       aria-label="Template character limit"
                     />
                     <span className="tpl-settings-hint">
-                      Global only — applies to the whole template (no per-section override). AMD field max still informs too-long errors when mapped.
+                      Global only — applies to the whole template. Not editable per section.
                     </span>
                   </div>
                 </div>
@@ -516,7 +452,6 @@ function App() {
               <window.SectionTable
                 sections={sections}
                 ehr={ehr}
-                templatePushMode={templatePushMode}
                 pushIssues={pushIssues}
                 dualMappingDemo={t.dualMappingDemo}
                 remapTarget={remapTarget}
@@ -621,10 +556,10 @@ function App() {
         <TweakSection label="EHR" />
         {EHR_LOCKED ? (
           <TweakRadio
-            label="EHR system (AMD branch)"
-            value="AMD"
-            options={["AMD"]}
-            onChange={() => setTweak("ehr", "AMD")}
+            label="EHR system (DrChrono branch)"
+            value="DrChrono"
+            options={["DrChrono"]}
+            onChange={() => setTweak("ehr", "DrChrono")}
           />
         ) : (
           <TweakSelect label="EHR system" value={t.ehr}
@@ -633,11 +568,11 @@ function App() {
         )}
         <TweakSection label="Simulate push error" />
         <TweakSelect label="Error scenario" value={t.errorScenario}
-          options={["none","amd_template_changed","amd_template_deleted","amd_too_long","amd_no_permission","amd_invalid_value","amd_locked","amd_provider_not_found","amd_prev_note_fetch","amd_auth"]}
+          options={["none","drchrono_auth","drchrono_field_failed","drchrono_stale_mapping","drchrono_icd_cpt_failed"]}
           onChange={(v) => setTweak("errorScenario", v)} />
         <TweakSection label="Advanced mapping demos" />
         <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}
-          options={["none","one_to_two","amd_checkbox"]}
+          options={["none","one_to_two"]}
           onChange={(v) => setTweak("dualMappingDemo", v)} />
       </TweaksPanel>
     </div>

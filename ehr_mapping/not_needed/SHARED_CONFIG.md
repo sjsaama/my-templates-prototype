@@ -41,11 +41,13 @@ Doctor-facing UI combines these into **one Push setting**: Insert before / Inser
 
 **Hierarchy (AMD):** set globally on the template → applied to each section as the default → any section can override locally.
 
+**Doctor UI:** **AMD only** today. Backend may still use `append`/`prepend` for DrChrono (and AthenaOne) via YAML/ops — not exposed in My Templates for those EHRs.
+
 | Key | Where in YAML | Type | Default | What it does | Doctor-facing? |
 |---|---|---|---|---|---|
-| `append` | `config.append` | Boolean | false | Append Marvix content after existing content already in the EHR field (= Insert after) | Yes — AMD, AthenaOne, DrChrono — part of Push setting |
-| `prepend` | `config.prepend` | Boolean | false | Prepend Marvix content before existing content already in the EHR field (= Insert before) | Yes — AMD, AthenaOne, DrChrono — part of Push setting |
-| *(neither)* | — | — | — | Overwrite / replace existing EHR field content | Yes — same Push setting control |
+| `append` | `config.append` | Boolean | false | Append Marvix content after existing content already in the EHR field (= Insert after) | Yes — **AMD only** (Push setting). Backend also used for DrChrono / AthenaOne via YAML |
+| `prepend` | `config.prepend` | Boolean | false | Prepend Marvix content before existing content already in the EHR field (= Insert before) | Yes — **AMD only** (Push setting). Backend also used for DrChrono / AthenaOne via YAML |
+| *(neither)* | — | — | — | Overwrite / replace existing EHR field content | Yes — same AMD Push setting control |
 
 ---
 

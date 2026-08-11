@@ -454,7 +454,7 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
           <h2>Create a template</h2>
           <span className="modal-sub">
             {needsConnectEhr
-              ? "Self-serve — pick an AMD note template so field mapping uses your EHR fields"
+              ? "Self-serve — pick a DrChrono note template so field mapping uses your EHR fields"
               : "You'll configure sections and EHR mapping after creation"}
           </span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
@@ -607,6 +607,8 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
   const [prompt, setPrompt] = useStateM("");
   const [field, setField] = useStateM("");
   const [query, setQuery] = useStateM("");
+  // none = normal free-text section; icd / cpt = codes absorbed into this section, then mapped
+  const [codeSource, setCodeSource] = useStateM("none");
 
   useEffectM(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -624,34 +626,87 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
           ...g,
           fields: g.fields.filter((f) => {
             if (used.includes(f)) return false;
-            const label = f.split(" > ").pop();
-            return label.toLowerCase().includes(query.toLowerCase()) || g.group.toLowerCase().includes(query.toLowerCase());
+            const label = (window.EHR_FIELD_LABELS && (window.EHR_FIELD_LABELS[f] || window.EHR_FIELD_LABELS[f.split(" > ").pop()])) || f.split(" > ").pop();
+            return label.toLowerCase().includes(query.toLowerCase()) || g.group.toLowerCase().includes(query.toLowerCase()) || f.toLowerCase().includes(query.toLowerCase());
           }),
         }))
         .filter((g) => g.fields.length > 0)
     : [];
 
+  const fieldLabel = (f) => {
+    if (!f) return "";
+    const labels = window.EHR_FIELD_LABELS || {};
+    const raw = f.split(" > ").pop();
+    return labels[raw] || labels[f] || raw;
+  };
+
   const canSubmit = name.trim() && prompt.trim() && (!needsFieldPick || field);
 
   const submit = () => {
     if (!canSubmit) return;
-    onCreate({ name: name.trim(), prompt: prompt.trim(), field: field || "" });
+    onCreate({
+      name: name.trim(),
+      prompt: prompt.trim(),
+      field: field || "",
+      codeSource, // "none" | "icd" | "cpt"
+    });
   };
+
+  const codeHint = {
+    none: "Normal free-text section — AI writes prose for this header.",
+    icd: "ICD codes (icd10_codes) are absorbed into this section. Write a prompt, then map where they push.",
+    cpt: "CPT codes (cpt_codes) are absorbed into this section. Write a prompt, then map where they push.",
+  }[codeSource];
 
   return (
     <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal modal--add-section" role="dialog" aria-modal="true">
         <div className="modal-head">
           <h2>{parentName ? "Add subsection" : "Add section"}</h2>
-          <span className="modal-sub">{parentName ? "Under " + parentName : "Header and prompt — you write both, no AI drafting"}</span>
+          <span className="modal-sub">{parentName ? "Under " + parentName : "Self-serve — choose content type, prompt, and map"}</span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
 
         <div className="modal-body">
+          <div className="req-field">
+            <label>Content type</label>
+            <div className="create-type-row" role="group" aria-label="Section content type">
+              {[
+                { id: "none", label: "Nothing" },
+                { id: "icd", label: "ICD (icd10_codes)" },
+                { id: "cpt", label: "CPT (cpt_codes)" },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  className={"create-type-btn" + (codeSource === opt.id ? " create-type-btn--on" : "")}
+                  onClick={() => setCodeSource(opt.id)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="adv-field-hint">{codeHint}</div>
+          </div>
+
+          <div className="req-field">
+            <label>Header</label>
+            <input className="req-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Allergy History" autoFocus />
+          </div>
+
+          <div className="req-field">
+            <label>Prompt</label>
+            <textarea className="req-input req-textarea" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)}
+              placeholder={codeSource === "none"
+                ? "Tell the AI what to write in this section…"
+                : "Tell the AI how to produce " + (codeSource === "icd" ? "ICD (icd10_codes)" : "CPT (cpt_codes)") + " for this section…"} />
+            <div className="adv-field-hint">You write the prompt — this is the instruction the AI follows.</div>
+          </div>
+
           {needsFieldPick && (
             <div className="req-field">
               <label>Map to {cat.label || ehr} field</label>
-              <input className="req-input" placeholder="Search fields…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+              <input className="req-input" placeholder="Search fields…" value={query} onChange={(e) => setQuery(e.target.value)} />
               <div className="add-section-field-list">
                 {filteredGroups.length === 0 ? (
                   <div className="mapping-picker-empty">No unused fields match{query ? ` "${query}"` : ""}.</div>
@@ -664,9 +719,9 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
                           key={f}
                           type="button"
                           className={"mapping-picker-field" + (f === field ? " mapping-picker-field--selected" : "")}
-                          onClick={() => { setField(f); if (!name.trim()) setName(f.split(" > ").pop()); }}
+                          onClick={() => { setField(f); if (!name.trim()) setName(fieldLabel(f)); }}
                         >
-                          <span>{f.split(" > ").pop()}</span>
+                          <span>{fieldLabel(f)}</span>
                           {f === field && <span className="mapping-picker-check"><I.check /></span>}
                         </button>
                       ))}
@@ -674,20 +729,11 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
                   ))
                 )}
               </div>
+              <div className="adv-field-hint">
+                Maps within this template’s field list. Assumption: ICD/CPT can map to any field — confirm with ops if destinations should be restricted.
+              </div>
             </div>
           )}
-
-          <div className="req-field">
-            <label>Header</label>
-            <input className="req-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Allergy History" autoFocus={!needsFieldPick} />
-          </div>
-
-          <div className="req-field">
-            <label>Prompt</label>
-            <textarea className="req-input req-textarea" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Tell the AI what to write in this section…" />
-            <div className="adv-field-hint">This is the actual instruction the AI follows — write it the way you'd want this section described.</div>
-          </div>
         </div>
 
         <div className="modal-foot">

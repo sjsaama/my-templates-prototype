@@ -42,11 +42,6 @@ function fieldLabel(f) {
   return labels[raw] || labels[f] || raw;
 }
 
-function fieldMeta(path) {
-  if (window.amdFieldMeta) return window.amdFieldMeta(path);
-  return { type: "text" };
-}
-
 function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeIt, ehr, onSelect, onClose }) {
   const [query, setQuery] = useStateR("");
   const [scribeQuery, setScribeQuery] = useStateR("");
@@ -202,17 +197,13 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                       <div className="mapping-picker-group-label">{g.group}</div>
                       {g.fields.map(f => {
                         const isSelected = f === pendingEhr;
-                        const meta = fieldMeta(f);
-                        const isCheckbox = meta.type === "checkbox";
                         return (
                           <button key={f}
-                            className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "") + (isCheckbox ? " mapping-picker-field--checkbox" : "")}
+                            className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
                             onClick={() => setPendingEhr(f)}
                           >
                             <span className="mapping-picker-field-main">
-                              {isCheckbox && <span className="mapping-picker-cb-ico" aria-hidden="true">☑</span>}
-                              <span>{f.split(" > ").pop()}</span>
-                              {isCheckbox && <span className="mapping-type-tag">checkbox</span>}
+                              <span>{fieldLabel(f)}</span>
                             </span>
                             {isSelected && <span className="mapping-picker-check"><I.check /></span>}
                           </button>
@@ -224,17 +215,6 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
             </div>
             <div className="mapping-picker-foot">
               <button className="mapping-picker-clear" onClick={() => setPendingEhr("")}>Clear mapping — remove EHR destination</button>
-              {pendingEhr && fieldMeta(pendingEhr).type === "checkbox" && (
-                <div className="mapping-picker-checkbox-hint">
-                  <strong>Checkbox field</strong>
-                  {(fieldMeta(pendingEhr).allowedValues || []).length > 0 && (
-                    <span> — allowed values: {(fieldMeta(pendingEhr).allowedValues || []).join(", ")}</span>
-                  )}
-                  <div className="mapping-picker-checkbox-hint-sub">
-                    {fieldMeta(pendingEhr).hint || "Prompt must output one of the allowed values for AMD to accept the push."}
-                  </div>
-                </div>
-              )}
             </div>
           </>
         )}
@@ -257,10 +237,6 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride 
     background:"#F9FAFB", border:"1px solid #E7E7E9", borderRadius:5,
     padding:"3px 8px", fontSize:12, color:"#444", marginBottom:3,
   };
-  const typeTag = {
-    fontSize:10, color:"#888", background:"#fff", border:"1px solid #E7E7E9",
-    borderRadius:3, padding:"0 4px", marginLeft:2,
-  };
 
   // Item 48: one Marvix section → two EHR fields
   if (demoOverride === "one_to_two") {
@@ -268,11 +244,11 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride 
       <div style={{display:"flex",flexDirection:"column",gap:4}}>
         <div style={chipBase}>
           <span style={{fontSize:11,fontWeight:700,color:"#747AF7"}}>①</span>
-          <span style={{fontWeight:500}}>Assessment &gt; Clinical Notes</span>
+          <span style={{fontWeight:500}}>assessment_clinical_notes</span>
         </div>
         <div style={chipBase}>
           <span style={{fontSize:11,fontWeight:700,color:"#747AF7"}}>②</span>
-          <span style={{fontWeight:500}}>Assessment &gt; Free Text</span>
+          <span style={{fontWeight:500}}>assessment_free_text</span>
         </div>
         <div style={{fontSize:11.5,color:"#92400e",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:4,padding:"3px 8px",marginTop:2}}>
           ⚠ Push order follows section order in the list — drag to change
@@ -281,50 +257,21 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride 
     );
   }
 
-  // Item 49: AMD checkbox + text dual-field
-  if (demoOverride === "amd_checkbox") {
-    return (
-      <div style={{display:"flex",flexDirection:"column",gap:4}}>
-        <div style={chipBase}>
-          <span style={{fontWeight:500}}>CC Text</span>
-          <span style={typeTag}>text</span>
-        </div>
-        <div style={{...chipBase,background:"#fefce8",border:"1px solid #fde68a",color:"#78350f",marginBottom:0}}>
-          <span>☑</span>
-          <span style={{fontWeight:500}}>CC Enable</span>
-          <span style={{...typeTag,border:"1px solid #fde68a",color:"#92400e"}}>checkbox</span>
-        </div>
-        <div style={{fontSize:11.5,color:"#888",marginTop:2}}>
-          Selected from the same field picker — prompt must output one of its allowed values
-        </div>
-      </div>
-    );
-  }
-
   const isEmpty = !s.ehr;
   const label = isEmpty ? "Not mapped" : fieldLabel(s.ehr);
-  const meta = fieldMeta(s.ehr);
-  const isCheckbox = !isEmpty && meta.type === "checkbox";
   return (
     <div className="mapping-cell-wrap">
       <button
-        className={"mapping-edit-btn" + (isEmpty ? " mapping-edit-btn--empty" : "") + (isCheckbox ? " mapping-edit-btn--checkbox" : "")}
+        className={"mapping-edit-btn" + (isEmpty ? " mapping-edit-btn--empty" : "")}
         onClick={() => onOpenMapping(s.id)}
         title={isEmpty ? "Click to assign an EHR field" : "Change EHR mapping: " + s.ehr}
       >
-        {isCheckbox && <span className="mapping-cb-ico" aria-hidden="true">☑</span>}
         <span className="mapping-edit-label">{label}</span>
-        {isCheckbox && <span className="mapping-type-tag">checkbox</span>}
         <span className="mapping-edit-ico"><I.pencil /></span>
       </button>
       {isDuplicate && (
         <span className="mapping-shared" title="Multiple sections push to this field — content is combined in section order">
           Shared
-        </span>
-      )}
-      {isCheckbox && meta.allowedValues && meta.allowedValues.length > 0 && (
-        <span className="mapping-cb-values" title="Allowed AMD checkbox values">
-          {meta.allowedValues.join(" · ")}
         </span>
       )}
     </div>
@@ -357,12 +304,8 @@ function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, eh
   );
 }
 
-// ── Soft-hidden details panel — 4 tabs ────────────────────────────────────
-function InlineAdvPanel({ s, onUpdate, ehr, templatePushMode }) {
-  const I = window.Icons;
-  const pushMode = s.config || templatePushMode || "Prepend";
-  const usesTemplateDefault = !s.config || s.config === (templatePushMode || "Prepend");
-  const amdFieldMax = s.ehr ? (window.AMD_CHAR_LIMITS || {})[s.ehr] : null;
+// ── Soft-hidden details panel ─────────────────────────────────────────────
+function InlineAdvPanel({ s, onUpdate }) {
   return (
     <div className="adv">
 
@@ -389,43 +332,7 @@ function InlineAdvPanel({ s, onUpdate, ehr, templatePushMode }) {
               placeholder='e.g. "Not reported" or "None"'
               onChange={e => onUpdate(s.id, { defaultNegative: e.target.value })} />
           </div>
-
-          {ehr === "AMD" && amdFieldMax != null && (
-            <div className="adv-char-limit">
-              <span className="adv-char-limit-label">AMD field max</span>
-              <span className="adv-char-limit-val">{amdFieldMax.toLocaleString()} characters</span>
-              <span className="adv-char-limit-hint">From max_character_length — template Character limit is set globally (not per section)</span>
-            </div>
-          )}
-
-          {ehr === "AMD" && (
-            <div className="adv-field adv-field--push-mode">
-              <label className="adv-field-label">
-                Push setting
-                <span className="adv-field-optional">{usesTemplateDefault ? "· template default" : "· section override"}</span>
-              </label>
-              <div className="adv-seg-row">
-                {["Prepend", "Append", "Replace"].map(mode => (
-                  <button key={mode}
-                    className={"seg-btn" + (pushMode === mode ? " seg-btn--on" : "")}
-                    onClick={() => onUpdate(s.id, { config: mode })}>
-                    {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
-                  </button>
-                ))}
-              </div>
-              {!usesTemplateDefault && (
-                <button
-                  type="button"
-                  className="adv-reset-link"
-                  style={{ marginTop: 6 }}
-                  onClick={() => onUpdate(s.id, { config: templatePushMode || "Prepend" })}
-                >
-                  Use template default ({({ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" })[templatePushMode || "Prepend"]})
-                </button>
-              )}
-            </div>
-          )}
-
+          {/* Push setting is AMD-only. Character limit is global-only (template bar) — never local. */}
         </div>
       )}
 
@@ -440,7 +347,7 @@ function SectionRow({
   onOpenMapping, onSetMappingMode, onUpdate,
   onDragStart, onDragEnd, onDragOver, onDrop,
   isDragging, dropBefore, dropAfter, isDuplicate,
-  parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo, templatePushMode,
+  parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo,
 }) {
   const I = window.Icons;
   const [popover, setPopover] = useStateR(null);
@@ -460,7 +367,6 @@ function SectionRow({
   // Dual-mapping demo override — applies to "Assessment & Plan" only
   const demoOverride =
     dualMappingDemo === "one_to_two" && s.name === "Assessment & Plan" ? "one_to_two" :
-    dualMappingDemo === "amd_checkbox" && s.name === "Assessment & Plan" ? "amd_checkbox" :
     null;
 
   const rowCls = [
@@ -511,6 +417,9 @@ function SectionRow({
               onClick={(e) => e.stopPropagation()}
               aria-label="Section header"
             />
+            {s.codeSource === "icd" && <span className="mapping-type-tag" title="icd10_codes absorbed into this section">ICD</span>}
+            {s.codeSource === "cpt" && <span className="mapping-type-tag" title="cpt_codes absorbed into this section">CPT</span>}
+            {s.codeSource === "em" && <span className="mapping-type-tag" title="Legacy EM — treat as CPT (cpt_codes)">CPT</span>}
             <div className="name-icons" style={{position:"relative"}}>
               {/* Macros icon */}
               <button type="button"
@@ -679,7 +588,7 @@ function SectionRow({
           />
         </div>
       )}
-      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} ehr={ehr} templatePushMode={templatePushMode} />}
+      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} />}
     </div>
   );
 
@@ -707,7 +616,7 @@ function AddSubsectionGhostRow({ depth, onClick }) {
 
 // ── Render tree recursively ────────────────────────────────────────────────
 function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
-  const { handlers, dragId, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo, templatePushMode } = ctx;
+  const { handlers, dragId, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo } = ctx;
   const isDragging = dragId === s.id;
   const dropBefore = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'before');
   const dropAfter = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'after');
@@ -729,7 +638,6 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
       pushIssue={pushIssuesByName ? pushIssuesByName[s.name] : null}
       canEditPrompt={canEditPrompt}
       dualMappingDemo={dualMappingDemo}
-      templatePushMode={templatePushMode}
       {...handlers}
     />,
   ];
@@ -748,7 +656,7 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
 
 // ── Section table (manages drag state + mapping panel) ────────────────────
 function SectionTable({
-  sections, ehr, pushIssues, templatePushMode,
+  sections, ehr, pushIssues,
   onToggle, onExpand, onToggleDetails, onTogglePrompt, onDeleteSection,
   onReorder, onRemap, onSetMappingMode, onUpdate, remapTarget, onRemapTargetHandled,
   onAddSection, canEditPrompt, dualMappingDemo,
@@ -817,7 +725,7 @@ function SectionTable({
 
   const pushIssuesByName = {};
   (pushIssues || []).forEach(pi => { pushIssuesByName[pi.section] = pi; });
-  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo, templatePushMode };
+  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo };
 
   // ── Add Section availability — varies by EHR category ──
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
