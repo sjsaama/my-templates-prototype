@@ -4,9 +4,9 @@ const { useState } = React;
 function Logo() {
   return (
     <div className="logo-mark" aria-label="App logo">
-      <svg viewBox="0 0 44 40" width="40" height="36" fill="none">
+      <svg viewBox="0 0 44 40" width="28" height="26" fill="none">
         <path d="M6 26c0-9 7.5-16 16.5-16 5.5 0 9 2.5 11.5 6-3-1.5-7-1-9.5 1.5 4 .5 6.5 3 7.5 6.5-5 .5-8.5-1-11-4.5-1 5 2 9 6.5 10.5C30 38 22 38 16 34c-6.5-4-10-8-10-8z" fill="#11C9C9"/>
-        <circle cx="27" cy="18.5" r="1.6" fill="#444"/>
+        <circle cx="27" cy="18.5" r="1.6" fill="#2A2D3A"/>
       </svg>
     </div>
   );
@@ -14,25 +14,30 @@ function Logo() {
 
 function Sidebar() {
   const I = window.Icons;
-  const items = [
+  const primary = [
     { id: "home", label: "Home", icon: I.home },
     { id: "macros", label: "Macros", icon: I.bolt, badge: true },
     { id: "refer", label: "Refer", icon: I.refer },
+  ];
+  const secondary = [
     { id: "faq", label: "FAQ", icon: I.faq },
     { id: "settings", label: "Settings", icon: I.gear, active: true },
   ];
+  const renderItem = (it) => (
+    <button key={it.id} className={"nav-item" + (it.active ? " nav-item--active" : "")} type="button">
+      <span className="nav-ico">
+        <it.icon />
+        {it.badge && <span className="nav-badge" aria-hidden="true" />}
+      </span>
+      <span className="nav-label">{it.label}</span>
+    </button>
+  );
   return (
-    <nav className="sidebar">
+    <nav className="sidebar" aria-label="Primary">
       <div className="sidebar-logo"><Logo /></div>
       <div className="sidebar-items">
-        {items.map((it) => (
-          <button key={it.id} className={"nav-item" + (it.active ? " nav-item--active" : "")}>
-            <span className={"nav-ico" + (it.badge ? " nav-ico--badge" : "")}>
-              <it.icon />
-            </span>
-            <span className="nav-label">{it.label}</span>
-          </button>
-        ))}
+        <div className="sidebar-group">{primary.map(renderItem)}</div>
+        <div className="sidebar-group sidebar-group--bottom">{secondary.map(renderItem)}</div>
       </div>
     </nav>
   );
@@ -64,17 +69,20 @@ function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate,
       </button>
       <div className="tpl-inner">
         <h1 className="tpl-title">My Templates</h1>
-        <button className="btn-teal tpl-create" onClick={onCreateTemplate}>
-          + Create template
-        </button>
-        <button className="btn-ghost tpl-request" onClick={onRequest}>
-          Request from ops
-        </button>
+        <div className="tpl-actions">
+          <button className="btn-teal tpl-create" type="button" onClick={onCreateTemplate}>
+            <window.Icons.plus />
+            <span>Create template</span>
+          </button>
+          <button className="tpl-request" type="button" onClick={onRequest}>
+            Request from ops
+          </button>
+        </div>
         <div className="tpl-search-wrap">
-          <span className="tpl-search-ico">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-              <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.4"/>
-              <path d="M8.5 8.5L11.5 11.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          <span className="tpl-search-ico" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="6" cy="6" r="4.25" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M9.25 9.25L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </span>
           <input
@@ -86,7 +94,9 @@ function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate,
             aria-label="Search templates"
           />
           {q && (
-            <button className="tpl-search-clear" onClick={() => setQuery("")} aria-label="Clear search">✕</button>
+            <button className="tpl-search-clear" type="button" onClick={() => setQuery("")} aria-label="Clear search">
+              <window.Icons.close />
+            </button>
           )}
         </div>
         <div className="tpl-scroll">
