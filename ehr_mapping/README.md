@@ -15,6 +15,7 @@ Field names defined by the EHR's API/spec. Dropdown hardcoded — no dependency 
 | AthenaOne | [AthenaOne.md](AthenaOne.md) | `ehr_field_name` (from fixed list) |
 | ECW (main + Selective Copy) | [ECW.md](ECW.md) | `ehr_field_name`, `section_code` |
 | Veradigm | [Veradigm.md](Veradigm.md) | `ehr_field_name` (from fixed list) |
+| Centricity (Athena Flow) | [Centricity.md](Centricity.md) | `ehr_field_name` (from fixed list) |
 
 ## Category 2 — Flexible field list (doctor's template)
 
@@ -35,7 +36,6 @@ Note pushed automatically. No mapping rows or doctor field picker.
 | Cerner | [Cerner.md](Cerner.md) | Whole note as PDF via FHIR `DocumentReference` |
 | ModMed | [ModMed.md](ModMed.md) | Whole note as PDF via FHIR `DocumentReference` |
 | Nereg | [Nereg.md](Nereg.md) | Auto-mapped from section `key_name` at push time |
-| Centricity (Athena Flow) | [Centricity.md](Centricity.md) | Ops defines `ehr_field_name` per section; Centricity routes content |
 
 ## Not needed
 

@@ -2,7 +2,7 @@
 
 ## Category
 
-**Category 3 — Auto push, no field mapping.** Ops defines `ehr_field_name` per section in the YAML; Centricity routes content based on that name. No template fetch needed and no doctor-facing field picker — the mapping is entirely ops-managed.
+**Category 1 — Fixed field list.** Field names are a fixed set from the Centricity/Athena Flow integration. Dropdown is hardcoded — no template fetch. Centricity routes section content based on `ehr_field_name`.
 
 ---
 
@@ -10,7 +10,7 @@
 
 | YAML key | Required? | Type | Purpose | Example | Source |
 |---|---|---|---|---|---|
-| `ehr_field_name` | Yes | Text | Section name passed to the Centricity push — Centricity routes content based on this value | `"hpi"` | Tech |
+| `ehr_field_name` | Yes | Text | Section name passed to the Centricity push — Centricity routes content based on this value | `"hpi"` | Fixed list (see below) |
 
 **Example YAML:**
 ```yaml
@@ -18,6 +18,19 @@ ehr_field_name: "hpi"
 ```
 
 > Centricity is also referred to as "Athena Flow" in some parts of the codebase. It is a separate integration from AthenaOne.
+
+---
+
+## Available `ehr_field_name` values
+
+| Section | `ehr_field_name` |
+|---|---|
+| Chief Complaint | `chief_complaint` |
+| HPI | `hpi` |
+| ROS | `ros` |
+| Physical Exam | `physical_exam` |
+| Assessment & Plan | `assessment_plan` |
+| Past Medical History | `past_medical_history` |
 
 ---
 
@@ -38,7 +51,7 @@ ehr_field_name: "hpi"
 
 ## What doctors can change
 
-No doctor-side changes are known to affect the mapping for Centricity — the integration is simpler than AMD or Athena. Any structural change to the encounter template should be escalated to tech.
+Doctors can remap any section from the hardcoded field list (no API call). Wrong `ehr_field_name` values are silently accepted — content may land in the wrong field with no error. Structural changes to the encounter template should be escalated to tech.
 
 ---
 

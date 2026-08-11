@@ -157,7 +157,7 @@ These decisions were made during prototype review and should be treated as locke
 
 ### Cat 1 — Fixed field list
 
-EHRs: AthenaOne, ECW, Veradigm
+EHRs: AthenaOne, ECW, Veradigm, Centricity (AthenaFlow)
 
 Field names are hardcoded — no API call needed to populate the dropdown. What the doctor sees in the mapping column:
 
@@ -166,6 +166,7 @@ Field names are hardcoded — no API call needed to populate the dropdown. What 
 | AthenaOne | Snake_case identifiers (`hpi`, `assessment_with_problems`) | Shown as human-readable labels: "History of Present Illness", "Assessment & Problem List" |
 | ECW | Shortcut command names (`HPI:`, `Assessment:`, `Chief Complaints:`) | Shown as-is — these are the literal commands eCW recognizes |
 | Veradigm | camelCase (`historySections`, `reviewOfSystem`, `assessmentPlanHP`) | Shown as human-readable labels: "History Sections", "Review of Systems", "Assessment & Plan" |
+| Centricity | Snake_case identifiers (`hpi`, `assessment_plan`) | Shown as human-readable labels: "History of Present Illness", "Assessment & Plan" |
 
 **ECW — Scribe-it secondary destination:** ECW is the only Cat 1 EHR with a secondary push destination. The mapping picker has two columns: Primary (shortcut commands like `HPI:`, `Assessment:`) and Scribe-it (a separate destination in eCW's Scribe-it note panel — different field set, e.g. `ScribeIt > HPI`, `ScribeIt > Physical Exam`). Both are optional; Scribe-it is surfaced as "optional" in the picker.
 
@@ -185,7 +186,7 @@ Fields come from the doctor's EHR note template. The field list is populated at 
 
 ### Cat 3 — Auto push
 
-EHRs: Cerner, ModMed, Nereg, Centricity
+EHRs: Cerner, ModMed, Nereg
 
 Note is pushed automatically — no mapping rows shown, no doctor action needed after onboarding. The output settings panel (sliders button) is hidden for Cat 3 — there are no field-level settings to configure.
 
@@ -194,7 +195,6 @@ Note is pushed automatically — no mapping rows shown, no doctor action needed 
 | Cerner | Whole note as PDF via FHIR | "Whole note pushed as PDF" |
 | ModMed | Whole note as PDF | "Whole note pushed as PDF" |
 | Nereg | Section content matched by `key_name` | "Auto-mapped from section names" |
-| Centricity | Section content routed by `ehr_field_name` set by ops | "Auto-mapped from section names" |
 
 ### Cat 4 — No push
 
@@ -262,7 +262,7 @@ Today all push failures go to ops email only. Doctors are not notified in-app. B
 
 The section-level inline strip is the primary action surface — the banner is a summary for awareness. "Contact support" is shown when the error is not doctor-recoverable (mapping broken by EHR template change, etc.). To enumerate what real error messages should say, pull 3 months of note-push failure logs before implementation.
 
-### Cat 1 — AthenaOne, ECW, Veradigm
+### Cat 1 — AthenaOne, ECW, Veradigm, Centricity
 
 **AthenaOne**
 
@@ -290,6 +290,13 @@ The section-level inline strip is the primary action surface — the banner is a
 | Silent field mismatch | Ops mapping | ❌ Undetectable | Nothing — Veradigm accepts mismatched content without error | Ops investigates if doctor reports wrong data in chart |
 | Duplicate encounter | EHR state | ✅ Yes | "A note for this encounter already exists in Veradigm. Contact support." | Ops |
 | Note locked | EHR state | ✅ Yes | "This encounter is locked in Veradigm and can't be edited." | Ops or doctor unlocks |
+
+**Centricity**
+
+| Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
+|---|---|---|---|---|
+| Wrong `ehr_field_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Doctor remaps from fixed list, or ops updates field name |
+| Push failure | Infra | ✅ Yes | — | Ops |
 
 ### Cat 2 — AMD, DrChrono, CharmHealth
 
@@ -323,7 +330,7 @@ The section-level inline strip is the primary action surface — the banner is a
 | Account locked | EHR | ✅ Yes | — | Ops unlocks |
 | SOAP mode failures | Any | ❌ Undetectable | Nothing — no per-field errors returned | Ops investigates |
 
-### Cat 3 — Cerner, Nereg, Centricity, ModMed, Tebra
+### Cat 3 — Cerner, Nereg, ModMed
 
 **Cerner**
 
@@ -338,14 +345,7 @@ The section-level inline strip is the primary action surface — the banner is a
 | Wrong `key_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Ops updates `key_name` in YAML |
 | Auth failure | Infra | ✅ Yes | — | Ops |
 
-**Centricity**
-
-| Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
-|---|---|---|---|---|
-| Wrong `ehr_field_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Ops updates field name in YAML |
-| Push failure | Infra | ✅ Yes | — | Ops |
-
-**ModMed / Tebra**
+**ModMed**
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
@@ -433,7 +433,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 ### Self-serve flow by EHR category
 
-#### Cat 1 — AthenaOne, eCW, Veradigm
+#### Cat 1 — AthenaOne, eCW, Veradigm, Centricity
 
 **What the doctor does:**
 1. Click "+ Create template"
@@ -471,7 +471,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 ---
 
-#### Cat 3 — Cerner, ModMed, Nereg, Centricity
+#### Cat 3 — Cerner, ModMed, Nereg
 
 **What the doctor does:**
 1. Click "+ Create template"
@@ -485,7 +485,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 - Doctor can add or delete sections
 - Output settings panel (sliders) is hidden — nothing to configure for auto-push
 
-**Key constraint:** Section names matter for Nereg and Centricity — the auto-mapping is keyed on section name or `key_name`. If the doctor renames a section, it may break the push mapping. This should be surfaced as a warning when a doctor renames a section in a Cat 3 template. *(Not yet implemented in prototype.)*
+**Key constraint:** Section names matter for Nereg — the auto-mapping is keyed on section `key_name`. If the doctor renames a section, it may break the push mapping. This should be surfaced as a warning when a doctor renames a section in a Cat 3 template. *(Not yet implemented in prototype.)*
 
 ---
 

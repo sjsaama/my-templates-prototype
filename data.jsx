@@ -538,21 +538,57 @@ const EHR_FIELDS_BY_SYSTEM = {
 };
 
 const EHR_CATEGORY = {
+  // Cat 2 — fetch-based / connect EHR template
   AMD:        { cat: 2, label: "AdvancedMD",             fieldSource: "fetch" },
+  // Cat 1 — fixed field lists (doctor remaps from known fields)
   AthenaOne:  { cat: 1, label: "AthenaOne",              fieldSource: "fixed" },
   eCW:        { cat: 1, label: "eClinicalWorks",          fieldSource: "fixed" },
   Veradigm:   { cat: 1, label: "Veradigm",               fieldSource: "fixed" },
+  // Cat 2
   Charm:      { cat: 2, label: "CharmHealth",             fieldSource: "fetch", canReFetch: false },
   DrChrono:   { cat: 2, label: "DrChrono",                fieldSource: "fetch" },
-  Centricity: { cat: 3, label: "Centricity",              fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
+  // Cat 1 — Centricity (Athena Flow) fixed list
+  Centricity: { cat: 1, label: "Centricity",              fieldSource: "fixed" },
+  // Cat 3 — whole-note / auto push (no section→field remap)
   Cerner:     { cat: 3, label: "Cerner",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
   Nereg:      { cat: 3, label: "Nereg",                   fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
   ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
+  // Cat 4 — no push integration
   Athena:     { cat: 4, label: "Athena (Legacy)",         fieldSource: "none",  noPushMsg: "Athena" },
   "ECW FHIR": { cat: 4, label: "ECW FHIR",               fieldSource: "none",  noPushMsg: "ECW" },
   Greenway:   { cat: 4, label: "Greenway (Prime Suites)", fieldSource: "none",  noPushMsg: "Greenway" },
   Tebra:      { cat: 4, label: "Tebra",                   fieldSource: "none",  noPushMsg: "Tebra" },
 };
+
+/** Feature flags derived from EHR category + known product deltas. Prefer this over ad-hoc `ehr === "…"` / cat checks. */
+function ehrCapabilities(ehr) {
+  const meta = EHR_CATEGORY[ehr] || {};
+  const category = meta.cat || 0;
+  const fieldSource = meta.fieldSource || "none";
+  return {
+    ehr: ehr || "",
+    label: meta.label || ehr || "your EHR",
+    category,
+    fieldSource,
+    canRemap: (fieldSource === "fetch" || fieldSource === "fixed") && fieldSource !== "auto",
+    needsConnectEhr: category === 2 || !!meta.requiresEhrTemplateConnection,
+    hasOutputSettings: (category === 1 || category === 2) && fieldSource !== "auto",
+    showCat4Notice: category === 4,
+    isFixedList: fieldSource === "fixed",
+    canReFetch: meta.canReFetch !== false && fieldSource === "fetch",
+    hasPushMode: ehr === "AMD",
+    hasCharLimit: ehr === "AMD" || ehr === "DrChrono" || ehr === "eCW",
+    hasLineSeparator: ehr === "eCW",
+    hasCheckboxFields: ehr === "AMD",
+    hasScribeIt: ehr === "eCW",
+    showCharmRemapNotice: ehr === "Charm",
+    lockedAutoMap: fieldSource === "auto",
+    needsFieldPick: fieldSource === "fetch" || fieldSource === "fixed",
+    showAutoMappingLabel: fieldSource === "auto" || (!!meta.autoMsg && (fieldSource === "none" || fieldSource === "auto")),
+    autoMsg: meta.autoMsg || "",
+    noPushMsg: meta.noPushMsg || "",
+  };
+}
 
 // Mock EHR templates per Cat 2 system — shown in the template-level picker.
 const EHR_TEMPLATES_BY_SYSTEM = {
@@ -573,10 +609,15 @@ const EHR_TEMPLATES_BY_SYSTEM = {
     { id: "charm_t2", name: "Progress Note" },
     { id: "charm_t3", name: "Initial Evaluation" },
   ],
-  Centricity: [
-    { id: "cen_t1", name: "Office Visit" },
-    { id: "cen_t2", name: "Follow-up" },
-  ],
+};
+
+// Centricity (Athena Flow) — Cat 1 fixed-list field display names.
+const CENTRICITY_FIELD_LABELS = {
+  "chief_complaint":          "Chief Complaint",
+  "ros":                      "Review of Systems",
+  "physical_exam":            "Physical Exam",
+  "assessment_plan":          "Assessment & Plan",
+  "past_medical_history":     "Past Medical History",
 };
 
 // Human-readable display labels for EHR field identifiers that use camelCase or snake_case.
@@ -600,6 +641,7 @@ const EHR_FIELD_LABELS = {
   "reasonsForVisit":          "Reason for Visit",
   "vitals":                   "Vitals",
   "ICD":                      "ICD Diagnosis Codes",
+  ...CENTRICITY_FIELD_LABELS,
 };
 
 // Keep EHR_FIELDS as alias for backward compatibility (AMD default).
@@ -795,6 +837,7 @@ Object.assign(window, {
   EHR_FIELDS,
   EHR_FIELDS_BY_SYSTEM,
   EHR_CATEGORY,
+  ehrCapabilities,
   AMD_CHAR_LIMITS,
   EHR_TEMPLATES_BY_SYSTEM,
   SAMPLE_TRANSCRIPT,
