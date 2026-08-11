@@ -141,7 +141,10 @@ function App() {
     window.INITIAL_PENDING_REQUESTS.map((r) => ({ ...r }))
   );
   const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
-  const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
+  const [panelTab, setPanelTab] = useStateA("templates"); // templates | settings
+  const [settingsTab, setSettingsTab] = useStateA("global"); // global | local
+  const [practiceSettings, setPracticeSettings] = useStateA(() => ({ ...window.DEFAULT_PRACTICE_SETTINGS }));
+  const [templateSettingsById, setTemplateSettingsById] = useStateA(() => ({}));
   const [disableTarget, setDisableTarget] = useStateA(null);
   const [toast, setToast] = useStateA("");
   const [navCollapsed, setNavCollapsed] = useStateA(false);
@@ -169,6 +172,21 @@ function App() {
   };
 
   const flash = (msg) => { setToast(msg); clearTimeout(window.__tt); window.__tt = setTimeout(() => setToast(""), 2600); };
+  window.__flashSettings = flash;
+
+  const templateSettings = {
+    ...window.DEFAULT_TEMPLATE_SETTINGS,
+    ...(activeTpl && templateSettingsById[activeTpl] ? templateSettingsById[activeTpl] : {}),
+  };
+  const updateTemplateSettings = (next) => {
+    if (!activeTpl) return;
+    setTemplateSettingsById((m) => ({ ...m, [activeTpl]: next }));
+  };
+
+  const openSettings = (tab) => {
+    setPanelTab("settings");
+    if (tab) setSettingsTab(tab);
+  };
 
   const applyToggle = (id, v) => setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, enabled: v })));
 
@@ -302,11 +320,21 @@ function App() {
           Local preview — use <strong>Tweaks</strong> (bottom-right) → Row density &amp; Accent. Hard-refresh if styles look stale (⌘⇧R).
         </div>
       )}
-      <window.Sidebar />
-      <window.TemplateList
+      <window.Sidebar
+        activeNav="settings"
+        onNavigate={(id) => {
+          if (id === "settings") openSettings();
+          else flash(id.charAt(0).toUpperCase() + id.slice(1) + " — not in this prototype");
+        }}
+      />
+      <window.LeftNavPanel
+        panelTab={panelTab}
+        onPanelTab={setPanelTab}
+        settingsTab={settingsTab}
+        onSettingsTab={setSettingsTab}
         groups={groups}
         activeId={activeTpl}
-        onSelect={selectTpl}
+        onSelect={(id) => { setPanelTab("templates"); selectTpl(id); }}
         onRequest={() => flash("Request from ops → Style Transfer")}
         onCreateTemplate={() => setCreateTemplateOpen(true)}
         collapsed={navCollapsed}
@@ -315,7 +343,22 @@ function App() {
 
       <main className="editor">
         <div className="editor-inner">
-          {!tpl ? (
+          {panelTab === "settings" ? (
+            <window.SettingsView
+              settingsTab={settingsTab}
+              practice={practiceSettings}
+              onPracticeChange={setPracticeSettings}
+              tpl={tpl}
+              templates={templates}
+              templateSettings={templateSettings}
+              onTemplateSettingsChange={updateTemplateSettings}
+              onSelectTemplate={(id) => {
+                if (!sectionsByTpl[id]) setSectionsByTpl((m) => ({ ...m, [id]: window.makeSections() }));
+                setActiveTpl(id);
+              }}
+              ehr={t.ehr}
+            />
+          ) : !tpl ? (
             <EditorEmpty />
           ) : (
             <>
@@ -328,6 +371,7 @@ function App() {
                   </div>
                 </div>
                 <div className="ed-head-right">
+                  <button className="btn-ghost btn-sm" onClick={() => openSettings("local")}>Template settings</button>
                   <button className="btn-ghost btn-sm" onClick={() => setPreviewOpen(true)}>Preview output</button>
                   <button className="btn-ghost btn-sm" onClick={() => setResetConfirm(true)}>Reset to default</button>
                   <button className="btn-teal btn-sm" onClick={() => flash("Changes saved")}>Save changes</button>
