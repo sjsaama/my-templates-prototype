@@ -99,7 +99,7 @@ Setting is **template-level**, not user-level. Whether content is pushed as a no
 | Mechanism | What it is |
 |---|---|
 | Append other derivative | A section can pull content from a derivative template (e.g. a summary template) and append it to the main note on push. Mechanism TBD — needs clarification from Vignesh. |
-| ICD / EM code mapping | Uses template ID in the mapping editor — a **separate mechanism** from append-other-derivative. ICD/CPT fields are not in the standard mapping table. |
+| ICD / EM code mapping | **Available for all EHRs.** When adding a section, the doctor chooses a content source: AI prompt, ICD codes, or EM codes. For ICD/EM, they pick a code generator template (maps to backend `sub_template_ids`) and map the generated content to an EHR field. Suggested destinations are highlighted per EHR (e.g. Veradigm `ICD`, DrChrono `icd10_codes` / `cpt_codes`, AthenaOne `billingnotes`, eCW `EM:`), but any field can be chosen. Cat 3/4 skip the field picker — content is still generated for auto-map or copy/paste. |
 | One section → two EHR fields | A single logical section (e.g. chief complaint) may map to two separate EHR destination fields — confirmed for AMD (checkbox field + text field). Both fields are mapped independently. For non-checkbox pairs, ordering may matter for how the EHR renders them — handling TBD. See open questions. |
 | Two sections → same EHR field | Multiple Marvix sections can share the same EHR destination field. This is valid and supported. Content from all mapped sections is combined in section order. The UI shows a neutral "Shared" label on the mapping chip (not a warning). |
 | First-line heading omit | Whether the first line (section heading) is stripped before push. Configurability unconfirmed — see open questions. |
@@ -136,6 +136,7 @@ These decisions were made during prototype review and should be treated as locke
 - **Save / Reset buttons:** Live in the header row alongside the template title. No separate toolbar bar.
 - **"Request New Section" button:** Header, right side — only shown for user-created (self-serve) templates. Ops-managed templates do not show this button.
 - **"+ Add section" button:** Only shown for user-created templates. Hidden for ops-managed templates where the section structure is controlled by ops.
+- **Content source on add:** Every EHR gets the same three options — **AI prompt**, **ICD codes**, or **EM codes**. Prompt sections require a free-text instruction. ICD/EM sections require a generator template and (for Cat 1/2) an EHR field mapping. Rows show an ICD/EM chip; the prompt button becomes "ICD source" / "EM source" to change the generator.
 - **"Request from ops" (sidebar):** Simplified to a plain ghost text link — no subtitle, no secondary line.
 
 ### Section row
@@ -178,7 +179,7 @@ Fields come from the doctor's EHR note template. The field list is populated at 
 | EHR | Format | Remap / refresh behavior |
 |---|---|---|
 | AMD | `Page Name > Field Name` | Push mode (prepend/append/replace) and character limit shown in output settings. Doctor can remap freely from the field list. |
-| DrChrono | Snake_case field names | ICD/CPT fields handled separately — not in mapping table. Doctor can remap. |
+| DrChrono | Snake_case field names | ICD/EM code sections use a separate content source (generator + field map). Doctor can still remap freely, including to `icd10_codes` / `cpt_codes`. |
 | CharmHealth | `entry_chart_section` value if set, otherwise field name | Field list cannot be re-fetched. Doctor can remap from the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh. |
 
 > **Design decision:** EHR field fetching is not part of the creation flow. After a Cat 2 template is created, the doctor opens it in the editor and fetches fields there — a "Fetch fields from [EHR]" action inside the template editor, not a creation step. The creation flow is identical for all EHR categories. CharmHealth cannot re-fetch — the editor shows an amber notice explaining this, with a "Contact support" button.

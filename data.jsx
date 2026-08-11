@@ -459,6 +459,7 @@ const EHR_FIELDS_BY_SYSTEM = {
       "Treatment Notes:",
       "Clinical Notes:",
       "Assessment:",
+      "EM:",
       "Next Appointment:",
       "OB History:",
       "GYN History:",
@@ -616,6 +617,63 @@ const EHR_FIELD_LABELS = {
   "reasonsForVisit":          "Reason for Visit",
   "vitals":                   "Vitals",
   "ICD":                      "ICD Diagnosis Codes",
+  // DrChrono special code fields
+  "icd10_codes":              "ICD-10 Codes",
+  "cpt_codes":                "CPT / EM Codes",
+  // eCW EM shortcut
+  "EM:":                      "EM Codes",
+};
+
+// Content sources available when creating a section (all EHRs).
+// "prompt" = free-text AI instructions; "icd" / "em" = derive content from code generators.
+const CODE_CONTENT_SOURCES = [
+  { id: "prompt", label: "AI prompt", short: "Prompt", hint: "You write the instruction the AI follows for this section." },
+  { id: "icd",    label: "ICD codes", short: "ICD",    hint: "Content is derived from ICD-10 diagnosis codes, then mapped to an EHR field." },
+  { id: "em",     label: "EM codes",  short: "EM",     hint: "Content is derived from E/M (evaluation & management) codes, then mapped to an EHR field." },
+];
+
+// Generator templates the doctor picks when contentSource is icd or em.
+// Maps to backend sub_template_ids on EHRMapping.
+const CODE_GENERATOR_TEMPLATES = {
+  icd: [
+    { id: "icd_std",          name: "Standard ICD-10 extraction", description: "Extract all relevant ICD-10 codes from the encounter" },
+    { id: "icd_primary",      name: "Primary diagnosis",          description: "Primary diagnosis code only" },
+    { id: "icd_problem_list", name: "Problem list codes",         description: "Codes aligned to the active problem list" },
+  ],
+  em: [
+    { id: "em_std",        name: "Standard E/M level",  description: "Suggest the appropriate E/M code for the visit" },
+    { id: "em_outpatient", name: "Outpatient E/M",      description: "Outpatient established/new patient E/M levels" },
+    { id: "em_time",       name: "Time-based E/M",      description: "E/M based on total time spent" },
+  ],
+};
+
+// Preferred EHR destinations when mapping code-derived content (hints only — any field is allowed).
+const CODE_PREFERRED_FIELDS = {
+  icd: {
+    Veradigm:   ["ICD"],
+    DrChrono:   ["icd10_codes"],
+    AthenaOne:  ["billingnotes"],
+    AMD:        ["Administrative > Diagnosis Codes", "Administrative > Billing Notes"],
+    Charm:      ["Diagnosis Codes", "Billing Notes"],
+    eCW:        ["Assessment:", "Assessment Notes:"],
+    Centricity: ["assessment_plan"],
+    default:    ["diagnosis_codes", "billing_notes"],
+  },
+  em: {
+    DrChrono:   ["cpt_codes"],
+    AthenaOne:  ["billingnotes"],
+    AMD:        ["Administrative > Billing Notes"],
+    Charm:      ["Billing Notes"],
+    eCW:        ["EM:", "Procedures:"],
+    Veradigm:   ["assessmentPlanHP"],
+    Centricity: ["assessment_plan"],
+    default:    ["billing_notes"],
+  },
+};
+
+const SAMPLE_CODE_OUTPUT = {
+  icd: "I20.9  Angina pectoris, unspecified\nI10    Essential (primary) hypertension\nE11.9  Type 2 diabetes mellitus without complications",
+  em:  "99214  Office/outpatient visit, established patient, moderate complexity",
 };
 
 // Keep EHR_FIELDS as alias for backward compatibility (AMD default).
@@ -815,6 +873,10 @@ Object.assign(window, {
   EHR_TEMPLATES_BY_SYSTEM,
   SAMPLE_TRANSCRIPT,
   SAMPLE_OUTPUT,
+  SAMPLE_CODE_OUTPUT,
   STARTER_TEMPLATES,
+  CODE_CONTENT_SOURCES,
+  CODE_GENERATOR_TEMPLATES,
+  CODE_PREFERRED_FIELDS,
   collectEnabledSections,
 });

@@ -494,13 +494,15 @@ function CreateTemplateModal({ ehr, onClose, onCreate }) {
 }
 
 // ── Add Section / Add Subsection ──────────────────────────────────────────
-// Header + Prompt, written by the doctor — no AI drafting. For Cat 1 (fixed field list) and
-// Cat 2 (fetch-based, once fetched) EHRs, the section must be tied to an available field first.
-// Cat 3 (auto push) and Cat 4 (no push) skip the field picker entirely — nothing to map to.
+// Content source: AI prompt (free text), ICD codes, or EM codes — available for every EHR.
+// For Cat 1 / Cat 2, the section must map to an EHR field. Cat 3 / Cat 4 skip the field picker.
 function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreate }) {
   const I = window.Icons;
+  const sources = window.CODE_CONTENT_SOURCES || [];
   const [name, setName] = useStateM("");
   const [prompt, setPrompt] = useStateM("");
+  const [contentSource, setContentSource] = useStateM("prompt");
+  const [codeTemplateId, setCodeTemplateId] = useStateM("");
   const [field, setField] = useStateM("");
   const [query, setQuery] = useStateM("");
 
@@ -510,28 +512,79 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Reset generator pick when switching ICD ↔ EM; clear when returning to prompt.
+  useEffectM(() => {
+    setCodeTemplateId("");
+    if (contentSource === "prompt") return;
+    const preferred = ((window.CODE_PREFERRED_FIELDS || {})[contentSource] || {});
+    const hints = preferred[ehr] || preferred.default || [];
+    if (!field && hints.length) {
+      const used = usedFields || [];
+      const firstFree = hints.find((h) => !used.includes(h));
+      if (firstFree) setField(firstFree);
+    }
+  }, [contentSource]);
+
   const cat = ehrCat || {};
   const needsFieldPick = (cat.cat === 1 || cat.cat === 2) && cat.fieldSource !== "none";
+  const isCodeSource = contentSource === "icd" || contentSource === "em";
+  const codeTemplates = ((window.CODE_GENERATOR_TEMPLATES || {})[contentSource]) || [];
+  const preferredMap = ((window.CODE_PREFERRED_FIELDS || {})[contentSource]) || {};
+  const preferredFields = preferredMap[ehr] || preferredMap.default || [];
   const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || [];
   const used = usedFields || [];
+  const labels = window.EHR_FIELD_LABELS || {};
+  const fieldDisplay = (f) => labels[f] || labels[f.split(" > ").pop()] || f.split(" > ").pop();
+
   const filteredGroups = needsFieldPick
     ? groups
         .map((g) => ({
           ...g,
           fields: g.fields.filter((f) => {
             if (used.includes(f)) return false;
-            const label = f.split(" > ").pop();
+            const label = fieldDisplay(f);
             return label.toLowerCase().includes(query.toLowerCase()) || g.group.toLowerCase().includes(query.toLowerCase());
           }),
         }))
         .filter((g) => g.fields.length > 0)
     : [];
 
-  const canSubmit = name.trim() && prompt.trim() && (!needsFieldPick || field);
+  // Preferred code destinations first when deriving from ICD / EM.
+  const orderedGroups = (() => {
+    if (!isCodeSource || !preferredFields.length || !filteredGroups.length) return filteredGroups;
+    const preferredSet = new Set(preferredFields);
+    const preferred = [];
+    const rest = [];
+    filteredGroups.forEach((g) => {
+      const prefFields = g.fields.filter((f) => preferredSet.has(f));
+      const otherFields = g.fields.filter((f) => !preferredSet.has(f));
+      if (prefFields.length) preferred.push({ group: g.group + " · suggested", fields: prefFields });
+      if (otherFields.length) rest.push({ ...g, fields: otherFields });
+    });
+    return [...preferred, ...rest];
+  })();
+
+  const sourceMeta = sources.find((s) => s.id === contentSource) || sources[0];
+  const canSubmit =
+    name.trim() &&
+    (!needsFieldPick || field) &&
+    (isCodeSource ? !!codeTemplateId : !!prompt.trim());
 
   const submit = () => {
     if (!canSubmit) return;
-    onCreate({ name: name.trim(), prompt: prompt.trim(), field: field || "" });
+    onCreate({
+      name: name.trim(),
+      prompt: isCodeSource ? "" : prompt.trim(),
+      field: field || "",
+      contentSource,
+      codeTemplateId: isCodeSource ? codeTemplateId : "",
+    });
+  };
+
+  const pickSource = (id) => {
+    setContentSource(id);
+    if (id === "icd" && !name.trim()) setName("ICD Codes");
+    if (id === "em" && !name.trim()) setName("EM Codes");
   };
 
   return (
@@ -539,30 +592,106 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
       <div className="modal modal--add-section" role="dialog" aria-modal="true">
         <div className="modal-head">
           <h2>{parentName ? "Add subsection" : "Add section"}</h2>
-          <span className="modal-sub">{parentName ? "Under " + parentName : "Header and prompt — you write both, no AI drafting"}</span>
+          <span className="modal-sub">
+            {parentName
+              ? "Under " + parentName
+              : "Derive from a prompt, ICD codes, or EM codes — then map to your EHR"}
+          </span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
 
         <div className="modal-body">
+          <div className="req-field">
+            <label>Content source</label>
+            <div className="content-source-row" role="radiogroup" aria-label="Content source">
+              {sources.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={contentSource === s.id}
+                  className={"content-source-btn" + (contentSource === s.id ? " content-source-btn--on" : "")}
+                  onClick={() => pickSource(s.id)}
+                >
+                  <span className="content-source-btn-label">{s.label}</span>
+                </button>
+              ))}
+            </div>
+            {sourceMeta && <div className="adv-field-hint">{sourceMeta.hint}</div>}
+          </div>
+
+          <div className="req-field">
+            <label>Header</label>
+            <input
+              className="req-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={isCodeSource ? (contentSource === "icd" ? "e.g. ICD Codes" : "e.g. EM Codes") : "e.g. Allergy History"}
+              autoFocus={!needsFieldPick}
+            />
+          </div>
+
+          {isCodeSource ? (
+            <div className="req-field">
+              <label>{contentSource === "icd" ? "ICD" : "EM"} generator</label>
+              <div className="code-template-list">
+                {codeTemplates.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={"code-template-btn" + (codeTemplateId === t.id ? " code-template-btn--on" : "")}
+                    onClick={() => setCodeTemplateId(t.id)}
+                  >
+                    <span className="code-template-name">{t.name}</span>
+                    <span className="code-template-desc">{t.description}</span>
+                    {codeTemplateId === t.id && <span className="mapping-picker-check"><I.check /></span>}
+                  </button>
+                ))}
+              </div>
+              <div className="adv-field-hint">
+                Generated codes are pushed to the EHR field you map below — same flow for every EHR.
+              </div>
+            </div>
+          ) : (
+            <div className="req-field">
+              <label>Prompt</label>
+              <textarea
+                className="req-input req-textarea"
+                rows={3}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Tell the AI what to write in this section…"
+              />
+              <div className="adv-field-hint">This is the actual instruction the AI follows — write it the way you'd want this section described.</div>
+            </div>
+          )}
+
           {needsFieldPick && (
             <div className="req-field">
               <label>Map to {cat.label || ehr} field</label>
-              <input className="req-input" placeholder="Search fields…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+              <input
+                className="req-input"
+                placeholder="Search fields…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                autoFocus={contentSource === "prompt"}
+              />
               <div className="add-section-field-list">
-                {filteredGroups.length === 0 ? (
+                {orderedGroups.length === 0 ? (
                   <div className="mapping-picker-empty">No unused fields match{query ? ` "${query}"` : ""}.</div>
                 ) : (
-                  filteredGroups.map((g) => (
+                  orderedGroups.map((g) => (
                     <div key={g.group}>
                       <div className="mapping-picker-group-label">{g.group}</div>
                       {g.fields.map((f) => (
                         <button
                           key={f}
                           type="button"
-                          className={"mapping-picker-field" + (f === field ? " mapping-picker-field--selected" : "")}
-                          onClick={() => { setField(f); if (!name.trim()) setName(f.split(" > ").pop()); }}
+                          className={"mapping-picker-field" + (f === field ? " mapping-picker-field--selected" : "") + (preferredFields.includes(f) ? " mapping-picker-field--preferred" : "")}
+                          onClick={() => { setField(f); if (!name.trim()) setName(fieldDisplay(f)); }}
                         >
-                          <span>{f.split(" > ").pop()}</span>
+                          <span>{fieldDisplay(f)}</span>
+                          {preferredFields.includes(f) && <span className="mapping-preferred-chip">Suggested</span>}
                           {f === field && <span className="mapping-picker-check"><I.check /></span>}
                         </button>
                       ))}
@@ -573,17 +702,13 @@ function AddSectionModal({ ehr, ehrCat, parentName, usedFields, onClose, onCreat
             </div>
           )}
 
-          <div className="req-field">
-            <label>Header</label>
-            <input className="req-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Allergy History" autoFocus={!needsFieldPick} />
-          </div>
-
-          <div className="req-field">
-            <label>Prompt</label>
-            <textarea className="req-input req-textarea" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Tell the AI what to write in this section…" />
-            <div className="adv-field-hint">This is the actual instruction the AI follows — write it the way you'd want this section described.</div>
-          </div>
+          {!needsFieldPick && (
+            <div className="add-section-nopush-hint">
+              {cat.cat === 3
+                ? "This EHR auto-maps by section name — no field picker needed."
+                : "This EHR has no push integration — content is still generated for copy/paste."}
+            </div>
+          )}
         </div>
 
         <div className="modal-foot">
@@ -639,16 +764,26 @@ function PreviewModal({ sections, tpl, onClose }) {
             {enabled.length === 0 && (
               <div className="preview-empty">All sections are disabled — enable at least one to see output.</div>
             )}
-            {enabled.map(s => (
-              <div key={s.id} className="preview-section">
-                <div className="preview-section-name">{s.name}</div>
-                <div className="preview-section-text">
-                  {SAMPLE[s.id]
-                    ? SAMPLE[s.id]
-                    : (s.defaultNegative || "No content available for this section in the sample.")}
+            {enabled.map(s => {
+              const src = s.contentSource || "prompt";
+              const isCode = src === "icd" || src === "em";
+              const codeSample = (window.SAMPLE_CODE_OUTPUT || {})[src];
+              return (
+                <div key={s.id} className="preview-section">
+                  <div className="preview-section-name">
+                    {s.name}
+                    {isCode && <span className={"content-source-chip content-source-chip--" + src}>{src === "icd" ? "ICD" : "EM"}</span>}
+                  </div>
+                  <div className="preview-section-text">
+                    {isCode
+                      ? (codeSample || "No sample code output available.")
+                      : (SAMPLE[s.id]
+                        ? SAMPLE[s.id]
+                        : (s.defaultNegative || "No content available for this section in the sample."))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

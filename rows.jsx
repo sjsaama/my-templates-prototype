@@ -41,7 +41,7 @@ function fieldLabel(f) {
   return labels[raw] || labels[f] || raw;
 }
 
-function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeIt, ehr, onSelect, onClose }) {
+function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeIt, ehr, contentSource, onSelect, onClose }) {
   const [query, setQuery] = useStateR("");
   const [scribeQuery, setScribeQuery] = useStateR("");
   const [pendingEhr, setPendingEhr] = useStateR(currentEhr);
@@ -51,9 +51,57 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
   const ehrCat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
   const isFixedList = ehrCat && ehrCat.fieldSource === "fixed";
   const isCharm = ehr === "Charm";
+  const isCodeSource = contentSource === "icd" || contentSource === "em";
+  const preferredMap = ((window.CODE_PREFERRED_FIELDS || {})[contentSource]) || {};
+  const preferredFields = preferredMap[ehr] || preferredMap.default || [];
 
   const confirm = () => {
     onSelect(sectionId, pendingEhr, isEcw ? pendingScribeIt : undefined);
+  };
+
+  const renderFieldGroups = (groups, selectedVal, onPick, q) => {
+    const filtered = groups.map(g => ({
+      ...g,
+      fields: g.fields.filter(f => {
+        const label = fieldLabel(f);
+        return label.toLowerCase().includes(q.toLowerCase()) || g.group.toLowerCase().includes(q.toLowerCase());
+      }),
+    })).filter(g => g.fields.length > 0);
+
+    let ordered = filtered;
+    if (isCodeSource && preferredFields.length) {
+      const preferredSet = new Set(preferredFields);
+      const preferred = [];
+      const rest = [];
+      filtered.forEach((g) => {
+        const prefFields = g.fields.filter((f) => preferredSet.has(f));
+        const otherFields = g.fields.filter((f) => !preferredSet.has(f));
+        if (prefFields.length) preferred.push({ group: g.group + " · suggested", fields: prefFields });
+        if (otherFields.length) rest.push({ ...g, fields: otherFields });
+      });
+      ordered = [...preferred, ...rest];
+    }
+
+    if (ordered.length === 0) return <div className="mapping-picker-empty">No fields match "{q}"</div>;
+    return ordered.map(g => (
+      <div key={g.group}>
+        <div className="mapping-picker-group-label">{g.group}</div>
+        {g.fields.map(f => {
+          const isSelected = f === selectedVal;
+          const isPreferred = preferredFields.includes(f);
+          return (
+            <button key={f}
+              className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "") + (isPreferred ? " mapping-picker-field--preferred" : "")}
+              onClick={() => onPick(f)}
+            >
+              <span>{fieldLabel(f)}</span>
+              {isPreferred && <span className="mapping-preferred-chip">Suggested</span>}
+              {isSelected && <span className="mapping-picker-check"><I.check /></span>}
+            </button>
+          );
+        })}
+      </div>
+    ));
   };
 
   return (
@@ -77,6 +125,11 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
               <button className="mapping-picker-support-btn" onClick={() => {}}>Contact support</button>
             </div>
           )}
+          {isCodeSource && (
+            <div className="mapping-picker-code-notice">
+              This section derives content from {contentSource === "icd" ? "ICD" : "EM"} codes — map the generated output to an EHR field below.
+            </div>
+          )}
           {pendingEhr && (
             <div className="mapping-picker-current">
               Primary: <span className="mapping-picker-current-val">{isEcw ? pendingEhr : fieldLabel(pendingEhr)}</span>
@@ -93,35 +146,12 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                   value={query} onChange={e => setQuery(e.target.value)} autoFocus />
               </div>
               <div className="mapping-picker-body">
-                {(() => {
-                  const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [];
-                  const filtered = groups.map(g => ({
-                    ...g,
-                    fields: g.fields.filter(f => {
-                      const label = f.split(" > ").pop();
-                      return label.toLowerCase().includes(query.toLowerCase()) || g.group.toLowerCase().includes(query.toLowerCase());
-                    }),
-                  })).filter(g => g.fields.length > 0);
-                  return filtered.length === 0
-                    ? <div className="mapping-picker-empty">No fields match "{query}"</div>
-                    : filtered.map(g => (
-                      <div key={g.group}>
-                        <div className="mapping-picker-group-label">{g.group}</div>
-                        {g.fields.map(f => {
-                          const isSelected = f === pendingEhr;
-                          return (
-                            <button key={f}
-                              className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
-                              onClick={() => setPendingEhr(f)}
-                            >
-                              <span>{fieldLabel(f)}</span>
-                              {isSelected && <span className="mapping-picker-check"><I.check /></span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ));
-                })()}
+                {renderFieldGroups(
+                  (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [],
+                  pendingEhr,
+                  setPendingEhr,
+                  query
+                )}
               </div>
               <div className="mapping-picker-foot">
                 <button className="mapping-picker-clear" onClick={() => setPendingEhr("")}>Clear primary mapping</button>
@@ -180,35 +210,12 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                 value={query} onChange={e => setQuery(e.target.value)} autoFocus />
             </div>
             <div className="mapping-picker-body">
-              {(() => {
-                const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [];
-                const filtered = groups.map(g => ({
-                  ...g,
-                  fields: g.fields.filter(f => {
-                    const label = f.split(" > ").pop();
-                    return label.toLowerCase().includes(query.toLowerCase()) || g.group.toLowerCase().includes(query.toLowerCase());
-                  }),
-                })).filter(g => g.fields.length > 0);
-                return filtered.length === 0
-                  ? <div className="mapping-picker-empty">No fields match "{query}"</div>
-                  : filtered.map(g => (
-                    <div key={g.group}>
-                      <div className="mapping-picker-group-label">{g.group}</div>
-                      {g.fields.map(f => {
-                        const isSelected = f === pendingEhr;
-                        return (
-                          <button key={f}
-                            className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
-                            onClick={() => setPendingEhr(f)}
-                          >
-                            <span>{f.split(" > ").pop()}</span>
-                            {isSelected && <span className="mapping-picker-check"><I.check /></span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ));
-              })()}
+              {renderFieldGroups(
+                (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [],
+                pendingEhr,
+                setPendingEhr,
+                query
+              )}
             </div>
             <div className="mapping-picker-foot">
               <button className="mapping-picker-clear" onClick={() => setPendingEhr("")}>Clear mapping — remove EHR destination</button>
@@ -404,6 +411,11 @@ function SectionRow({
 
   const hasMacros = !!(s.macros && s.macros.length);
   const hasSums = !!(s.summarizers && s.summarizers.length);
+  const contentSource = s.contentSource || "prompt";
+  const isCodeSource = contentSource === "icd" || contentSource === "em";
+  const codeTemplates = ((window.CODE_GENERATOR_TEMPLATES || {})[contentSource]) || [];
+  const codeTemplate = codeTemplates.find((t) => t.id === s.codeTemplateId);
+  const sourceMeta = ((window.CODE_CONTENT_SOURCES || []).find((c) => c.id === contentSource));
 
   const togglePopover = (key) => setPopover(p => p === key ? null : key);
 
@@ -469,6 +481,14 @@ function SectionRow({
               aria-label="Section header"
             />
             <div className="name-icons" style={{position:"relative"}}>
+              {isCodeSource && (
+                <span
+                  className={"content-source-chip content-source-chip--" + contentSource}
+                  title={sourceMeta ? sourceMeta.hint : (contentSource === "icd" ? "Derived from ICD codes" : "Derived from EM codes")}
+                >
+                  {contentSource === "icd" ? "ICD" : "EM"}
+                </span>
+              )}
               {/* Macros icon */}
               <button type="button"
                 className={"row-icon-btn" + (hasMacros ? " row-icon-btn--active" : "") + (popover === "macros" ? " row-icon-btn--open" : "")}
@@ -555,7 +575,7 @@ function SectionRow({
         )}
         {/* Actions */}
         <div className="row-actions">
-          {canEditPrompt && (
+          {canEditPrompt && !isCodeSource && (
             <button
               type="button"
               className={"row-icon-btn row-icon-btn--prompt" + (s.stylePrompt ? " row-icon-btn--active" : "") + (promptOpen ? " row-icon-btn--open" : "")}
@@ -565,6 +585,17 @@ function SectionRow({
             >
               Prompt
               {!s.stylePrompt && <span className="row-prompt-missing" title="No prompt written yet">!</span>}
+            </button>
+          )}
+          {canEditPrompt && isCodeSource && (
+            <button
+              type="button"
+              className={"row-icon-btn row-icon-btn--prompt row-icon-btn--active" + (promptOpen ? " row-icon-btn--open" : "")}
+              onClick={() => onTogglePrompt(s.id)}
+              title={promptOpen ? "Hide code source" : "View code source"}
+              aria-expanded={promptOpen}
+            >
+              {contentSource === "icd" ? "ICD source" : "EM source"}
             </button>
           )}
           {s.custom && (
@@ -612,7 +643,7 @@ function SectionRow({
           </div>
         </div>
       )}
-      {promptOpen && (
+      {promptOpen && !isCodeSource && (
         <div className="row-prompt-panel">
           <label className="row-prompt-label">
             Prompt
@@ -625,6 +656,36 @@ function SectionRow({
             placeholder="e.g. Summarize the patient's chief complaint in one or two sentences, in their own words where possible."
             onChange={(e) => onUpdate(s.id, { stylePrompt: e.target.value })}
           />
+        </div>
+      )}
+      {promptOpen && isCodeSource && (
+        <div className="row-prompt-panel row-prompt-panel--code">
+          <label className="row-prompt-label">
+            {contentSource === "icd" ? "ICD" : "EM"} code source
+            <span className="row-prompt-label-hint">— content is derived from codes, then mapped to the EHR field</span>
+          </label>
+          <div className="code-source-panel">
+            <div className="code-source-panel-row">
+              <span className="code-source-panel-k">Generator</span>
+              <select
+                className="code-source-panel-select"
+                value={s.codeTemplateId || ""}
+                onChange={(e) => onUpdate(s.id, { codeTemplateId: e.target.value })}
+              >
+                <option value="" disabled>Select generator…</option>
+                {codeTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+            {codeTemplate && (
+              <div className="code-source-panel-desc">{codeTemplate.description}</div>
+            )}
+            <div className="code-source-panel-sample">
+              <span className="code-source-panel-k">Sample output</span>
+              <pre className="code-source-panel-pre">{((window.SAMPLE_CODE_OUTPUT || {})[contentSource]) || "—"}</pre>
+            </div>
+          </div>
         </div>
       )}
       {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} ehr={ehr} />}
@@ -715,7 +776,7 @@ function SectionTable({
       return null;
     };
     const sec = findByName(sections);
-    if (sec) setMappingPanel({ sectionId: sec.id, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "" });
+    if (sec) setMappingPanel({ sectionId: sec.id, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "", contentSource: sec.contentSource || "prompt" });
     onRemapTargetHandled && onRemapTargetHandled();
   }, [remapTarget]);
 
@@ -732,7 +793,7 @@ function SectionTable({
   const openMapping = (sectionId) => {
     const sec = findSecR(sections, sectionId);
     if (!sec) return;
-    setMappingPanel({ sectionId, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "" });
+    setMappingPanel({ sectionId, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "", contentSource: sec.contentSource || "prompt" });
   };
 
   const pickEhr = (sectionId, ehrVal, scribeIt) => {
@@ -819,6 +880,7 @@ function SectionTable({
           sectionName={mappingPanel.sectionName}
           currentEhr={mappingPanel.currentEhr}
           currentScribeIt={mappingPanel.currentScribeIt}
+          contentSource={mappingPanel.contentSource}
           ehr={ehr}
           onSelect={pickEhr}
           onClose={() => setMappingPanel(null)}

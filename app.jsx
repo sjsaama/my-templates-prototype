@@ -203,6 +203,8 @@ function App() {
 
   const handleCreateSection = (data) => {
     if (!addSectionOpen) return;
+    const contentSource = data.contentSource || "prompt";
+    const isCodeSource = contentSource === "icd" || contentSource === "em";
     const newSection = {
       id: "custom_" + Date.now().toString(36),
       name: data.name,
@@ -220,7 +222,9 @@ function App() {
       defaultNegative: "",
       styleDetail: "Standard",
       styleFormat: "Prose",
-      stylePrompt: data.prompt,
+      stylePrompt: isCodeSource ? "" : data.prompt,
+      contentSource,
+      codeTemplateId: isCodeSource ? (data.codeTemplateId || "") : "",
     };
     const parentId = addSectionOpen.parentId;
     if (parentId) {
@@ -235,7 +239,9 @@ function App() {
       setSections((arr) => [...arr, newSection]);
     }
     setAddSectionOpen(null);
-    flash("Section added");
+    flash(isCodeSource
+      ? (contentSource === "icd" ? "ICD section added" : "EM section added")
+      : "Section added");
   };
 
   const handleCreateTemplate = (data) => {
