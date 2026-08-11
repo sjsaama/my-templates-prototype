@@ -108,10 +108,10 @@ function LeftNavPanel({
               Request from ops
             </button>
             <div className="tpl-search-wrap">
-              <span className="tpl-search-ico">
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                  <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.4"/>
-                  <path d="M8.5 8.5L11.5 11.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              <span className="tpl-search-ico" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <circle cx="6" cy="6" r="4.25" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M9.25 9.25L12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
               </span>
               <input
@@ -123,7 +123,7 @@ function LeftNavPanel({
                 aria-label="Search templates"
               />
               {q && (
-                <button className="tpl-search-clear" onClick={() => setQuery("")} aria-label="Clear search">✕</button>
+                <button type="button" className="tpl-search-clear" onClick={() => setQuery("")} aria-label="Clear search">×</button>
               )}
             </div>
             <div className="tpl-scroll">

@@ -264,7 +264,7 @@ function App() {
       derivative: data.type,
       ehr: data.ehrTemplateName ? (t && t.ehr ? t.ehr.split("_")[0] + "_" + data.ehrTemplateName.replace(/\s+/g, "_") : data.ehrTemplateName) : "",
       ehrSystem: t ? t.ehr : "",
-      group: "My Templates",
+      group: "Self-created",
       userCreated: true,
     };
     setTemplates(arr => [...arr, newTpl]);

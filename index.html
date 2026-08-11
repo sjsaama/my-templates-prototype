@@ -82,7 +82,42 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .panel-tab--on{background:#fff;color:var(--accent);box-shadow:0 1px 3px rgba(40,47,111,.08);}
 .tpl-title{font-size:24px;font-weight:700;color:var(--ink);margin:0 0 28px;padding:0 24px;}
 .tpl-create{margin:0 20px 10px;width:calc(100% - 40px);padding:10px 16px;border-radius:8px;font-size:14px;font-weight:700;}
-.tpl-request{margin:0 20px 26px;width:calc(100% - 40px);font-size:13px;color:var(--gray);text-align:left;padding:6px 0;}
+.tpl-request{margin:0 20px 18px;width:calc(100% - 40px);font-size:13px;color:var(--gray);text-align:left;padding:6px 0;border:none;box-shadow:none;background:transparent;}
+.tpl-request:hover{color:var(--ink);background:transparent;}
+.tpl-search-wrap{position:relative;margin:0 20px 18px;display:flex;align-items:center;}
+.tpl-search-ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--gray);pointer-events:none;display:flex;align-items:center;line-height:0;}
+.tpl-search{
+  width:100%;
+  height:38px;
+  padding:0 32px 0 34px;
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  font-size:13px;
+  font-family:inherit;
+  font-weight:500;
+  color:var(--ink);
+  background:var(--bg-soft);
+  outline:none;
+  appearance:none;
+  -webkit-appearance:none;
+  transition:border-color .15s,background .15s,box-shadow .15s;
+}
+.tpl-search::-webkit-search-decoration,
+.tpl-search::-webkit-search-cancel-button,
+.tpl-search::-webkit-search-results-button,
+.tpl-search::-webkit-search-results-decoration{display:none;}
+.tpl-search::placeholder{color:var(--gray-light);font-weight:400;}
+.tpl-search:hover{border-color:#d5d5d8;background:#fff;}
+.tpl-search:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px var(--accent-50);}
+.tpl-search-clear{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  width:22px;height:22px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--gray);font-size:12px;line-height:1;padding:0;
+  background:transparent;border:none;cursor:pointer;
+}
+.tpl-search-clear:hover{color:var(--ink);background:var(--bg-chip);}
+.tpl-no-results{padding:20px 24px;font-size:13px;color:var(--gray);}
 .set-nav-lead{margin:0 24px 16px;font-size:12px;line-height:1.45;color:var(--gray);}
 .set-nav{display:flex;flex-direction:column;gap:8px;padding:0 16px;}
 .set-nav-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border:2px solid var(--border);border-radius:10px;background:#fff;text-align:left;transition:border-color .15s,background .15s;}
@@ -829,14 +864,14 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
-<script type="text/babel" src="tweaks-panel.jsx?v=25"></script>
-<script type="text/babel" src="icons.jsx?v=25"></script>
-<script type="text/babel" src="data.jsx?v=25"></script>
-<script type="text/babel" src="shell.jsx?v=25"></script>
-<script type="text/babel" src="settings.jsx?v=25"></script>
-<script type="text/babel" src="rows.jsx?v=25"></script>
-<script type="text/babel" src="modal.jsx?v=25"></script>
-<script src="design-tokens.js?v=25"></script>
-<script type="text/babel" src="app.jsx?v=25"></script>
+<script type="text/babel" src="tweaks-panel.jsx?v=26"></script>
+<script type="text/babel" src="icons.jsx?v=26"></script>
+<script type="text/babel" src="data.jsx?v=26"></script>
+<script type="text/babel" src="shell.jsx?v=26"></script>
+<script type="text/babel" src="settings.jsx?v=26"></script>
+<script type="text/babel" src="rows.jsx?v=26"></script>
+<script type="text/babel" src="modal.jsx?v=26"></script>
+<script src="design-tokens.js?v=26"></script>
+<script type="text/babel" src="app.jsx?v=26"></script>
 </body>
 </html>
