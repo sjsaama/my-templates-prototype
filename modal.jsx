@@ -50,7 +50,7 @@ function ConnectionsModal({ section, onClose, onSave }) {
       <div className="modal" role="dialog" aria-modal="true">
         <div className="modal-head">
           <h2>Connections &amp; Static Text</h2>
-          <span className="modal-sub">{section.name}{section.static ? " · Static section" : ""}</span>
+          <span className="modal-sub">{section.name}</span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
 
@@ -284,13 +284,21 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
 const DERIVATIVE_OPTIONS = ["Clinical Note", "After Visit Summary", "Letter", "Other"];
 
 // ── Template Gallery Step ─────────────────────────────────────────────────
-function TemplateGalleryStep({ selected, onSelect }) {
+function TemplateGalleryStep({ templates, sectionsByTpl, selected, onSelect }) {
   const [previewId, setPreviewId] = useStateM(null);
   const starters = window.STARTER_TEMPLATES || [];
 
   const getPreviewData = (id) => {
     const starter = starters.find(t => t.id === id);
     if (starter) return { name: starter.name, specialty: starter.specialty, sections: starter.sections, sampleOutput: starter.sampleOutput };
+    const myTpl = (templates || []).find(t => t.id === id);
+    if (myTpl) {
+      const secs = (sectionsByTpl || {})[id] || [];
+      const flat = [];
+      const walk = (list) => list.forEach(s => { flat.push(s); if (s.children) walk(s.children); });
+      walk(secs);
+      return { name: myTpl.name, specialty: myTpl.derivative || "", sections: flat.map(s => ({ id: s.id, name: s.name, prompt: s.prompt || "" })), sampleOutput: window.SAMPLE_OUTPUT || {} };
+    }
     return null;
   };
 
@@ -299,7 +307,7 @@ function TemplateGalleryStep({ selected, onSelect }) {
   if (preview) {
     return (
       <div className="gallery-preview-full">
-        <button className="gallery-preview-back" onClick={() => setPreviewId(null)}>← Back to stencils</button>
+        <button className="gallery-preview-back" onClick={() => setPreviewId(null)}>← Back to templates</button>
         <div className="gallery-preview-meta">
           <span className="gallery-preview-title">{preview.name}</span>
           {preview.specialty && <span className="gallery-card-tag">{preview.specialty}</span>}
@@ -314,7 +322,7 @@ function TemplateGalleryStep({ selected, onSelect }) {
         </div>
         <div className="gallery-preview-foot">
           <button className="btn-teal" onClick={() => { onSelect(previewId); setPreviewId(null); }}>
-            {selected === previewId ? "✓ Selected" : "Use this stencil"}
+            {selected === previewId ? "✓ Selected" : "Use this template"}
           </button>
         </div>
       </div>
@@ -323,8 +331,16 @@ function TemplateGalleryStep({ selected, onSelect }) {
 
   return (
     <div className="gallery-wrap">
-      <p className="gallery-lead">Pick a stencil to get started — you can edit sections after creating.</p>
       <div className="gallery-grid">
+        {/* Blank */}
+        <div className={"gallery-card gallery-card--blank" + (selected === "__blank__" ? " gallery-card--on" : "")}
+          onClick={() => onSelect("__blank__")}>
+          <div className="gallery-card-blank-body">
+            <span className="gallery-blank-plus">+</span>
+            <span className="gallery-blank-label">Start blank</span>
+          </div>
+        </div>
+        {/* Starter templates */}
         {starters.map(t => (
           <div key={t.id} className={"gallery-card" + (selected === t.id ? " gallery-card--on" : "")}
             onClick={() => onSelect(t.id)}>
@@ -345,19 +361,35 @@ function TemplateGalleryStep({ selected, onSelect }) {
           </div>
         ))}
       </div>
+
+      {templates && templates.length > 0 && (
+        <div className="gallery-mytpls">
+          <div className="gallery-section-label">Or copy from my templates</div>
+          <div className="gallery-my-list">
+            {templates.map(t => (
+              <div key={t.id} className={"gallery-my-item" + (selected === t.id ? " gallery-my-item--on" : "")}
+                onClick={() => onSelect(t.id)}>
+                <span className="gallery-my-name">{t.name}</span>
+                <span className="gallery-my-tag">{t.derivative}</span>
+                <button className="gallery-preview-btn" onClick={e => { e.stopPropagation(); setPreviewId(t.id); }}>Preview</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function CreateTemplateModal({ ehr, onClose, onCreate }) {
+function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate }) {
   const I = window.Icons;
-  const starters = window.STARTER_TEMPLATES || [];
-  const defaultStencilId = (starters[0] && starters[0].id) || null;
   const [step, setStep] = useStateM(1);
-  const [gallerySelection, setGallerySelection] = useStateM(defaultStencilId);
-  const [name, setName] = useStateM((starters[0] && starters[0].name) || "");
-  const [desc, setDesc] = useStateM((starters[0] && starters[0].description) || "");
+  const [gallerySelection, setGallerySelection] = useStateM("__blank__");
+  const [name, setName] = useStateM("");
+  const [desc, setDesc] = useStateM("");
   const [type, setType] = useStateM("Clinical Note");
+  const [ehrTplId, setEhrTplId] = useStateM("");
+  const [connectSkipped, setConnectSkipped] = useStateM(false);
 
   useEffectM(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -365,30 +397,52 @@ function CreateTemplateModal({ ehr, onClose, onCreate }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Keep name/desc in sync when the doctor picks a different stencil
+  // Pre-fill name/desc/type when a starter is selected
   useEffectM(() => {
-    const starter = starters.find(t => t.id === gallerySelection);
+    const starter = (window.STARTER_TEMPLATES || []).find(t => t.id === gallerySelection);
     if (starter) {
-      setName(starter.name);
-      setDesc(starter.description);
+      if (!name) setName(starter.name);
+      if (!desc) setDesc(starter.description);
     }
   }, [gallerySelection]);
 
   const ehrCat = (window.EHR_CATEGORY || {})[ehr];
   const ehrLabel = (ehrCat && ehrCat.label) || ehr || "your EHR";
-  const selectedStencil = starters.find(t => t.id === gallerySelection) || null;
-  const totalSteps = 3;
-  const stepLabel = (n) => ({ 1: "Choose stencil", 2: "Describe", 3: "Review" }[n]);
+  // Connect EHR: Cat 2 self-serve create only (AMD branch always Cat 2).
+  const needsConnectEhr = ehr === "AMD" || !!(ehrCat && ehrCat.cat === 2);
+  const totalSteps = needsConnectEhr ? 4 : 3;
+  const reviewStep = totalSteps;
+  const connectStep = needsConnectEhr ? 3 : null;
+  const stepLabel = (n) => {
+    if (needsConnectEhr) {
+      return { 1: "Starting point", 2: "Describe", 3: "Connect EHR", 4: "Review" }[n];
+    }
+    return { 1: "Starting point", 2: "Describe", 3: "Review" }[n];
+  };
 
-  const step1Valid = !!selectedStencil;
+  const ehrTemplates = ((window.EHR_TEMPLATES_BY_SYSTEM || {})[ehr]) || [];
+  const selectedEhrTpl = ehrTemplates.find((t) => t.id === ehrTplId) || null;
+
+  const step1Valid = true;
   const step2Valid = name.trim() && desc.trim();
+  const step3Valid = !needsConnectEhr || connectSkipped || !!ehrTplId;
+
+  const copyFromId = gallerySelection === "__blank__" ? null : gallerySelection;
+
+  const canGoNext = () => {
+    if (step === 2) return step2Valid;
+    if (needsConnectEhr && step === connectStep) return step3Valid;
+    return true;
+  };
 
   const handleCreate = () => {
     onCreate({
       name: name.trim(),
       description: desc.trim(),
       type,
-      starterId: gallerySelection,
+      copyFromId,
+      ehrTemplateId: (!connectSkipped && selectedEhrTpl) ? selectedEhrTpl.id : "",
+      ehrTemplateName: (!connectSkipped && selectedEhrTpl) ? selectedEhrTpl.name : "",
     });
   };
 
@@ -398,7 +452,11 @@ function CreateTemplateModal({ ehr, onClose, onCreate }) {
 
         <div className="modal-head">
           <h2>Create a template</h2>
-          <span className="modal-sub">Start from a stencil, then configure sections and EHR mapping</span>
+          <span className="modal-sub">
+            {needsConnectEhr
+              ? "Self-serve — pick an AMD note template so field mapping uses your EHR fields"
+              : "You'll configure sections and EHR mapping after creation"}
+          </span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
 
@@ -414,9 +472,11 @@ function CreateTemplateModal({ ehr, onClose, onCreate }) {
 
         <div className={"modal-body" + (step === 1 ? " modal-body--gallery" : "")}>
 
-          {/* ── Step 1: Stencil gallery ── */}
+          {/* ── Step 1: Gallery ── */}
           {step === 1 && (
             <TemplateGalleryStep
+              templates={templates}
+              sectionsByTpl={sectionsByTpl}
               selected={gallerySelection}
               onSelect={setGallerySelection}
             />
@@ -436,7 +496,7 @@ function CreateTemplateModal({ ehr, onClose, onCreate }) {
                 <textarea className="req-input req-textarea" value={desc} rows={3}
                   onChange={e => setDesc(e.target.value)}
                   placeholder="Describe the visit type, specialty, or patient population this template should cover…" />
-                <div className="adv-field-hint">This helps ops review and onboard the template correctly. No AI is used.</div>
+                <div className="adv-field-hint">This helps you remember the purpose of this template. No AI is used.</div>
               </div>
               <div className="req-field">
                 <label>Document type</label>
@@ -453,8 +513,40 @@ function CreateTemplateModal({ ehr, onClose, onCreate }) {
             </div>
           )}
 
-          {/* ── Step 3: Review ── */}
-          {step === 3 && (
+          {/* ── Step 3 (Cat 2 / self-serve): Connect EHR ── */}
+          {needsConnectEhr && step === connectStep && (
+            <div className="create-step-body">
+              <p className="create-connect-lead">
+                Choose which <strong>{ehrLabel}</strong> note template to connect. Field mappings will use fields from this template.
+              </p>
+              <div className="ehr-tpl-list">
+                {ehrTemplates.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    className={"ehr-tpl-option" + (ehrTplId === tpl.id && !connectSkipped ? " ehr-tpl-option--selected" : "")}
+                    onClick={() => { setEhrTplId(tpl.id); setConnectSkipped(false); }}
+                  >
+                    <span className="ehr-tpl-option-name">{tpl.name}</span>
+                    <span className="ehr-tpl-option-id">{tpl.id}</span>
+                    {ehrTplId === tpl.id && !connectSkipped && (
+                      <span className="ehr-tpl-option-check"><I.check /></span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className={"create-connect-skip" + (connectSkipped ? " create-connect-skip--on" : "")}
+                onClick={() => { setConnectSkipped(true); setEhrTplId(""); }}
+              >
+                Skip for now — map fields manually later
+              </button>
+            </div>
+          )}
+
+          {/* ── Review ── */}
+          {step === reviewStep && (
             <div className="create-step-body">
               <div className="create-review-notice">
                 <p className="create-review-lead">Review your template before creating.</p>
@@ -465,7 +557,20 @@ function CreateTemplateModal({ ehr, onClose, onCreate }) {
                   <tr><td>Type</td><td>{type}</td></tr>
                   <tr><td>Purpose</td><td>{desc}</td></tr>
                   <tr><td>EHR</td><td>{ehrLabel}</td></tr>
-                  <tr><td>Stencil</td><td>{(selectedStencil && selectedStencil.name) || "Unknown"}</td></tr>
+                  {needsConnectEhr && (
+                    <tr>
+                      <td>Connected note template</td>
+                      <td>{
+                        connectSkipped || !selectedEhrTpl
+                          ? <em>Skipped — map manually later</em>
+                          : <strong>{selectedEhrTpl.name}</strong>
+                      }</td>
+                    </tr>
+                  )}
+                  <tr><td>Starting point</td><td>{
+                    gallerySelection === "__blank__" ? "Blank template" :
+                    ((window.STARTER_TEMPLATES || []).find(t => t.id === gallerySelection) || (templates || []).find(t => t.id === gallerySelection) || {}).name || "Unknown"
+                  }</td></tr>
                 </tbody>
               </table>
               <p className="create-review-hint">
@@ -481,11 +586,10 @@ function CreateTemplateModal({ ehr, onClose, onCreate }) {
             ? <button className="btn-ghost" onClick={() => setStep(s => s - 1)}>Back</button>
             : <button className="btn-ghost" onClick={onClose}>Cancel</button>}
           {step < totalSteps
-            ? <button className="btn-teal" onClick={() => setStep(s => s + 1)}
-                disabled={step === 1 ? !step1Valid : !step2Valid}>
+            ? <button className="btn-teal" onClick={() => setStep(s => s + 1)} disabled={!canGoNext()}>
                 Next
               </button>
-            : <button className="btn-teal" onClick={handleCreate} disabled={!step1Valid || !step2Valid}>Create template</button>}
+            : <button className="btn-teal" onClick={handleCreate}>Create template</button>}
         </div>
 
       </div>

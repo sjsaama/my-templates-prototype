@@ -171,6 +171,32 @@ Catch broken mappings before push — feasible for fixed-list EHRs without an AP
 
 ---
 
+## Resolution mechanisms (doctor-facing)
+
+Every in-app push issue uses one of three actions. Only show buttons that apply.
+
+| Mechanism | UI | Doctor does | Clears when |
+|---|---|---|---|
+| **Remap** | Primary button on strip / banner row | Opens mapping picker → selects valid EHR field → Save | Mapping saved + next successful push (or optimistic clear) |
+| **Got it** | Dismiss | Fixes outside My Templates (shorten note, finish check-in, open chart) → **retries push** from consult/note flow | Successful push; dismiss only hides the strip |
+| **Contact support** | Secondary / sole escalate | Opens support; ops already has fatal email | Ops/admin fixes root cause → doctor retries push |
+
+**Severity**
+- Amber (`selfServe`): doctor can resolve without ops (Got it path).
+- Red: Remap and/or Contact support; mapping alone may not be enough.
+
+**Generic resolve loop**
+
+```
+Async push fails → (planned) push_errors row + ops email if fatal
+  → My Templates banner + section strip
+  → Remap | Got it | Contact support
+  → Retry push
+  → Success clears errors for those sections
+```
+
+AMD-specific copy and per-error step flows: **`AMD.md` → Push errors**.
+
 ## Remap flows
 
 ### Flow A — Fixed list (AthenaOne, ECW, Veradigm)
@@ -178,10 +204,10 @@ Re-open the dropdown. Hardcoded known list, no API call needed.
 
 ### Flow B — Flexible list (AMD, DrChrono)
 Re-fetch current fields from EHR live, pick correct field.
-If `ehr_template_id` deleted: go back to the template-level picker first.
+If `ehr_template_id` deleted: go back to the template-level picker first — Remap alone is not enough; use Contact support / reconnect template.
 
 ### Flow C — CharmHealth
-Can't re-fetch automatically. Escalate to tech.
+Can't re-fetch automatically. Escalate to tech (Contact support).
 
 ---
 

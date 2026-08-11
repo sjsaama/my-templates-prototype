@@ -36,9 +36,15 @@ function modeTagClass(mode) {
 // ── Mapping picker (right-side drawer) ────────────────────────────────────
 
 function fieldLabel(f) {
+  if (!f) return "";
   const labels = window.EHR_FIELD_LABELS || {};
   const raw = f.split(" > ").pop();
   return labels[raw] || labels[f] || raw;
+}
+
+function fieldMeta(path) {
+  if (window.amdFieldMeta) return window.amdFieldMeta(path);
+  return { type: "text" };
 }
 
 function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeIt, ehr, onSelect, onClose }) {
@@ -196,12 +202,18 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                       <div className="mapping-picker-group-label">{g.group}</div>
                       {g.fields.map(f => {
                         const isSelected = f === pendingEhr;
+                        const meta = fieldMeta(f);
+                        const isCheckbox = meta.type === "checkbox";
                         return (
                           <button key={f}
-                            className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
+                            className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "") + (isCheckbox ? " mapping-picker-field--checkbox" : "")}
                             onClick={() => setPendingEhr(f)}
                           >
-                            <span>{f.split(" > ").pop()}</span>
+                            <span className="mapping-picker-field-main">
+                              {isCheckbox && <span className="mapping-picker-cb-ico" aria-hidden="true">☑</span>}
+                              <span>{f.split(" > ").pop()}</span>
+                              {isCheckbox && <span className="mapping-type-tag">checkbox</span>}
+                            </span>
                             {isSelected && <span className="mapping-picker-check"><I.check /></span>}
                           </button>
                         );
@@ -212,6 +224,17 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
             </div>
             <div className="mapping-picker-foot">
               <button className="mapping-picker-clear" onClick={() => setPendingEhr("")}>Clear mapping — remove EHR destination</button>
+              {pendingEhr && fieldMeta(pendingEhr).type === "checkbox" && (
+                <div className="mapping-picker-checkbox-hint">
+                  <strong>Checkbox field</strong>
+                  {(fieldMeta(pendingEhr).allowedValues || []).length > 0 && (
+                    <span> — allowed values: {(fieldMeta(pendingEhr).allowedValues || []).join(", ")}</span>
+                  )}
+                  <div className="mapping-picker-checkbox-hint-sub">
+                    {fieldMeta(pendingEhr).hint || "Prompt must output one of the allowed values for AMD to accept the push."}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -280,19 +303,28 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride 
 
   const isEmpty = !s.ehr;
   const label = isEmpty ? "Not mapped" : fieldLabel(s.ehr);
+  const meta = fieldMeta(s.ehr);
+  const isCheckbox = !isEmpty && meta.type === "checkbox";
   return (
     <div className="mapping-cell-wrap">
       <button
-        className={"mapping-edit-btn" + (isEmpty ? " mapping-edit-btn--empty" : "")}
+        className={"mapping-edit-btn" + (isEmpty ? " mapping-edit-btn--empty" : "") + (isCheckbox ? " mapping-edit-btn--checkbox" : "")}
         onClick={() => onOpenMapping(s.id)}
         title={isEmpty ? "Click to assign an EHR field" : "Change EHR mapping: " + s.ehr}
       >
+        {isCheckbox && <span className="mapping-cb-ico" aria-hidden="true">☑</span>}
         <span className="mapping-edit-label">{label}</span>
+        {isCheckbox && <span className="mapping-type-tag">checkbox</span>}
         <span className="mapping-edit-ico"><I.pencil /></span>
       </button>
       {isDuplicate && (
         <span className="mapping-shared" title="Multiple sections push to this field — content is combined in section order">
           Shared
+        </span>
+      )}
+      {isCheckbox && meta.allowedValues && meta.allowedValues.length > 0 && (
+        <span className="mapping-cb-values" title="Allowed AMD checkbox values">
+          {meta.allowedValues.join(" · ")}
         </span>
       )}
     </div>
@@ -326,8 +358,11 @@ function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, eh
 }
 
 // ── Soft-hidden details panel — 4 tabs ────────────────────────────────────
-function InlineAdvPanel({ s, onUpdate, ehr }) {
+function InlineAdvPanel({ s, onUpdate, ehr, templatePushMode }) {
   const I = window.Icons;
+  const pushMode = s.config || templatePushMode || "Prepend";
+  const usesTemplateDefault = !s.config || s.config === (templatePushMode || "Prepend");
+  const amdFieldMax = s.ehr ? (window.AMD_CHAR_LIMITS || {})[s.ehr] : null;
   return (
     <div className="adv">
 
@@ -354,32 +389,41 @@ function InlineAdvPanel({ s, onUpdate, ehr }) {
               placeholder='e.g. "Not reported" or "None"'
               onChange={e => onUpdate(s.id, { defaultNegative: e.target.value })} />
           </div>
-          {ehr === "AMD" && s.ehr && (() => {
-            const limit = (window.AMD_CHAR_LIMITS || {})[s.ehr];
-            if (!limit) return null;
-            return (
-              <div className="adv-char-limit">
-                <span className="adv-char-limit-label">AMD field limit</span>
-                <span className="adv-char-limit-val">{limit.toLocaleString()} characters</span>
-              </div>
-            );
-          })()}
+
+          {ehr === "AMD" && amdFieldMax != null && (
+            <div className="adv-char-limit">
+              <span className="adv-char-limit-label">AMD field max</span>
+              <span className="adv-char-limit-val">{amdFieldMax.toLocaleString()} characters</span>
+              <span className="adv-char-limit-hint">From max_character_length — template Character limit is set globally (not per section)</span>
+            </div>
+          )}
 
           {ehr === "AMD" && (
-            <>
-              <div className="adv-field adv-field--push-mode">
-                <label className="adv-field-label">Push mode</label>
-                <div className="adv-seg-row">
-                  {["Prepend", "Append", "Replace"].map(mode => (
-                    <button key={mode}
-                      className={"seg-btn" + ((s.config || "Prepend") === mode ? " seg-btn--on" : "")}
-                      onClick={() => onUpdate(s.id, { config: mode })}>
-                      {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
-                    </button>
-                  ))}
-                </div>
+            <div className="adv-field adv-field--push-mode">
+              <label className="adv-field-label">
+                Push setting
+                <span className="adv-field-optional">{usesTemplateDefault ? "· template default" : "· section override"}</span>
+              </label>
+              <div className="adv-seg-row">
+                {["Prepend", "Append", "Replace"].map(mode => (
+                  <button key={mode}
+                    className={"seg-btn" + (pushMode === mode ? " seg-btn--on" : "")}
+                    onClick={() => onUpdate(s.id, { config: mode })}>
+                    {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
+                  </button>
+                ))}
               </div>
-            </>
+              {!usesTemplateDefault && (
+                <button
+                  type="button"
+                  className="adv-reset-link"
+                  style={{ marginTop: 6 }}
+                  onClick={() => onUpdate(s.id, { config: templatePushMode || "Prepend" })}
+                >
+                  Use template default ({({ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" })[templatePushMode || "Prepend"]})
+                </button>
+              )}
+            </div>
           )}
 
         </div>
@@ -396,10 +440,9 @@ function SectionRow({
   onOpenMapping, onSetMappingMode, onUpdate,
   onDragStart, onDragEnd, onDragOver, onDrop,
   isDragging, dropBefore, dropAfter, isDuplicate,
-  parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo,
+  parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo, templatePushMode,
 }) {
   const I = window.Icons;
-  if (s.ghost) return null;
   const [popover, setPopover] = useStateR(null);
 
   const hasMacros = !!(s.macros && s.macros.length);
@@ -602,13 +645,22 @@ function SectionRow({
             <span className="row-push-error-msg">{pushIssue.msg}</span>
           </div>
           <div className="row-push-error-actions">
-            {(pushIssue.type === "mapping_broken") && hasOutputSettings && (
-              <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
-            )}
-            {pushIssue.selfServe
-              ? <button className="row-push-error-dismiss">Got it</button>
-              : <button className="row-push-error-support">Contact support</button>
-            }
+            {(() => {
+              const actions = (window.pushIssueActions || (() => ({})))(pushIssue);
+              return (
+                <>
+                  {actions.remap && hasOutputSettings && (
+                    <button className="row-push-error-remap" onClick={() => onOpenMapping(s.id)}>Remap</button>
+                  )}
+                  {actions.gotIt && (
+                    <button className="row-push-error-dismiss">Got it</button>
+                  )}
+                  {actions.support && (
+                    <button className="row-push-error-support">Contact support</button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -627,7 +679,7 @@ function SectionRow({
           />
         </div>
       )}
-      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} ehr={ehr} />}
+      {detailsOpen && hasOutputSettings && <InlineAdvPanel s={s} onUpdate={onUpdate} ehr={ehr} templatePushMode={templatePushMode} />}
     </div>
   );
 
@@ -655,11 +707,11 @@ function AddSubsectionGhostRow({ depth, onClick }) {
 
 // ── Render tree recursively ────────────────────────────────────────────────
 function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
-  const { handlers, dragId, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo } = ctx;
+  const { handlers, dragId, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo, templatePushMode } = ctx;
   const isDragging = dragId === s.id;
   const dropBefore = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'before');
   const dropAfter = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'after');
-  const isDuplicate = !s.ghost && !!s.ehr && (ehrCounts[s.ehr] || 0) > 1;
+  const isDuplicate = !!s.ehr && (ehrCounts[s.ehr] || 0) > 1;
   const isLast = index === siblings.length - 1;
 
   const nodes = [
@@ -677,6 +729,7 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
       pushIssue={pushIssuesByName ? pushIssuesByName[s.name] : null}
       canEditPrompt={canEditPrompt}
       dualMappingDemo={dualMappingDemo}
+      templatePushMode={templatePushMode}
       {...handlers}
     />,
   ];
@@ -695,7 +748,7 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
 
 // ── Section table (manages drag state + mapping panel) ────────────────────
 function SectionTable({
-  sections, ehr, pushIssues,
+  sections, ehr, pushIssues, templatePushMode,
   onToggle, onExpand, onToggleDetails, onTogglePrompt, onDeleteSection,
   onReorder, onRemap, onSetMappingMode, onUpdate, remapTarget, onRemapTargetHandled,
   onAddSection, canEditPrompt, dualMappingDemo,
@@ -723,7 +776,7 @@ function SectionTable({
   const ehrCounts = {};
   const walkEhr = (list) => {
     for (const s of list) {
-      if (!s.ghost && s.ehr) ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
+      if (s.ehr) ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
       if (s.children) walkEhr(s.children);
     }
   };
@@ -764,7 +817,7 @@ function SectionTable({
 
   const pushIssuesByName = {};
   (pushIssues || []).forEach(pi => { pushIssuesByName[pi.section] = pi; });
-  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo };
+  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo, templatePushMode };
 
   // ── Add Section availability — varies by EHR category ──
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
