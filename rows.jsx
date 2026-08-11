@@ -794,7 +794,7 @@ function SectionTable({
             title={addDisabledReason || undefined}
             onClick={() => onAddSection(null)}
           >
-            + Add section
+            <span className="btn-outline-main">+ Add section</span>
           </button>
         )}
         {isCat1 && totalFieldCount > 0 && (

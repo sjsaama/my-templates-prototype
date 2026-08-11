@@ -2,29 +2,13 @@
 // Exposed on window for the Babel-transpiled component scripts.
 
 const TEMPLATES = [
-  { id: "gen1", name: "General 1", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Clinical Notes" },
-  { id: "gen2", name: "General 2", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Clinical Notes" },
-  { id: "gen3", name: "General 3", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Clinical Notes" },
-  { id: "first", name: "First Visit", derivative: "Clinical Note", ehr: "AMD_FirstVisit_Template", ehrSystem: "AMD", group: "Clinical Notes" },
-  { id: "follow", name: "Follow Up", derivative: "Clinical Note", ehr: "AMD_FollowUp_Template", ehrSystem: "AMD", group: "Clinical Notes" },
-  { id: "neuro", name: "Neurology Consultation", derivative: "Clinical Note", ehr: "AMD_Neuro_Template", ehrSystem: "AMD", group: "Clinical Notes" },
-  { id: "avs", name: "AVS", derivative: "After Visit Summary", ehr: "AMD_AVS_Template", ehrSystem: "AMD", group: "Other Documents" },
-  { id: "referral", name: "Referral Letter", derivative: "Letter", ehr: "AMD_Referral_Template", ehrSystem: "AMD", group: "Other Documents" },
-  { id: "leave", name: "Medical Leave Letter", derivative: "Letter", ehr: "AMD_Leave_Template", ehrSystem: "AMD", group: "Other Documents" },
-  { id: "ddx", name: "DDx (Beta)", derivative: "Clinical Note", ehr: "AMD_DDx_Template", ehrSystem: "AMD", group: "Other Documents" },
-  { id: "athena1", name: "Office Visit", derivative: "Clinical Note", ehr: "AthenaOne_OV", ehrSystem: "AthenaOne", group: "Clinical Notes" },
-  { id: "ecw1", name: "Progress Note", derivative: "Clinical Note", ehr: "ECW_Progress", ehrSystem: "eCW", group: "Clinical Notes" },
-  { id: "charm1", name: "SOAP Note", derivative: "Clinical Note", ehr: "Charm_SOAP", ehrSystem: "Charm", group: "Clinical Notes" },
-  { id: "drchrono1", name: "Office Visit", derivative: "Clinical Note", ehr: "DrChrono_OV", ehrSystem: "DrChrono", group: "Clinical Notes" },
-  { id: "veradigm1", name: "Progress Note", derivative: "Clinical Note", ehr: "Veradigm_Progress", ehrSystem: "Veradigm", group: "Clinical Notes" },
-  { id: "centricity1", name: "Office Visit", derivative: "Clinical Note", ehr: "Centricity_OV", ehrSystem: "Centricity", group: "Clinical Notes" },
-  { id: "cerner1", name: "Office Visit", derivative: "Clinical Note", ehr: "Cerner_OV", ehrSystem: "Cerner", group: "Clinical Notes" },
-  { id: "nereg1", name: "Progress Note", derivative: "Clinical Note", ehr: "Nereg_Progress", ehrSystem: "Nereg", group: "Clinical Notes" },
-  { id: "athlegacy1", name: "Office Visit", derivative: "Clinical Note", ehr: "Athena_Legacy", ehrSystem: "Athena", group: "Clinical Notes" },
-  { id: "modmed1", name: "Progress Note", derivative: "Clinical Note", ehr: "ModMed_OV", ehrSystem: "ModMed", group: "Clinical Notes" },
+  { id: "mine1", name: "Cardiology Follow-up", derivative: "Clinical Note", ehr: "AMD_Cardio_Template", ehrSystem: "AMD", group: "Self-created", userCreated: true },
+  { id: "mine2", name: "My SOAP Note", derivative: "Clinical Note", ehr: "AMD_SOAP_Template", ehrSystem: "AMD", group: "Self-created", userCreated: true },
+  { id: "gen1", name: "General 1", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Ops-managed" },
+  { id: "gen3", name: "General 3", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Ops-managed" },
 ];
 
-const GROUP_ORDER = ["My Templates", "Clinical Notes", "Other Documents"];
+const GROUP_ORDER = ["Self-created", "Ops-managed"];
 
 function groupsFor(templates) {
   const list = templates || TEMPLATES;
@@ -349,7 +333,7 @@ const INITIAL_PENDING_REQUESTS = [
     id: "req_social",
     name: "Social History",
     description: "Capture tobacco, alcohol, occupation, and living situation for every visit.",
-    tplIds: ["gen1", "gen2", "gen3"],
+    tplIds: ["mine1", "gen1", "gen3"],
     daysAgo: 2,
     status: "approved",
     ops_note: "",
@@ -359,7 +343,7 @@ const INITIAL_PENDING_REQUESTS = [
     id: "req_seizure",
     name: "Seizure Frequency",
     description: "Track seizure count, duration, and post-ictal state for epilepsy follow-ups.",
-    tplIds: ["neuro", "follow"],
+    tplIds: ["mine1", "mine2"],
     daysAgo: 5,
     status: "rejected",
     ops_note: "This section already exists as a subsection under Neurology Consultation.",
@@ -369,7 +353,7 @@ const INITIAL_PENDING_REQUESTS = [
     id: "req_family",
     name: "Family History",
     description: "Document hereditary conditions and relevant family medical background.",
-    tplIds: ["gen1", "first"],
+    tplIds: ["gen1", "mine2"],
     daysAgo: 1,
     status: "pending",
     ops_note: "",
