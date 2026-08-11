@@ -1,4 +1,4 @@
-// shell.jsx — Sidebar nav + Template list panel
+// shell.jsx — Sidebar nav + Template list panel + Settings nav
 const { useState } = React;
 
 function Logo() {
@@ -12,21 +12,25 @@ function Logo() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ activeNav, onNavigate }) {
   const I = window.Icons;
   const items = [
     { id: "home", label: "Home", icon: I.home },
     { id: "macros", label: "Macros", icon: I.bolt, badge: true },
     { id: "refer", label: "Refer", icon: I.refer },
     { id: "faq", label: "FAQ", icon: I.faq },
-    { id: "settings", label: "Settings", icon: I.gear, active: true },
+    { id: "settings", label: "Settings", icon: I.gear },
   ];
   return (
     <nav className="sidebar">
       <div className="sidebar-logo"><Logo /></div>
       <div className="sidebar-items">
         {items.map((it) => (
-          <button key={it.id} className={"nav-item" + (it.active ? " nav-item--active" : "")}>
+          <button
+            key={it.id}
+            className={"nav-item" + (activeNav === it.id ? " nav-item--active" : "")}
+            onClick={() => onNavigate && onNavigate(it.id)}
+          >
             <span className={"nav-ico" + (it.badge ? " nav-ico--badge" : "")}>
               <it.icon />
             </span>
@@ -38,7 +42,19 @@ function Sidebar() {
   );
 }
 
-function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate, collapsed, onToggle }) {
+function LeftNavPanel({
+  panelTab,
+  onPanelTab,
+  settingsTab,
+  onSettingsTab,
+  groups,
+  activeId,
+  onSelect,
+  onRequest,
+  onCreateTemplate,
+  collapsed,
+  onToggle,
+}) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
 
@@ -59,61 +75,115 @@ function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate,
 
   return (
     <aside className={"tpl-panel" + (collapsed ? " tpl-panel--collapsed" : "")}>
-      <button className="tpl-collapse" onClick={onToggle} title={collapsed ? "Expand templates" : "Collapse templates"} aria-label="Toggle template list">
+      <button className="tpl-collapse" onClick={onToggle} title={collapsed ? "Expand panel" : "Collapse panel"} aria-label="Toggle left panel">
         <window.Icons.chevron />
       </button>
       <div className="tpl-inner">
-        <h1 className="tpl-title">My Templates</h1>
-        <button className="btn-teal tpl-create" onClick={onCreateTemplate}>
-          + Create template
-        </button>
-        <button className="btn-ghost tpl-request" onClick={onRequest}>
-          Request from ops
-        </button>
-        <div className="tpl-search-wrap">
-          <span className="tpl-search-ico">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-              <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.4"/>
-              <path d="M8.5 8.5L11.5 11.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-            </svg>
-          </span>
-          <input
-            className="tpl-search"
-            type="search"
-            placeholder="Search templates…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search templates"
-          />
-          {q && (
-            <button className="tpl-search-clear" onClick={() => setQuery("")} aria-label="Clear search">✕</button>
-          )}
+        <div className="panel-tabs" role="tablist" aria-label="Left navigation">
+          <button
+            role="tab"
+            aria-selected={panelTab === "templates"}
+            className={"panel-tab" + (panelTab === "templates" ? " panel-tab--on" : "")}
+            onClick={() => onPanelTab("templates")}
+          >
+            Templates
+          </button>
+          <button
+            role="tab"
+            aria-selected={panelTab === "settings"}
+            className={"panel-tab" + (panelTab === "settings" ? " panel-tab--on" : "")}
+            onClick={() => onPanelTab("settings")}
+          >
+            Settings
+          </button>
         </div>
-        <div className="tpl-scroll">
-          {q && totalFiltered === 0 && (
-            <div className="tpl-no-results">No templates match "{query}"</div>
-          )}
-          {filteredGroups.map((g) => (
-            <div className="tpl-group" key={g.label}>
-              <div className="tpl-group-label">{g.label}</div>
-              {g.templates.map((t) => (
-                <button
-                  key={t.id}
-                  className={"tpl-item" + (t.id === activeId ? " tpl-item--active" : "")}
-                  onClick={() => onSelect(t.id)}
-                >
-                  <span className="tpl-item-text">
-                    <span className="tpl-item-name">{t.name}</span>
-                    {t.derivative && <span className="tpl-item-derivative">({t.derivative})</span>}
-                  </span>
-                </button>
+
+        {panelTab === "templates" ? (
+          <>
+            <h1 className="tpl-title">My Templates</h1>
+            <button className="btn-teal tpl-create" onClick={onCreateTemplate}>
+              + Create template
+            </button>
+            <button className="btn-ghost tpl-request" onClick={onRequest}>
+              Request from ops
+            </button>
+            <div className="tpl-search-wrap">
+              <span className="tpl-search-ico">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                  <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.4"/>
+                  <path d="M8.5 8.5L11.5 11.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+              </span>
+              <input
+                className="tpl-search"
+                type="search"
+                placeholder="Search templates…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search templates"
+              />
+              {q && (
+                <button className="tpl-search-clear" onClick={() => setQuery("")} aria-label="Clear search">✕</button>
+              )}
+            </div>
+            <div className="tpl-scroll">
+              {q && totalFiltered === 0 && (
+                <div className="tpl-no-results">No templates match "{query}"</div>
+              )}
+              {filteredGroups.map((g) => (
+                <div className="tpl-group" key={g.label}>
+                  <div className="tpl-group-label">{g.label}</div>
+                  {g.templates.map((t) => (
+                    <button
+                      key={t.id}
+                      className={"tpl-item" + (t.id === activeId ? " tpl-item--active" : "")}
+                      onClick={() => onSelect(t.id)}
+                    >
+                      <span className="tpl-item-text">
+                        <span className="tpl-item-name">{t.name}</span>
+                        {t.derivative && <span className="tpl-item-derivative">({t.derivative})</span>}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               ))}
             </div>
-          ))}
-        </div>
+          </>
+        ) : (
+          <>
+            <h1 className="tpl-title">Settings</h1>
+            <p className="set-nav-lead">Global practice defaults and local per-template settings from the PRD.</p>
+            <div className="set-nav" role="tablist" aria-label="Settings scope">
+              <button
+                role="tab"
+                aria-selected={settingsTab === "global"}
+                className={"set-nav-item" + (settingsTab === "global" ? " set-nav-item--on" : "")}
+                onClick={() => onSettingsTab("global")}
+              >
+                <span className="set-nav-item-title">Global</span>
+                <span className="set-nav-item-sub">Practice-level · ops-managed</span>
+              </button>
+              <button
+                role="tab"
+                aria-selected={settingsTab === "local"}
+                className={"set-nav-item" + (settingsTab === "local" ? " set-nav-item--on" : "")}
+                onClick={() => onSettingsTab("local")}
+              >
+                <span className="set-nav-item-title">Local</span>
+                <span className="set-nav-item-sub">Template-level · doctor-editable</span>
+              </button>
+            </div>
+            <div className="set-nav-footnote">
+              Section output settings (additional text, default negative, AMD push mode) stay on each section row.
+            </div>
+          </>
+        )}
       </div>
     </aside>
   );
 }
 
-Object.assign(window, { Sidebar, TemplateList });
+// Keep TemplateList name as alias for any older references
+const TemplateList = LeftNavPanel;
+
+Object.assign(window, { Sidebar, TemplateList, LeftNavPanel });
