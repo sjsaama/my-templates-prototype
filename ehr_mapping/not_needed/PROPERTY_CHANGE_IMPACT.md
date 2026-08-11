@@ -39,7 +39,7 @@ These live in the `templates` table and `json_template` JSON.
 | Property | Changed by | Impact |
 |---|---|---|
 | `ehr_template_id` | Not used for AthenaOne field routing | ✅ No impact on push — field names are fixed by Athena's API, not by a template ID |
-| `ehr_template_name` | Ops | ✅ Used as document description in Centricity XML — no impact on AthenaOne section push |
+| `ehr_template_name` | Ops | ✅ Display / document metadata only for AthenaOne — no impact on AthenaOne section field routing (Centricity / Athena Flow is a separate Cat 1 product) |
 | `ehr_field_name` | Fixed by Athena's embedded app API — ops picks from known list | ❌ If entered incorrectly — push fails with generic error, alert email to ops. Field names never change unless Athena updates their API |
 
 ---
@@ -110,25 +110,37 @@ These live in the `templates` table and `json_template` JSON.
 
 | Property | Changed by | Impact |
 |---|---|---|
-| `ehr_template_id` | Not used — no field mapping | ✅ No impact |
+| `ehr_template_id` | Not used for per-section field mapping | ✅ No per-section field impact |
 | `ehr_template_name` | Ops | ⚠️ Used as the PDF filename attached to the chart (`file_name` param) — affects the document name visible in Cerner, not routing |
+| Destination / note template connection | Ops / onboarding | ⚠️ Required for Cat 3 PDF push destination — not a per-section map |
 | Section structure | N/A — whole note pushed as one PDF | ✅ No per-section impact |
 
 ---
 
-### Nereg
+### ModMed
 
 | Property | Changed by | Impact |
 |---|---|---|
-| `ehr_template_id` | Not used | ✅ No impact |
-| `ehr_template_name` | Not used | ✅ No impact |
-| Marvix section `key_name` | Ops (rename) | ❌ Nereg auto-maps using `key_name` as `ehr_field_name` — rename silently breaks the field mapping for that section |
+| `ehr_template_id` | Not used for per-section field mapping | ✅ No per-section field impact |
+| `ehr_template_name` | Ops | ⚠️ May affect destination document naming in ModMed — not section routing |
+| Destination / note template connection | Ops / onboarding | ⚠️ Required for Cat 3 PDF push destination — not a per-section map |
+| Section structure | N/A — whole note pushed as one PDF | ✅ No per-section impact |
 
 ---
 
-### Out-of-scope EHRs (see `not_needed/`)
+### Nereg (Category 2 — locked / auto map)
 
-Athena legacy, ECW FHIR, Greenway, and Tebra are archived under [`not_needed/`](not_needed/) — outside the active My Templates EHR set. No push — property changes have no mapping impact.
+| Property | Changed by | Impact |
+|---|---|---|
+| Connected EHR note template | Doctor / ops (Connect EHR) | ⚠️ Required like other Cat 2 — destination template context; mapping itself is still auto from `key_name` |
+| `ehr_template_id` / `ehr_template_name` in Extra Fields YAML | Usually unused for per-section map | ✅ No YAML field map — auto from `key_name` |
+| Marvix section `key_name` | Ops / doctor (rename) | ❌ Nereg auto-maps using `key_name` as `ehr_field_name` — rename silently breaks the field mapping for that section |
+
+---
+
+### Out of taxonomy (not Cat 1–3)
+
+Athena legacy, ECW FHIR, Greenway, and Tebra are **not** in the My Templates category model. Stub docs may remain under `ehr_mapping/` for engineering reference only — they are not doctor-facing EHRs in this product.
 
 ---
 

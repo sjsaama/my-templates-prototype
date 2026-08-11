@@ -1,7 +1,7 @@
 # EHR Mapping — Cerner
 
 ## Category
-**Category 3 — No field mapping.** Marvix pushes the entire note as a single PDF. No section-level routing, no YAML, no mapping rows needed.
+**Category 3 — Auto push (PDF).** Marvix pushes the entire note as a single PDF via FHIR. No section-level field mapping / Remap. **EHR template / destination document connection is still required.** Mapping column label: "Whole note pushed as PDF".
 
 ---
 

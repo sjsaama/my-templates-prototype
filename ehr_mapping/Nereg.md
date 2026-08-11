@@ -1,7 +1,7 @@
 # EHR Mapping — Nereg
 
 ## Category
-**Category 3 — No field mapping.** Marvix auto-constructs the field mapping from section names. No manual YAML needed.
+**Category 2 — Flexible field list (locked / auto map).** Doctor connects an EHR note template like other Cat 2 EHRs. Marvix auto-constructs the field mapping from section `key_name` values. Doctor cannot remap via a picker — mapping is locked.
 
 ---
 
@@ -42,6 +42,15 @@ Not applicable — config is hardcoded in the push logic (`separator: \n`, `reta
 | `key_name` doesn't match a valid Nereg field | Field silently skipped | No exception raised | ❌ No — ops renames section `key_name` to match |
 
 **Key gap**: renaming a section's `key_name` in the ops portal breaks auto-mapping silently — Nereg looks up fields by `key_name` at push time and skips unrecognised ones.
+
+---
+
+## Doctor UX (My Templates)
+
+- Connect EHR note template required (Cat 2 step)
+- Mapping column label: "Auto-mapped from section names"
+- No field picker / no Remap button
+- Push error strips: Contact support only
 
 ---
 

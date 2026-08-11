@@ -6,7 +6,7 @@ Per-section config options. Every key here lives in the Extra Fields YAML for a 
 
 ## Common — applies to all push EHRs
 
-> **Planned — Template Settings:** The keys `separator`, `char_limit`, `push_subsections`, `retain_headings`, `skip_empty_subsections`, and `line_separator` are being promoted from per-section YAML to a global **Template Settings** level. Doctors will set them once per template rather than per mapping row. The per-section YAML path remains the source of truth until migration is complete.
+> **Planned — Template Settings:** The keys `separator` (section + subsection), `char_limit`, `push_subsections`, `retain_headings`, `skip_empty_subsections`, `line_separator` (ECW HL7; Veradigm uses hardcoded `\r\n`), and `keep_bullet_points` are **global template settings** — doctors set them once per template, not in the per-section content-shaping panel. See [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md) → Template-level settings. The per-section YAML path remains the source of truth until migration is complete.
 
 ### How subsections are combined into one EHR field
 These three work together: first decide whether to include subsections, then whether to label them, then what to put between them.
@@ -14,7 +14,7 @@ These three work together: first decide whether to include subsections, then whe
 | Key | Where in YAML | Type | Default | What it does | Doctor-facing? |
 |---|---|---|---|---|---|
 | `push_subsections` | `config.push_subsections` | Boolean | true | Include child subsections in the pushed text. If false, only the parent section's own text is pushed — subsections are ignored. | Yes — Cat 1 + Cat 2, parent sections. **→ Moving to Template Settings** |
-| `retain_headings` | `config.retain_headings` | Boolean | false | Prefix each subsection's content with its name (e.g. "Onset: …"). Only applies when `push_subsections` is true. | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings** |
+| `retain_headings` | `config.retain_headings` | Boolean | false | When joining sections/subsections into one EHR field, prefix each block with its name (e.g. "Onset: …"). Off = omit headings (same intent as “first-line heading omit”). Only applies when `push_subsections` is true. | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings (global)** |
 | `separator` | `config.separator` | Text | `\n` | Text inserted between subsections when joined into one block. Only applies when `push_subsections` is true. | Yes — Cat 1 + Cat 2, parent sections. **→ Moving to Template Settings** |
 | `skip_separator_between_children` | top-level | Boolean | false | Use no separator between child subsections — tighter spacing. Overrides `separator` at the child level. | Yes — Cat 1 + Cat 2, parent sections |
 | `skip_empty_subsections` | `config.skip_empty_subsections` | Boolean | false | Exclude subsections that have no generated content from the joined output. | Yes — Cat 1 + Cat 2. **→ Moving to Template Settings** |
@@ -22,7 +22,7 @@ These three work together: first decide whether to include subsections, then whe
 ### Content shaping
 | Key | Where in YAML | Type | Default | What it does | Doctor-facing? |
 |---|---|---|---|---|---|
-| `keep_bullet_points` | top-level | Boolean | false | Keep bullet characters in pushed text. By default bullets are stripped before push. | Yes — all push EHRs |
+| `keep_bullet_points` | top-level | Boolean | false | Keep bullet characters in pushed text. By default bullets are stripped before push. | Yes — all push EHRs. **→ Moving to Template Settings (global)** |
 | `pre_literal` | top-level | Text | — | Fixed text prepended before section content on push (supports unicode escapes e.g. `•` for `•`). Skipped if already present in target field. | Yes — all push EHRs |
 | `post_literal` | top-level | Text | — | Fixed text appended after section content on push. Planned — not yet in codebase. | Yes — all push EHRs |
 | `default_negative` | top-level | Text | — | Text pushed when the section has no generated content (e.g. "Not reported"). Without this, empty sections push nothing. | Yes — all push EHRs |
@@ -47,18 +47,20 @@ These three work together: first decide whether to include subsections, then whe
 
 ---
 
-## Sub-template IDs
+## Pull from another template
 
-`sub_template_ids` is a JSONB column on `EHRMapping` — not a YAML key. Updated via ops endpoint `/update_ehr_mapping_subtemplates`. Used for template-driven fields like ICD / CPT codes where the doctor selects from available templates rather than pushing free text.
+Same product idea, two backend paths today — treat as one doctor-facing model: **content from another Marvix template is attached to a section on this template and mapped to an EHR destination.**
+
+### Sub-template IDs (ICD / CPT / EM, etc.)
+
+`sub_template_ids` is a JSONB column on `EHRMapping` — not a YAML key. Updated via ops endpoint `/update_ehr_mapping_subtemplates`. Used when the source is a code/sub-template rather than free text.
 
 - **AMD**: templates are practice-level. Ops fetches field IDs from 2–3 templates per onboarding.
 - **DrChrono**: ICD/CPT fields supported; template API access needed.
 - **CharmHealth**: no templates API. Workaround — create a dummy note, pull it via API, extract field IDs manually. API access shared with Shrutesh; pricing is extra cost, outcome unknown.
-- **Doctor-facing**: picker UI (select from templates), not raw ID entry.
+- **Doctor-facing (all EHRs):** Add Section → content source **ICD codes** or **EM codes** → pick a generator template (stored as `sub_template_ids`) → map generated content to any EHR field. Suggested destinations are highlighted per EHR; Cat 3/4 skip the field picker.
 
----
-
-## Derivative append
+### Derivative append
 
 | YAML key | Type | What it does |
 |---|---|---|
@@ -71,6 +73,8 @@ append_other_derivatives_v2:
 ```
 
 > Spacing between main content and appended derivative is controlled by `config.separator`. `separator` is **not** valid inside this list.
+
+> **PRD:** Do not present derivative append and ICD/CPT/EM as unrelated features — both are “pull from another template into this section.” Unify UX pending Vignesh + Nandini.
 
 ---
 

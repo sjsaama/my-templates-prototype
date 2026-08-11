@@ -99,7 +99,7 @@ Setting is **template-level**, not user-level. Whether content is pushed as a no
 | Mechanism | What it is |
 |---|---|
 | Append other derivative | A section can pull content from a derivative template (e.g. a summary template) and append it to the main note on push. Mechanism TBD — needs clarification from Vignesh. |
-| ICD / EM code mapping | Uses template ID in the mapping editor — a **separate mechanism** from append-other-derivative. ICD/CPT fields are not in the standard mapping table. |
+| ICD / EM code mapping | **Available for all EHRs.** When adding a section, the doctor chooses a content source: AI prompt, ICD codes, or EM codes. For ICD/EM, they pick a code generator template (maps to backend `sub_template_ids`) and map the generated content to an EHR field. Suggested destinations are highlighted per EHR (e.g. Veradigm `ICD`, DrChrono `icd10_codes` / `cpt_codes`, AthenaOne `billingnotes`, eCW `EM:`), but any field can be chosen. Cat 3/4 skip the field picker — content is still generated for auto-map or copy/paste. |
 | One section → two EHR fields | A single logical section (e.g. chief complaint) may map to two separate EHR destination fields — confirmed for AMD (checkbox field + text field). Both fields are mapped independently. For non-checkbox pairs, ordering may matter for how the EHR renders them — handling TBD. See open questions. |
 | Two sections → same EHR field | Multiple Marvix sections can share the same EHR destination field. This is valid and supported. Content from all mapped sections is combined in section order. The UI shows a neutral "Shared" label on the mapping chip (not a warning). |
 | First-line heading omit | Whether the first line (section heading) is stripped before push. Configurability unconfirmed — see open questions. |
@@ -136,6 +136,7 @@ These decisions were made during prototype review and should be treated as locke
 - **Save / Reset buttons:** Live in the header row alongside the template title. No separate toolbar bar.
 - **"Request New Section" button:** Header, right side — only shown for user-created (self-serve) templates. Ops-managed templates do not show this button.
 - **"+ Add section" button:** Only shown for user-created templates. Hidden for ops-managed templates where the section structure is controlled by ops.
+- **Content source on add:** Every EHR gets the same three options — **AI prompt**, **ICD codes**, or **EM codes**. Prompt sections require a free-text instruction. ICD/EM sections require a generator template and (for Cat 1/2) an EHR field mapping. Rows show an ICD/EM chip; the prompt button becomes "ICD source" / "EM source" to change the generator.
 - **"Request from ops" (sidebar):** Simplified to a plain ghost text link — no subtitle, no secondary line.
 
 ### Section row
@@ -157,7 +158,7 @@ These decisions were made during prototype review and should be treated as locke
 
 ### Cat 1 — Fixed field list
 
-EHRs: AthenaOne, ECW, Veradigm, Centricity (AthenaFlow)
+EHRs: AthenaOne, ECW, Veradigm
 
 Field names are hardcoded — no API call needed to populate the dropdown. What the doctor sees in the mapping column:
 
@@ -166,7 +167,6 @@ Field names are hardcoded — no API call needed to populate the dropdown. What 
 | AthenaOne | Snake_case identifiers (`hpi`, `assessment_with_problems`) | Shown as human-readable labels: "History of Present Illness", "Assessment & Problem List" |
 | ECW | Shortcut command names (`HPI:`, `Assessment:`, `Chief Complaints:`) | Shown as-is — these are the literal commands eCW recognizes |
 | Veradigm | camelCase (`historySections`, `reviewOfSystem`, `assessmentPlanHP`) | Shown as human-readable labels: "History Sections", "Review of Systems", "Assessment & Plan" |
-| Centricity | Snake_case identifiers (`hpi`, `assessment_plan`) | Shown as human-readable labels: "History of Present Illness", "Assessment & Plan" |
 
 **ECW — Scribe-it secondary destination:** ECW is the only Cat 1 EHR with a secondary push destination. The mapping picker has two columns: Primary (shortcut commands like `HPI:`, `Assessment:`) and Scribe-it (a separate destination in eCW's Scribe-it note panel — different field set, e.g. `ScribeIt > HPI`, `ScribeIt > Physical Exam`). Both are optional; Scribe-it is surfaced as "optional" in the picker.
 
@@ -179,14 +179,14 @@ Fields come from the doctor's EHR note template. The field list is populated at 
 | EHR | Format | Remap / refresh behavior |
 |---|---|---|
 | AMD | `Page Name > Field Name` | Push mode (prepend/append/replace) and character limit shown in output settings. Doctor can remap freely from the field list. |
-| DrChrono | Snake_case field names | ICD/CPT fields handled separately — not in mapping table. Doctor can remap. |
+| DrChrono | Snake_case field names | ICD/EM code sections use a separate content source (generator + field map). Doctor can still remap freely, including to `icd10_codes` / `cpt_codes`. |
 | CharmHealth | `entry_chart_section` value if set, otherwise field name | Field list cannot be re-fetched. Doctor can remap from the existing list. If the EHR template changed and the field list itself is stale, doctor uses "Contact support" — ops handles the refresh. |
 
 > **Design decision:** EHR field fetching is not part of the creation flow. After a Cat 2 template is created, the doctor opens it in the editor and fetches fields there — a "Fetch fields from [EHR]" action inside the template editor, not a creation step. The creation flow is identical for all EHR categories. CharmHealth cannot re-fetch — the editor shows an amber notice explaining this, with a "Contact support" button.
 
 ### Cat 3 — Auto push
 
-EHRs: Cerner, ModMed, Nereg
+EHRs: Cerner, ModMed, Nereg, Centricity
 
 Note is pushed automatically — no mapping rows shown, no doctor action needed after onboarding. The output settings panel (sliders button) is hidden for Cat 3 — there are no field-level settings to configure.
 
@@ -195,6 +195,7 @@ Note is pushed automatically — no mapping rows shown, no doctor action needed 
 | Cerner | Whole note as PDF via FHIR | "Whole note pushed as PDF" |
 | ModMed | Whole note as PDF | "Whole note pushed as PDF" |
 | Nereg | Section content matched by `key_name` | "Auto-mapped from section names" |
+| Centricity | Section content routed by `ehr_field_name` set by ops | "Auto-mapped from section names" |
 
 ### Cat 4 — No push
 
@@ -262,7 +263,7 @@ Today all push failures go to ops email only. Doctors are not notified in-app. B
 
 The section-level inline strip is the primary action surface — the banner is a summary for awareness. "Contact support" is shown when the error is not doctor-recoverable (mapping broken by EHR template change, etc.). To enumerate what real error messages should say, pull 3 months of note-push failure logs before implementation.
 
-### Cat 1 — AthenaOne, ECW, Veradigm, Centricity
+### Cat 1 — AthenaOne, ECW, Veradigm
 
 **AthenaOne**
 
@@ -290,13 +291,6 @@ The section-level inline strip is the primary action surface — the banner is a
 | Silent field mismatch | Ops mapping | ❌ Undetectable | Nothing — Veradigm accepts mismatched content without error | Ops investigates if doctor reports wrong data in chart |
 | Duplicate encounter | EHR state | ✅ Yes | "A note for this encounter already exists in Veradigm. Contact support." | Ops |
 | Note locked | EHR state | ✅ Yes | "This encounter is locked in Veradigm and can't be edited." | Ops or doctor unlocks |
-
-**Centricity**
-
-| Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
-|---|---|---|---|---|
-| Wrong `ehr_field_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Doctor remaps from fixed list, or ops updates field name |
-| Push failure | Infra | ✅ Yes | — | Ops |
 
 ### Cat 2 — AMD, DrChrono, CharmHealth
 
@@ -330,7 +324,7 @@ The section-level inline strip is the primary action surface — the banner is a
 | Account locked | EHR | ✅ Yes | — | Ops unlocks |
 | SOAP mode failures | Any | ❌ Undetectable | Nothing — no per-field errors returned | Ops investigates |
 
-### Cat 3 — Cerner, Nereg, ModMed
+### Cat 3 — Cerner, Nereg, Centricity, ModMed, Tebra
 
 **Cerner**
 
@@ -345,7 +339,14 @@ The section-level inline strip is the primary action surface — the banner is a
 | Wrong `key_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Ops updates `key_name` in YAML |
 | Auth failure | Infra | ✅ Yes | — | Ops |
 
-**ModMed**
+**Centricity**
+
+| Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
+|---|---|---|---|---|
+| Wrong `ehr_field_name` in YAML | Ops mapping | ❌ Silent wrong field | Nothing | Ops updates field name in YAML |
+| Push failure | Infra | ✅ Yes | — | Ops |
+
+**ModMed / Tebra**
 
 | Scenario | Triggered by | Detectable? | Doctor sees | Resolution |
 |---|---|---|---|---|
@@ -433,7 +434,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 ### Self-serve flow by EHR category
 
-#### Cat 1 — AthenaOne, eCW, Veradigm, Centricity
+#### Cat 1 — AthenaOne, eCW, Veradigm
 
 **What the doctor does:**
 1. Click "+ Create template"
@@ -471,7 +472,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 
 ---
 
-#### Cat 3 — Cerner, ModMed, Nereg
+#### Cat 3 — Cerner, ModMed, Nereg, Centricity
 
 **What the doctor does:**
 1. Click "+ Create template"
@@ -485,7 +486,7 @@ This is separate from template management (the core v1 feature). Doctors who wan
 - Doctor can add or delete sections
 - Output settings panel (sliders) is hidden — nothing to configure for auto-push
 
-**Key constraint:** Section names matter for Nereg — the auto-mapping is keyed on section `key_name`. If the doctor renames a section, it may break the push mapping. This should be surfaced as a warning when a doctor renames a section in a Cat 3 template. *(Not yet implemented in prototype.)*
+**Key constraint:** Section names matter for Nereg and Centricity — the auto-mapping is keyed on section name or `key_name`. If the doctor renames a section, it may break the push mapping. This should be surfaced as a warning when a doctor renames a section in a Cat 3 template. *(Not yet implemented in prototype.)*
 
 ---
 
