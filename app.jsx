@@ -80,7 +80,9 @@ const ERROR_SCENARIOS = {
 };
 
 
-const EHR_OPTIONS = ["AMD", "AthenaOne", "Athena", "eCW", "Charm", "DrChrono", "Veradigm", "Centricity", "Cerner", "Nereg", "ECW FHIR", "Greenway", "ModMed", "Tebra"];
+// Athena (legacy), ECW FHIR, and Greenway are out of scope for this version — not push-capable
+// integrations in active use. See engineering_docs/ehr_mapping/README.md.
+const EHR_OPTIONS = ["AMD", "AthenaOne", "eCW", "Charm", "DrChrono", "Veradigm", "Centricity", "Cerner", "Nereg", "ModMed", "Tebra"];
 
 function mapSectionTree(list, id, fn) {
   return list.map((s) => {
@@ -106,18 +108,6 @@ function removeSectionFromTree(list, id) {
     .map((s) => (s.children ? { ...s, children: removeSectionFromTree(s.children, id) } : s));
 }
 
-function collectUsedFields(sections) {
-  const used = [];
-  const walk = (list) => {
-    list.forEach((s) => {
-      if (!s.ghost && s.ehr) used.push(s.ehr);
-      if (s.children) walk(s.children);
-    });
-  };
-  walk(sections);
-  return used;
-}
-
 function EditorEmpty() {
   return (
     <div className="ed-empty">
@@ -141,11 +131,13 @@ function App() {
     window.INITIAL_PENDING_REQUESTS.map((r) => ({ ...r }))
   );
   const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
+  const [versionsByTpl, setVersionsByTpl] = useStateA({}); // { [tplId]: [{id, timestamp, sections, label?}] }, newest first
   const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
   const [disableTarget, setDisableTarget] = useStateA(null);
   const [toast, setToast] = useStateA("");
   const [navCollapsed, setNavCollapsed] = useStateA(false);
-  const [resetConfirm, setResetConfirm] = useStateA(false);
+  const [versionHistoryOpen, setVersionHistoryOpen] = useStateA(false);
+  const [restoreTarget, setRestoreTarget] = useStateA(null); // version object pending confirm | null
   const pushIssues = ERROR_SCENARIOS[t.errorScenario] || [];
   const [pushIssuesDismissed, setPushIssuesDismissed] = useStateA(false);
   const { useEffect: useEffectA } = React;
@@ -153,8 +145,16 @@ function App() {
   const [remapTarget, setRemapTarget] = useStateA(null);
   const [previewOpen, setPreviewOpen] = useStateA(false);
   const [addSectionOpen, setAddSectionOpen] = useStateA(null); // { parentId: string|null } | null
+  const [settingsOpen, setSettingsOpen] = useStateA(false);
+  const [templateSettingsFor, setTemplateSettingsFor] = useStateA(null); // template id | null
 
   const tpl = activeTpl ? templates.find((x) => x.id === activeTpl) : null;
+  // The Tweaks "EHR system" control is a manual override for demo purposes, but switching
+  // templates should default the mapping picker etc. to that template's *real* EHR — otherwise
+  // every template looks like whatever EHR was last selected in Tweaks, not its own actual one.
+  useEffectA(() => {
+    if (tpl && tpl.ehrSystem && tpl.ehrSystem !== t.ehr) setTweak("ehr", tpl.ehrSystem);
+  }, [activeTpl]);
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[t.ehr]) || {};
   const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
   const pendingCount = pendingRequests.length;
@@ -162,6 +162,19 @@ function App() {
   const sections = activeTpl
     ? (sectionsByTpl[activeTpl] || (sectionsByTpl[activeTpl] = window.makeSections()))
     : [];
+  // Seed the very first version the moment a template's sections are established — for
+  // ops-managed templates that's the ops-configured default, for a freshly created self-serve
+  // template it's whatever it looked like right after creation. Either way, "restore to any
+  // version" doesn't need a special-cased "default" concept — version 1 already is that.
+  if (activeTpl && !versionsByTpl[activeTpl]) {
+    versionsByTpl[activeTpl] = [{
+      id: "v_" + Date.now().toString(36),
+      timestamp: new Date(),
+      sections: JSON.parse(JSON.stringify(sections)),
+      label: "Original",
+    }];
+  }
+  const versions = activeTpl ? (versionsByTpl[activeTpl] || []) : [];
 
   const setSections = (fn) => {
     if (!activeTpl) return;
@@ -207,7 +220,7 @@ function App() {
       id: "custom_" + Date.now().toString(36),
       name: data.name,
       custom: true,
-      ehr: data.field || "",
+      ehr: "",
       config: "Prepend",
       enabled: true,
       macros: [],
@@ -217,22 +230,29 @@ function App() {
       expanded: false,
       detailsExpanded: false,
       promptOpen: false,
-      defaultNegative: "",
+      additionalPlacement: data.additionalPlacement || "before",
+      additionalText: data.additionalText || "",
+      defaultNegative: data.defaultNegative || "",
       styleDetail: "Standard",
       styleFormat: "Prose",
       stylePrompt: data.prompt,
+      otherDerivative: null,
     };
-    const parentId = addSectionOpen.parentId;
-    if (parentId) {
+    const insertAt = (list) => {
+      const arr = list || [];
+      const idx = data.position < 0 || data.position > arr.length ? arr.length : data.position;
+      return [...arr.slice(0, idx), newSection, ...arr.slice(idx)];
+    };
+    if (data.parentId) {
       setSections((arr) =>
-        mapSectionTree(arr, parentId, (p) => ({
+        mapSectionTree(arr, data.parentId, (p) => ({
           ...p,
           expanded: true,
-          children: [...(p.children || []), newSection],
+          children: insertAt(p.children),
         }))
       );
     } else {
-      setSections((arr) => [...arr, newSection]);
+      setSections((arr) => insertAt(arr));
     }
     setAddSectionOpen(null);
     flash("Section added");
@@ -244,10 +264,12 @@ function App() {
       id: newId,
       name: data.name,
       derivative: data.type,
-      ehr: data.ehrTemplateName ? (t && t.ehr ? t.ehr.split("_")[0] + "_" + data.ehrTemplateName.replace(/\s+/g, "_") : data.ehrTemplateName) : "",
+      ehr: data.ehrTemplateName || "",
       ehrSystem: t ? t.ehr : "",
-      group: "My Templates",
+      group: "Self-serve",
+      selfServe: true,
       userCreated: true,
+      templateSettings: data.templateSettings || window.DEFAULT_TEMPLATE_SETTINGS,
     };
     setTemplates(arr => [...arr, newTpl]);
     // Cat 2 (fetch-based EHRs) starts blank — a generic default section may not correspond to
@@ -309,6 +331,8 @@ function App() {
         onSelect={selectTpl}
         onRequest={() => flash("Request from ops → Style Transfer")}
         onCreateTemplate={() => setCreateTemplateOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenTemplateSettings={(id) => setTemplateSettingsFor(id)}
         collapsed={navCollapsed}
         onToggle={() => setNavCollapsed((c) => !c)}
       />
@@ -324,13 +348,22 @@ function App() {
                   <h2 className="ed-title">{tpl.name}</h2>
                   <div className="ed-meta">
                     {tpl.derivative && <span className="ed-meta-tag">{tpl.derivative}</span>}
-                    {tpl.ehr && <span className="ed-meta-tag ed-meta-tag--mono">{tpl.ehr}</span>}
+                    {tpl.ehrSystem && <span className="ed-meta-tag">{tpl.ehrSystem}</span>}
                   </div>
                 </div>
                 <div className="ed-head-right">
                   <button className="btn-ghost btn-sm" onClick={() => setPreviewOpen(true)}>Preview output</button>
-                  <button className="btn-ghost btn-sm" onClick={() => setResetConfirm(true)}>Reset to default</button>
-                  <button className="btn-teal btn-sm" onClick={() => flash("Changes saved")}>Save changes</button>
+                  <button className="btn-ghost btn-sm" onClick={() => setVersionHistoryOpen(true)}>Version history</button>
+                  <button className="btn-teal btn-sm" onClick={() => {
+                    setVersionsByTpl(m => ({
+                      ...m,
+                      [activeTpl]: [
+                        { id: "v_" + Date.now().toString(36), timestamp: new Date(), sections: JSON.parse(JSON.stringify(sections)) },
+                        ...(m[activeTpl] || []),
+                      ],
+                    }));
+                    flash("Changes saved — version recorded");
+                  }}>Save changes</button>
                   {tpl.userCreated && (
                     <button className="btn-outline btn-outline--req" onClick={() => {
                       setSectionRequestOpen(true);
@@ -372,7 +405,11 @@ function App() {
                     </strong>
                     <button className="push-issues-dismiss" onClick={() => setPushIssuesDismissed(true)}>✕</button>
                   </div>
-                  <div className="push-issues-msg">{pushIssues[0].msg}</div>
+                  <div className="push-issues-msg">
+                    {pushIssues[0].selfServe
+                      ? "You can fix this yourself — see the affected section" + (pushIssues.length > 1 ? "s" : "") + " below."
+                      : "Support has been notified. See the affected section" + (pushIssues.length > 1 ? "s" : "") + " below for details."}
+                  </div>
                   <div className="push-issues-list">
                     {pushIssues.map(issue => (
                       <div key={issue.id} className="push-issues-item">
@@ -392,6 +429,7 @@ function App() {
               <window.SectionTable
                 sections={sections}
                 ehr={t.ehr}
+                ehrTemplateName={tpl.ehr}
                 pushIssues={pushIssues}
                 dualMappingDemo={t.dualMappingDemo}
                 remapTarget={remapTarget}
@@ -413,23 +451,34 @@ function App() {
         </div>
       </main>
 
-      {resetConfirm && (
+      {versionHistoryOpen && (
+        <window.VersionHistoryModal
+          versions={versions}
+          templateName={tpl ? tpl.name : ""}
+          onClose={() => setVersionHistoryOpen(false)}
+          onRestore={(v) => { setVersionHistoryOpen(false); setRestoreTarget(v); }}
+        />
+      )}
+
+      {restoreTarget && (
         <window.ConfirmModal
-          title="Reset to Marvix Default"
-          subtitle={tpl ? tpl.name : ""}
-          confirmLabel="Yes, Reset"
+          title="Restore this version?"
+          subtitle={(tpl ? tpl.name : "") + " — " + window.formatVersionDate(restoreTarget.timestamp)}
+          confirmLabel="Yes, Restore"
           danger
-          onClose={() => setResetConfirm(false)}
+          onClose={() => setRestoreTarget(null)}
           onConfirm={() => {
-            setSections(() => window.makeSections());
-            setResetConfirm(false);
-            flash("Reset to Marvix default");
+            const snapshot = restoreTarget;
+            setSections(() => JSON.parse(JSON.stringify(snapshot.sections)));
+            setRestoreTarget(null);
+            flash("Restored version from " + window.formatVersionDate(snapshot.timestamp));
           }}
         >
-          <p className="confirm-lead">All your customizations to this template will be discarded.</p>
+          <p className="confirm-lead">Your current unsaved changes will be replaced with this version. This doesn't delete any version — you can always come back for the one you're on now if you save it first.</p>
           <ul className="confirm-list confirm-list--warn">
-            <li>Custom EHR mappings will be cleared</li>
-            <li>Section order will be restored to default</li>
+            <li>EHR mappings will match this version</li>
+            <li>Section order will match this version</li>
+            <li>Output settings will match this version</li>
           </ul>
         </window.ConfirmModal>
       )}
@@ -447,6 +496,7 @@ function App() {
         <window.PreviewModal
           sections={sections}
           tpl={tpl}
+          onUpdatePrompt={(id, stylePrompt) => handlers.onUpdate(id, { stylePrompt })}
           onClose={() => setPreviewOpen(false)}
         />
       )}
@@ -473,12 +523,26 @@ function App() {
 
       {addSectionOpen && (
         <window.AddSectionModal
-          ehr={t.ehr}
-          ehrCat={ehrCat}
-          parentName={addSectionOpen.parentId ? (findSection(sections, addSectionOpen.parentId) || {}).name : null}
-          usedFields={collectUsedFields(sections)}
+          sections={sections}
+          initialParentId={addSectionOpen.parentId}
           onClose={() => setAddSectionOpen(null)}
           onCreate={handleCreateSection}
+        />
+      )}
+
+      {settingsOpen && (
+        <window.SettingsModal onClose={() => setSettingsOpen(false)} />
+      )}
+
+      {templateSettingsFor && (
+        <window.TemplateSettingsModal
+          template={templates.find((x) => x.id === templateSettingsFor)}
+          onUpdate={(id, fields) =>
+            setTemplates(arr => arr.map(x => x.id === id
+              ? { ...x, templateSettings: { ...(x.templateSettings || window.DEFAULT_TEMPLATE_SETTINGS), ...fields } }
+              : x))
+          }
+          onClose={() => setTemplateSettingsFor(null)}
         />
       )}
 

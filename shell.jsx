@@ -19,7 +19,7 @@ function Sidebar() {
     { id: "macros", label: "Macros", icon: I.bolt, badge: true },
     { id: "refer", label: "Refer", icon: I.refer },
     { id: "faq", label: "FAQ", icon: I.faq },
-    { id: "settings", label: "Settings", icon: I.gear, active: true },
+    { id: "settings", label: "Settings", icon: I.gear },
   ];
   return (
     <nav className="sidebar">
@@ -38,7 +38,7 @@ function Sidebar() {
   );
 }
 
-function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate, collapsed, onToggle }) {
+function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate, onOpenSettings, onOpenTemplateSettings, collapsed, onToggle }) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
 
@@ -49,7 +49,8 @@ function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate,
           templates: g.templates.filter(
             (t) =>
               t.name.toLowerCase().includes(q) ||
-              (t.derivative && t.derivative.toLowerCase().includes(q))
+              (t.derivative && t.derivative.toLowerCase().includes(q)) ||
+              (t.ehrSystem && t.ehrSystem.toLowerCase().includes(q))
           ),
         }))
         .filter((g) => g.templates.length > 0)
@@ -97,19 +98,37 @@ function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate,
             <div className="tpl-group" key={g.label}>
               <div className="tpl-group-label">{g.label}</div>
               {g.templates.map((t) => (
-                <button
+                <div
                   key={t.id}
+                  role="button"
+                  tabIndex={0}
                   className={"tpl-item" + (t.id === activeId ? " tpl-item--active" : "")}
                   onClick={() => onSelect(t.id)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(t.id); } }}
                 >
                   <span className="tpl-item-text">
-                    <span className="tpl-item-name">{t.name}</span>
+                    <span className="tpl-item-name-row">
+                      <span className="tpl-item-name">{t.name}</span>
+                      <button
+                        className="tpl-item-settings"
+                        onClick={(e) => { e.stopPropagation(); onOpenTemplateSettings && onOpenTemplateSettings(t.id); }}
+                        title={"Template settings — " + t.name}
+                        aria-label={"Template settings for " + t.name}
+                      >
+                        <window.Icons.gear width={13} height={13} />
+                      </button>
+                    </span>
                     {t.derivative && <span className="tpl-item-derivative">({t.derivative})</span>}
                   </span>
-                </button>
+                </div>
               ))}
             </div>
           ))}
+        </div>
+        <div style={{ borderTop: "1px solid var(--border, #E7E7E9)", padding: "10px 20px", flexShrink: 0 }}>
+          <button className="btn-ghost tpl-request" style={{ margin: 0, width: "100%" }} onClick={onOpenSettings}>
+            <window.Icons.gear /> Push settings
+          </button>
         </div>
       </div>
     </aside>

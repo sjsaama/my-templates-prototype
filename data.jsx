@@ -2,29 +2,28 @@
 // Exposed on window for the Babel-transpiled component scripts.
 
 const TEMPLATES = [
-  { id: "gen1", name: "General 1", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Clinical Notes" },
-  { id: "gen2", name: "General 2", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Clinical Notes" },
-  { id: "gen3", name: "General 3", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Clinical Notes" },
-  { id: "first", name: "First Visit", derivative: "Clinical Note", ehr: "AMD_FirstVisit_Template", ehrSystem: "AMD", group: "Clinical Notes" },
-  { id: "follow", name: "Follow Up", derivative: "Clinical Note", ehr: "AMD_FollowUp_Template", ehrSystem: "AMD", group: "Clinical Notes" },
-  { id: "neuro", name: "Neurology Consultation", derivative: "Clinical Note", ehr: "AMD_Neuro_Template", ehrSystem: "AMD", group: "Clinical Notes" },
-  { id: "avs", name: "AVS", derivative: "After Visit Summary", ehr: "AMD_AVS_Template", ehrSystem: "AMD", group: "Other Documents" },
-  { id: "referral", name: "Referral Letter", derivative: "Letter", ehr: "AMD_Referral_Template", ehrSystem: "AMD", group: "Other Documents" },
-  { id: "leave", name: "Medical Leave Letter", derivative: "Letter", ehr: "AMD_Leave_Template", ehrSystem: "AMD", group: "Other Documents" },
-  { id: "ddx", name: "DDx (Beta)", derivative: "Clinical Note", ehr: "AMD_DDx_Template", ehrSystem: "AMD", group: "Other Documents" },
-  { id: "athena1", name: "Office Visit", derivative: "Clinical Note", ehr: "AthenaOne_OV", ehrSystem: "AthenaOne", group: "Clinical Notes" },
-  { id: "ecw1", name: "Progress Note", derivative: "Clinical Note", ehr: "ECW_Progress", ehrSystem: "eCW", group: "Clinical Notes" },
-  { id: "charm1", name: "SOAP Note", derivative: "Clinical Note", ehr: "Charm_SOAP", ehrSystem: "Charm", group: "Clinical Notes" },
-  { id: "drchrono1", name: "Office Visit", derivative: "Clinical Note", ehr: "DrChrono_OV", ehrSystem: "DrChrono", group: "Clinical Notes" },
-  { id: "veradigm1", name: "Progress Note", derivative: "Clinical Note", ehr: "Veradigm_Progress", ehrSystem: "Veradigm", group: "Clinical Notes" },
-  { id: "centricity1", name: "Office Visit", derivative: "Clinical Note", ehr: "Centricity_OV", ehrSystem: "Centricity", group: "Clinical Notes" },
-  { id: "cerner1", name: "Office Visit", derivative: "Clinical Note", ehr: "Cerner_OV", ehrSystem: "Cerner", group: "Clinical Notes" },
-  { id: "nereg1", name: "Progress Note", derivative: "Clinical Note", ehr: "Nereg_Progress", ehrSystem: "Nereg", group: "Clinical Notes" },
-  { id: "athlegacy1", name: "Office Visit", derivative: "Clinical Note", ehr: "Athena_Legacy", ehrSystem: "Athena", group: "Clinical Notes" },
-  { id: "modmed1", name: "Progress Note", derivative: "Clinical Note", ehr: "ModMed_OV", ehrSystem: "ModMed", group: "Clinical Notes" },
+  { id: "gen1", name: "Cardiology Visit", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Self-serve", selfServe: true, userCreated: true },
+  { id: "gen2", name: "Post-Op Follow Up", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Self-serve", selfServe: true, userCreated: true },
+  { id: "gen3", name: "General 3", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Managed" },
+  { id: "first", name: "First Visit", derivative: "Clinical Note", ehr: "AMD_FirstVisit_Template", ehrSystem: "AMD", group: "Managed" },
+  { id: "follow", name: "Follow Up", derivative: "Clinical Note", ehr: "AMD_FollowUp_Template", ehrSystem: "AMD", group: "Managed" },
+  { id: "neuro", name: "Neurology Consultation", derivative: "Clinical Note", ehr: "AMD_Neuro_Template", ehrSystem: "AMD", group: "Managed" },
+  { id: "avs", name: "AVS", derivative: "After Visit Summary", ehr: "AMD_AVS_Template", ehrSystem: "AMD", group: "Managed" },
+  { id: "referral", name: "Referral Letter", derivative: "Letter", ehr: "AMD_Referral_Template", ehrSystem: "AMD", group: "Managed" },
+  { id: "leave", name: "Medical Leave Letter", derivative: "Letter", ehr: "AMD_Leave_Template", ehrSystem: "AMD", group: "Managed" },
+  { id: "ddx", name: "DDx (Beta)", derivative: "Clinical Note", ehr: "AMD_DDx_Template", ehrSystem: "AMD", group: "Managed" },
+  { id: "athena1", name: "Office Visit", derivative: "Clinical Note", ehr: "AthenaOne_OV", ehrSystem: "AthenaOne", group: "Managed" },
+  { id: "ecw1", name: "Progress Note", derivative: "Clinical Note", ehr: "ECW_Progress", ehrSystem: "eCW", group: "Managed" },
+  { id: "charm1", name: "SOAP Note", derivative: "Clinical Note", ehr: "SOAP Note", ehrSystem: "Charm", group: "Managed" },
+  { id: "drchrono1", name: "Office Visit", derivative: "Clinical Note", ehr: "DrChrono_OV", ehrSystem: "DrChrono", group: "Managed" },
+  { id: "veradigm1", name: "Progress Note", derivative: "Clinical Note", ehr: "Veradigm_Progress", ehrSystem: "Veradigm", group: "Managed" },
+  { id: "centricity1", name: "Office Visit", derivative: "Clinical Note", ehr: "Centricity_OV", ehrSystem: "Centricity", group: "Managed" },
+  { id: "cerner1", name: "Office Visit", derivative: "Clinical Note", ehr: "Cerner_OV", ehrSystem: "Cerner", group: "Managed" },
+  { id: "nereg1", name: "Progress Note", derivative: "Clinical Note", ehr: "Nereg_Progress", ehrSystem: "Nereg", group: "Managed" },
+  { id: "modmed1", name: "Progress Note", derivative: "Clinical Note", ehr: "ModMed_OV", ehrSystem: "ModMed", group: "Managed" },
 ];
 
-const GROUP_ORDER = ["My Templates", "Clinical Notes", "Other Documents"];
+const GROUP_ORDER = ["Self-serve", "Managed"];
 
 function groupsFor(templates) {
   const list = templates || TEMPLATES;
@@ -41,7 +40,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_cc",
     name: "Chief Complaint",
-    ehr: "Clinical Notes > chief_complaint",
+    ehr: "Office Visit > Chief Complaint",
     config: "Prepend",
     enabled: true,
     macros: [{ name: "Onset Macro", mode: "Y/N Logic" }],
@@ -55,7 +54,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     id: "s_hpi",
     name: "History of Present Illness",
     static: true,
-    ehr: "Clinical Notes > hpi_freetext",
+    ehr: "Office Visit > History of Present Illness",
     config: "Prepend",
     enabled: true,
     macros: [
@@ -79,7 +78,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_example_parent",
     name: "Example Parent",
-    ehr: "Clinical Notes > example_freetext",
+    ehr: "",
     config: "Prepend",
     enabled: true,
     macros: [{ name: "Example Macro", mode: "Y/N Logic" }],
@@ -98,7 +97,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_ros",
     name: "Review of Systems",
-    ehr: "Clinical Notes > ros_freetext",
+    ehr: "Office Visit > Review of Systems",
     config: "Append",
     enabled: true,
     macros: [{ name: "ROS Negatives Macro", mode: "Free Text" }],
@@ -117,7 +116,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
       {
         id: "s_ros_general",
         name: "General",
-        ehr: "Clinical Notes > ros_general",
+        ehr: "",
         config: "Append",
         enabled: true,
         macros: [],
@@ -130,7 +129,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
       {
         id: "s_ros_child2",
         name: "Child 2",
-        ehr: "Clinical Notes > ros_child2",
+        ehr: "",
         config: "Append",
         enabled: true,
         macros: [],
@@ -147,7 +146,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
           {
             id: "s_ros_gc1",
             name: "Grand Child 1",
-            ehr: "Clinical Notes > ros_gc1",
+            ehr: "",
             config: "Prepend",
             enabled: true,
             macros: [],
@@ -190,7 +189,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_pmh",
     name: "Past Medical History",
-    ehr: "Clinical Notes > pmh_freetext",
+    ehr: "Office Visit > Past Medical History",
     config: "Prepend",
     enabled: false,
     macros: [],
@@ -203,7 +202,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_exam",
     name: "Physical Exam",
-    ehr: "Clinical Notes > physical_exam",
+    ehr: "Office Visit > Physical Exam",
     config: "Replace",
     enabled: true,
     macros: [{ name: "Normal Exam Macro", mode: "Free Text" }],
@@ -216,7 +215,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
       {
         id: "s_exam_c1",
         name: "Cardiovascular",
-        ehr: "Clinical Notes > exam_cv",
+        ehr: "",
         config: "Append",
         enabled: true,
         macros: [],
@@ -229,7 +228,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
       {
         id: "s_exam_c2",
         name: "Respiratory",
-        ehr: "Clinical Notes > exam_resp",
+        ehr: "",
         config: "Append",
         enabled: true,
         macros: [],
@@ -245,7 +244,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     id: "s_labs",
     name: "Labs and Imaging",
     static: true,
-    ehr: "Clinical Notes > labs_imaging",
+    ehr: "Office Visit > Labs & Imaging",
     config: "Prepend",
     enabled: true,
     macros: [],
@@ -258,7 +257,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_ap",
     name: "Assessment & Plan",
-    ehr: "Clinical Notes > assessment_plan",
+    ehr: "Office Visit > Assessment & Plan",
     config: "Prepend",
     enabled: true,
     macros: [{ name: "Follow-up Macro", mode: "Y/N Logic" }],
@@ -423,6 +422,7 @@ const EHR_FIELDS_BY_SYSTEM = {
       "assessment_with_problems",
       "ordersets",
       "billingnotes",
+      "diagnoses",
       "discussion_notes",
       "patient_instructions",
     ]}
@@ -438,61 +438,51 @@ const EHR_FIELDS_BY_SYSTEM = {
       "ICD",
     ]}
   ],
+  // Flow 1 — Main (HL7 ORU), the real server-side push. Plain section names, not shortcut
+  // commands — those are Flow 2 (Scribe-it), a completely separate mapping in ECW_SCRIBEIT_FIELDS
+  // below. "> General" entries are subsections written to OBR-5 instead of OBR-4.
+  // See FIELD_LIST_REFERENCE.md — Cat 1 — ECW.
   eCW: [
-    { group: "Shortcut Commands", fields: [
-      "Chief Complaints:",
-      "HPI:",
-      "ROS:",
-      "ROS Note:",
-      "Examination:",
-      "Procedures:",
-      "Preventive Medicine:",
-      "Allergies:",
-      "Social History:",
-      "Medical History:",
-      "Hospitalization:",
-      "Surgical History:",
-      "Family History:",
-      "Physical Therapy Assessment:",
-      "Vitals:",
-      "Assessment Notes:",
-      "Treatment Notes:",
-      "Clinical Notes:",
-      "Assessment:",
-      "Next Appointment:",
-      "OB History:",
-      "GYN History:",
+    { group: "Main Push (HL7 ORU)", fields: [
+      "Chief Complaints",
+      "HPI",
+      "HPI > General",
+      "Medical History",
+      "Surgical History",
+      "Hospitalization",
+      "Family History",
+      "Social History",
+      "ROS",
+      "Examination",
+      "Examination > General",
+      "Physical Examination",
+      "Assessment",
+      "Treatment",
+      "Procedure",
     ]},
   ],
+  // Default (non-SOAP) mode's fixed keyword list — used when ehr_template_name doesn't start
+  // with "soap". In SOAP mode, every field except Chief Complaint is instead identified by a
+  // numeric Charm entry ID from the practice's own SOAP template (shown here as a stand-in);
+  // Chief Complaint always routes through this same fixed "chief_complaints" key either way.
+  // Any value outside this list still pushes but won't match existing content for append/prepend.
+  // See FIELD_LIST_REFERENCE.md — Cat 2 — CharmHealth.
   Charm: [
-    { group: "Clinical Notes", fields: [
-      "Chief Complaint",
-      "History of Present Illness",
-      "Review of Systems",
-      "Physical Examination",
-      "Assessment Notes",
-      "Treatment Notes",
-      "Past Medical History",
-      "Labs & Diagnostics",
-      "Medications",
-      "Allergies",
-    ]},
-    { group: "Vitals", fields: [
-      "Blood Pressure",
-      "Heart Rate",
-      "Temperature",
-      "Weight",
-      "Height",
-      "BMI",
-      "O2 Saturation",
-    ]},
-    { group: "Administrative", fields: [
-      "Visit Reason",
-      "Follow-up Appointment",
-      "Diagnosis Codes",
-      "Referring Provider",
-      "Patient Instructions",
-      "Billing Notes",
+    { group: "Fixed Keywords", fields: [
+      "chief_complaints",
+      "symptoms",
+      "present_illness_history",
+      "past_medical_history",
+      "family_social_history",
+      "review_of_systems",
+      "physical_examination",
+      "assessment_notes",
+      "self_notes",
+      "diets",
+      "lifestyle",
+      "treatment_notes",
+      "patient_notes",
+      "followup_notes",
     ]},
   ],
   DrChrono: [
@@ -520,7 +510,18 @@ const EHR_FIELDS_BY_SYSTEM = {
     ]}
   ],
   Cerner: [],
-  Nereg: [],
+  Nereg: [
+    { group: "Note Sections", fields: [
+      "chiefcomplaint",
+      "hpi",
+      "ros",
+      "physicalexam",
+      "assessmentplan",
+      "pastmedicalhistory",
+      "diagnosiscodes",
+      "billingcodes",
+    ]},
+  ],
   default: [
     { group: "Clinical Notes", fields: [
       "chief_complaint",
@@ -560,14 +561,17 @@ const EHR_CATEGORY = {
   Veradigm:   { cat: 1, label: "Veradigm",               fieldSource: "fixed" },
   Charm:      { cat: 2, label: "CharmHealth",             fieldSource: "fetch", canReFetch: false },
   DrChrono:   { cat: 2, label: "DrChrono",                fieldSource: "fetch" },
-  Centricity: { cat: 3, label: "Centricity",              fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
+  // cat: 3 keeps the "Auto-mapped from section names" label (no doctor-facing field picker),
+  // but autoRoutedPerSection marks that — unlike Cerner/ModMed's whole-note push — Centricity
+  // genuinely routes each section to its own ehr_field_name under the hood, so output settings
+  // (additional text, bullets, etc.) are still meaningful per section. See PRD "Cat 1 (auto-routed)".
+  Centricity: { cat: 3, label: "Centricity",              fieldSource: "none",  autoMsg: "Auto-mapped from section names", autoRoutedPerSection: true },
   Cerner:     { cat: 3, label: "Cerner",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
-  Nereg:      { cat: 3, label: "Nereg",                   fieldSource: "none",  autoMsg: "Auto-mapped from section names" },
+  Nereg:      { cat: 1, label: "Nereg",                   fieldSource: "fixed" },
   ModMed:     { cat: 3, label: "ModMed",                  fieldSource: "none",  autoMsg: "Whole note pushed as PDF" },
-  Athena:     { cat: 4, label: "Athena (Legacy)",         fieldSource: "none",  noPushMsg: "Athena" },
-  "ECW FHIR": { cat: 4, label: "ECW FHIR",               fieldSource: "none",  noPushMsg: "ECW" },
-  Greenway:   { cat: 4, label: "Greenway (Prime Suites)", fieldSource: "none",  noPushMsg: "Greenway" },
   Tebra:      { cat: 4, label: "Tebra",                   fieldSource: "none",  noPushMsg: "Tebra" },
+  // Athena (legacy), ECW FHIR, and Greenway removed — out of scope for this version.
+  // See engineering_docs/ehr_mapping/README.md.
 };
 
 // Mock EHR templates per Cat 2 system — shown in the template-level picker.
@@ -606,6 +610,7 @@ const EHR_FIELD_LABELS = {
   "assessment_with_problems": "Assessment & Problem List",
   "ordersets":                "Order Sets",
   "billingnotes":             "Billing Notes",
+  "diagnoses":                "ICD-10 / SNOMED Diagnoses",
   "discussion_notes":         "Discussion Notes",
   "patient_instructions":     "Patient Instructions",
   // Veradigm
@@ -616,28 +621,79 @@ const EHR_FIELD_LABELS = {
   "reasonsForVisit":          "Reason for Visit",
   "vitals":                   "Vitals",
   "ICD":                      "ICD Diagnosis Codes",
+  // Nereg (hpi / physicalexam reuse the AthenaOne entries above — same key string, same label)
+  "chiefcomplaint":           "Chief Complaint",
+  "ros":                      "Review of Systems",
+  "assessmentplan":           "Assessment & Plan",
+  "pastmedicalhistory":       "Past Medical History",
+  "diagnosiscodes":           "ICD-10 Diagnosis Codes",
+  "billingcodes":             "CPT Billing Codes",
+  // DrChrono
+  "icd10_codes":              "ICD-10 Codes",
+  "cpt_codes":                "CPT Codes",
+  // CharmHealth (default/non-SOAP fixed keywords)
+  "chief_complaints":         "Chief Complaint",
+  "symptoms":                 "Symptoms",
+  "present_illness_history":  "History of Present Illness",
+  "family_social_history":    "Family & Social History",
+  "review_of_systems":        "Review of Systems",
+  "physical_examination":     "Physical Examination",
+  "assessment_notes":         "Assessment Notes",
+  "self_notes":               "Self Notes",
+  "diets":                    "Diet",
+  "lifestyle":                "Lifestyle",
+  "treatment_notes":          "Treatment Notes",
+  "patient_notes":            "Patient Notes",
+  "followup_notes":           "Follow-up Notes",
+  "past_medical_history":     "Past Medical History",
+};
+
+// Per-field clarifying captions shown under a field in the mapping picker — reserved for fields
+// whose display label alone could mislead about what actually happens on push. Keyed the same
+// way as EHR_FIELD_LABELS. See FIELD_LIST_REFERENCE.md.
+const EHR_FIELD_HINTS = {
+  "billingnotes":    "Free-text push to the billing/services note — not diagnosis codes, despite the name.",
+  "diagnoses":       "The real diagnosis-code field — resolves SNOMED codes and pushes via a separate API.",
+  "icd10_codes":     "Routed to the ICD-10 code push handler, not sent as free text.",
+  "cpt_codes":       "Routed to the CPT code push handler, not sent as free text.",
+  "diagnosiscodes":  "Section text is scanned with regex for ICD-10 codes — the code list is sent, not the raw text.",
+  "billingcodes":    "Last word of the section's first line is sent as a single CPT code.",
+  "ICD":             "Pushed via a separate diagnosis API, not as free text.",
 };
 
 // Keep EHR_FIELDS as alias for backward compatibility (AMD default).
 const EHR_FIELDS = EHR_FIELDS_BY_SYSTEM.AMD;
 
-// eCW Scribe-it has a separate note panel with its own field targets.
-// These are distinct from the primary shortcut-command destinations.
+// eCW Flow 2 — Selective Copy ("Scribe-it"): a manual copy aid, completely separate from the
+// Flow 1 push above — no Lambda ever touches it, and config keys like separator/retain_headings
+// don't apply here. ehr_field_name must match the shortcut command's exact text, colon included —
+// ECW auto-inserts the colon when the command is invoked. Only "Shortcut Commands" are included
+// below (not Merge/Order/Other) since those are ECW actions, not note-content destinations.
+// See FIELD_LIST_REFERENCE.md — Cat 1 — ECW, Flow 2.
 const ECW_SCRIBEIT_FIELDS = [
-  { group: "Scribe-it Note Sections", fields: [
-    "ScribeIt > Chief Complaint",
-    "ScribeIt > HPI",
-    "ScribeIt > Review of Systems",
-    "ScribeIt > Physical Exam",
-    "ScribeIt > Assessment",
-    "ScribeIt > Plan",
-    "ScribeIt > Procedures",
-    "ScribeIt > Follow-up",
-  ]},
-  { group: "Scribe-it Administrative", fields: [
-    "ScribeIt > Patient Instructions",
-    "ScribeIt > Referral Notes",
-    "ScribeIt > Billing Notes",
+  { group: "Shortcut Commands", fields: [
+    "Chief Complaints:",
+    "HPI:",
+    "ROS:",
+    "ROS Note:",
+    "Examination:",
+    "Procedures:",
+    "Preventive Medicine:",
+    "Allergies:",
+    "Social History:",
+    "Medical History:",
+    "Hospitalization:",
+    "Surgical History:",
+    "Family History:",
+    "Physical Therapy Assessment:",
+    "Vitals:",
+    "Assessment Notes:",
+    "Treatment Notes:",
+    "Clinical Notes:",
+    "Assessment:",
+    "Next Appointment:",
+    "OB History:",
+    "GYN History:",
   ]},
 ];
 
@@ -762,6 +818,25 @@ const STARTER_TEMPLATES = [
   },
 ];
 
+// Template-level push settings — set once per template (creation wizard's "Template settings"
+// step, or the gear icon next to a template name in the left nav), not per section.
+const DEFAULT_TEMPLATE_SETTINGS = {
+  separator: "\\n",
+  pushSubsections: true,
+  retainHeadings: true,
+  skipEmptySubsections: false,
+  keepBulletPoints: true,
+  charLimit: "",
+};
+
+// Formats a version timestamp for the version history list — e.g. "Aug 14, 2026, 3:45 PM".
+function formatVersionDate(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  return d.toLocaleString(undefined, {
+    month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+  });
+}
+
 function collectEnabledSections(sections) {
   const result = [];
   const walk = (list) => {
@@ -779,6 +854,7 @@ Object.assign(window, {
   groupsFor,
   ECW_SCRIBEIT_FIELDS,
   EHR_FIELD_LABELS,
+  EHR_FIELD_HINTS,
   makeSections,
   INITIAL_PENDING_REQUESTS,
   sectionImpact,
@@ -795,4 +871,6 @@ Object.assign(window, {
   SAMPLE_OUTPUT,
   STARTER_TEMPLATES,
   collectEnabledSections,
+  DEFAULT_TEMPLATE_SETTINGS,
+  formatVersionDate,
 });

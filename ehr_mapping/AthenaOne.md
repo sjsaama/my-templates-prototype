@@ -23,7 +23,8 @@ ehr_field_name: "hpi"
 | Physical Exam | `physicalexam` |
 | Assessment / Plan | `assessment_with_problems` |
 | Order Sets | `ordersets` |
-| ICD-10-CM codes | `billingnotes` |
+| Billing Notes | `billingnotes` — free-text push to the encounter's billing/services note (`__save_billing_note`), unrelated to diagnosis codes despite the similar-sounding name |
+| ICD-10/SNOMED Diagnoses | `diagnoses` — extracts diagnoses from the section text, resolves SNOMED codes, and pushes each via a separate diagnoses API (`__save_diagnoses`) — not in the Extra Fields YAML reference doc before, confirmed via code |
 | Discussion Notes | `discussion_notes` |
 | Patient Instructions | `patient_instructions` |
 
@@ -43,8 +44,8 @@ ehr_field_name: "hpi"
 
 | Key | Useful? | Notes |
 |---|---|---|
-| `append` | ❌ No | AthenaOne does not fetch existing note content — append has no effect |
-| `prepend` | ❌ No | Same as above |
+| `append` | ✅ Yes — behavior differs by section | HPI, Physical Exam, ROS: Marvix does a GET before the PUT and combines with existing content. Assessment, Chief Complaint: no fetch — `append`/`prepend` just toggle the EHR API's own replace flag (`replacetext`/`appendtext`), so Athena handles the combining server-side |
+| `prepend` | ✅ Yes — HPI/Physical Exam/ROS only | For those three sections, existing content is fetched and prepended when set. Not applicable to Assessment/Chief Complaint (no separate prepend flag for those) |
 | `separator` | ✅ Yes | **→ Moving to Template Settings** |
 | `char_limit` | ✅ Yes | **→ Moving to Template Settings** |
 | `push_subsections` | ✅ Yes | **→ Moving to Template Settings** |
@@ -115,5 +116,10 @@ Marvix appears as **Marvix AI Scribe** in the Athena Embedded App Access list. E
 
 | Location | Role |
 |---|---|
-| `ehr_layer/athenaflow.py` | Uses `ehr_field_name` for AthenaOne push |
+| `ehr_layer/athenaone.py:1584` | `save_note()` — routes each mapped field to the right Athena API call by `ehr_field_name` |
+| `ehr_layer/athenaone.py:761` | `__update_note_section()` — per-section push logic; GET-then-combine for HPI/Physical Exam/ROS (~940-1035), flag-only replace for Assessment (~890)/Chief Complaint (~915) |
 | `ehr_layer/section_text_builder.py` | Reads `config` keys and `keep_bullet_points` at push time |
+
+> Note: `ehr_layer/athenaflow.py` implements the `AthenaFlow` class, which is the **Centricity**
+> integration — a separate EHR from AthenaOne. See [Centricity.md](Centricity.md). It is not used for
+> AthenaOne push.
