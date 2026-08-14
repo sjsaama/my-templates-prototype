@@ -65,12 +65,11 @@ ehr_field_name: "Past Medical History Freewrite"
 
 | Error | Exception | Behaviour | Doctor-actionable? |
 |---|---|---|---|
-| Any field-level failure | Caught internally by `save_note` — returns `False` silently | **Lambda has no visibility** — nothing logged, no email | ❌ Unknown — failure is invisible |
-| ICD/CPT/chief complaint push failure | `logger.warning` only | Not raised, not retried | ❌ No — ops must check CloudWatch |
-| Auth failure | `CredentialsException` | Not caught at Lambda level — bubbles to generic retry | ❌ No — ops reconnects integration |
-| Rate limit | `ThrottledException` | Not caught at Lambda level — bubbles to generic retry | ❌ No — resolves automatically |
+| Any failure while building/pushing the note (including auth failure or rate limit hit while fetching existing note content) | `save_note`'s single top-level `try/except Exception` catches everything — logged via `logger.error`, returns `False` | Not per-field, not retried, no ops email | ❌ No — ops must check CloudWatch |
+| ICD/CPT/chief complaint push failure | Each of `__save_icd10_codes`/`__save_cpt_code`/`__save_chief_complaint` has its own try/except — `logger.warning` only | Not raised, not retried; failure in one doesn't stop the others | ❌ No — ops must check CloudWatch |
+| Auth failure (`CredentialsException`) / rate limit (`ThrottledException`) | Raised by `handle_response_errors()`, which is called from `__get_note_for_appointment` (the existing-content fetch inside `save_note`) | **Not** a special case — `save_note`'s blanket `except Exception` catches these the same as any other error and returns `False`. They do not bubble past the Lambda or trigger a distinct retry path in this file. | ❌ No — ops reconnects integration / waits, based on the logged error |
 
-**Known gap**: `save_note` swallows all field-level exceptions and returns `False` silently. Lambda currently has zero visibility into which DrChrono fields failed. Push issues banner cannot work for DrChrono without a Lambda change to surface failures.
+**Known gap**: `save_note` funnels every exception — including per-field push failures and auth/rate-limit errors hit while fetching existing note content — into one generic `logger.error` + `return False`. There's no per-field visibility into which DrChrono field(s) failed, and no ops email/alert. Push issues banner cannot work for DrChrono without a Lambda change to surface failures per field.
 
 **No `push_errors` DB table exists today** — all failures go to ops email and CloudWatch only.
 

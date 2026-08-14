@@ -1,285 +1,150 @@
 # EHR Mapping — eClinicalWorks (ECW)
 
-Backend mapping reference + My Templates prototype notes (`cursor/ecw-ehr-f6a6`).  
-Related: [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md), [ERROR_UX.md](ERROR_UX.md), [SHARED_CONFIG.md](SHARED_CONFIG.md), [EHR_PUSH_FAILURE_LOG_ANALYSIS.md](../EHR_PUSH_FAILURE_LOG_ANALYSIS.md).
+ECW has **two independent flows**. A template can be wired to either or both — they use separate
+mapping rows and behave completely differently at push time.
 
-ECW is **Category 1** — fixed field list. No API fetch to populate the mapping picker. No Connect EHR step on create.
+| | Flow 1 — Main (HL7 ORU) | Flow 2 — Selective Copy (Scribe-it) |
+|---|---|---|
+| How it reaches ECW | Marvix builds an HL7 ORU message and uploads it to ECW via S3 — automatic | Doctor manually copies from Marvix, opens ECW, pastes via Ctrl+V + "Scribe It" — manual |
+| Server-side push | ✅ Real push — `sync-notes-with-ehr` Lambda | ❌ None — Marvix never sends anything to ECW for this flow |
+| Mapping storage | `template.ehr_mapping` (`ehr_mapping_id` FK) | `template.selective_copy_mapping` (`selective_copy_mapping_id` FK) — a **separate** `EHRMapping` row, same table/shape |
+| Config keys (separator, bullets, pre/post-literal, etc.) applied? | ✅ Yes — `SectionTextBuilder` runs server-side before push | ❌ No — confirmed zero references to `selective_copy` anywhere in `sync-notes-with-ehr` or `ehr_layer/`. Nothing server-side ever builds combined/formatted text for this flow |
+| Errors/failures | Silent at the ECW end, but at least a push happens (see Push Errors below) | Not applicable — there's no push attempt to fail |
 
-ECW has two integration modes. Each mapping row uses one or the other — not both. The My Templates picker can set **both** destinations on a section: Primary (HL7 / shortcut) and optional **Scribe-it**.
-
-
-| Mode                           | How it works                                                                     |
-| ------------------------------ | -------------------------------------------------------------------------------- |
-| **Main (HL7 ORU)**             | Marvix builds an HL7 ORU message and uploads it to ECW via S3                    |
-| **Selective Copy (Scribe-it)** | Doctor copies the note from Marvix → opens ECW → pastes via Ctrl+V + "Scribe It" |
-
-
-> The template must have **Selective Copy** checked in the V2/V1 Template Editor for Scribe-it push to work.
+> Nothing in the schema hardcodes Selective Copy to ECW specifically — `selective_copy_mapping_id` is
+> generic infrastructure on every `Template`. It's simply the only EHR where it's populated/used today.
 
 ---
 
-## Extra Fields YAML keys
+## Flow 1 — Main (HL7 ORU) — Extra Fields YAML keys
 
-### Main (HL7 ORU)
+| YAML key | Required? | Type | Purpose | Example | Source |
+|---|---|---|---|---|---|
+| `ehr_field_name` | Yes | Text | ECW section name — written as `ehr_field_name^ehr_field_name` into the OBR-4 field of the HL7 ORU message | `"HPI"` | Lookup table below |
+| `section_code` | No | Text | ECW vendor code — written into OBR-5; required to route content to the correct subsection (e.g. HPI > General) | `"GEN"` | Lookup table below |
 
-
-| YAML key         | Required? | Type | Purpose                                                                                                          | Example | Source             |
-| ---------------- | --------- | ---- | ---------------------------------------------------------------------------------------------------------------- | ------- | ------------------ |
-| `ehr_field_name` | Yes       | Text | ECW section name — written as `ehr_field_name^ehr_field_name` into the OBR 4.0 segment of the HL7 ORU message    | `"HPI"` | Lookup table below |
-| `section_code`   | No        | Text | ECW vendor code — written into OBR 5.0; required to route content to the correct subsection (e.g. HPI > General) | `"GEN"` | Lookup table below |
-
-
+**Example YAML:**
 ```yaml
 ehr_field_name: "HPI"
 section_code: "HPI"
 ```
 
 **Subsection example:**
-
 ```yaml
 ehr_field_name: "HPI"
 section_code: "GEN"
 ```
 
-### Selective Copy (Scribe-it)
+### Section names and codes
 
+| Section | `ehr_field_name` | `section_code` | OBR field |
+|---|---|---|---|
+| Chief Complaints | `Chief Complaints` | `CC` | OBR-4 |
+| HPI | `HPI` | `HPI` | OBR-4 |
+| HPI > General subsection | `HPI` | `GEN` | OBR-5 |
+| Medical History | `Medical History` | `MHX` | OBR-4 |
+| Surgical History | `Surgical History` | `SUR` | OBR-4 |
+| Hospitalization | `Hospitalization` | `HOS` | OBR-4 |
+| Family History | `Family History` | `FHX` | OBR-4 |
+| Social History | `Social History` | `SHX` | OBR-4 |
+| ROS | `ROS` | `ROS` | OBR-4 |
+| Examination | `Examination` | `EXM` | OBR-4 |
+| Examination > General subsection | `Examination` | `GEX` | OBR-5 |
+| Physical Examination | `Physical Examination` | `PEX` | OBR-4 |
+| Assessment | `Assessment` | `ASM` | OBR-4 |
+| Treatment | `Treatment` | `TRT` | OBR-4 |
+| Procedure | `Procedure` | `PRO` | OBR-4 |
 
-| YAML key                  | Required? | Type    | Purpose                                                                                 | Example  | Source            |
-| ------------------------- | --------- | ------- | --------------------------------------------------------------------------------------- | -------- | ----------------- |
-| `ehr_field_name`          | Yes       | Text    | Exact ECW shortcut command name including colon — used as the paste target in Scribe-it | `"HPI:"` | ECW shortcut list |
-| `field_label`             | No        | Text    | ⚠️ Not found in Lambda code — may be unused or legacy                                   | `"HPI:"` | —                 |
-| `replace_colon_with_dash` | No        | Boolean | ⚠️ Not found in Lambda code — may be unused or legacy                                   | `true`   | —                 |
+### Flow 1 — Relevant `config` keys
 
+| Key | Useful? | Notes |
+|---|---|---|
+| `append` | ❌ No | ECW does not fetch existing note content |
+| `prepend` | ❌ No | Same as above |
+| `separator` | ✅ Yes | **→ Moving to Template Settings** |
+| `char_limit` | ✅ Yes | **→ Moving to Template Settings** |
+| `push_subsections` | ✅ Yes | **→ Moving to Template Settings** |
+| `retain_headings` | ✅ Yes | **→ Moving to Template Settings** |
+| `skip_empty_subsections` | ✅ Yes | **→ Moving to Template Settings** |
+| `line_separator` | ✅ Yes — main mode only | **Required** for HL7 ORU formatting. Not needed for Selective Copy. **→ Moving to Template Settings** |
 
+> `separator`, `char_limit`, `push_subsections`, `retain_headings`, `skip_empty_subsections`, and `line_separator` are being promoted to a global **Template Settings** level. Doctors will configure them once per template rather than per mapping row.
+
+`line_separator` (Text) — replaces all `\n` with this string; required for the ECW HL7 ORU pipeline to format correctly.
+
+### Flow 1 — What breaks the mapping
+
+| What breaks it | How it fails | Visible to doctor? |
+|---|---|---|
+| Wrong `section_code` or `ehr_field_name` | HL7 file written to S3, ECW rejects silently | No — no feedback from ECW |
+
+### Flow 1 — Push errors
+
+**Entirely undetectable:** Lambda uploads the HL7 file to S3 and receives a 200. ECW polls S3 and processes the file asynchronously with no callback to Marvix. Lambda never knows if ECW accepted or rejected the note.
+
+| What can go wrong | How it fails | Visible? |
+|---|---|---|
+| Wrong `section_code` or `ehr_field_name` | HL7 file uploaded, ECW silently rejects or routes to wrong field | ❌ No |
+| ECW system issue | HL7 file uploaded, ECW never processes | ❌ No |
+
+**Mitigation**: ops spot-checks the ECW chart after onboarding and after any mapping change.
+
+---
+
+## Flow 2 — Selective Copy (Scribe-it)
+
+### How it's wired up (backend mechanics)
+
+1. **Enablement is a separate switch from the mapping.** `template.extra_settings["selective_copy"]` (Boolean) turns the feature on for a template. This gets stamped onto every note created from that template as `note.extras["selective_copy"]` (`app/routers/endpoints.py:2511`) — that's how the client app knows to show copy UI at all. A template could have this flag on with no mapping configured yet.
+2. **The mapping itself lives in a second, parallel `EHRMapping` row** — `template.selective_copy_mapping`, linked via `selective_copy_mapping_id` (`app/dependencies/models.py:811-857`), completely separate from the real push mapping (`ehr_mapping_id`). Same table, same JSON shape (`ehr_field_name`, `config`, `input_fields`, ...) — just a different row storing ECW shortcut command names instead of push identifiers.
+3. **Ops configures it through the identical mapping editor**, not a separate UI: `/update_ehr_mapping/{doctor_id}/{template_id}?selective_copy=true` (`app/routers/internal_endpoints.py:3017-3053`). The `selective_copy` query param just decides which `EHRMapping` the page reads/writes.
+4. **On every note fetch, the API attaches the selective-copy mapping to the note as-is.** `NoteModelWithNote.ehr_mapping` is populated straight from `template.selective_copy_mapping.ehr_push_mapping` (`app/dependencies/api_utils.py:1988-1991`) — raw, unprocessed mapping metadata (field names, config, input_fields).
+5. **No server-side text building happens for this flow at all.** Confirmed by grepping every file in `sync-notes-with-ehr` and `ehr_layer/` for `selective_copy` — zero hits outside the shared ORM model. `SectionTextBuilder` (which applies separators, bullets, pre/post-literal, subsection joining for every real push EHR) never touches Selective Copy mappings. Whatever "ready to paste" formatting the doctor sees is built entirely in the mobile/web client app (outside this repo) — **it's unverified from the backend whether the client actually honors config keys like `separator`/`retain_headings`/`append`/`prepend` for these fields, or just shows raw section text next to a label.**
+
+### Extra Fields YAML keys
+
+| YAML key | Required? | Type | Purpose | Example | Source |
+|---|---|---|---|---|---|
+| `ehr_field_name` | Yes | Text | Exact ECW shortcut command name including colon — used as the paste target in Scribe-it | `"HPI:"` | ECW shortcut list |
+| `field_label` | No | Text | ⚠️ Confirmed dead — not found anywhere in the Python codebase (app or Lambda), not just Lambda. Legacy/unused. | `"HPI:"` | — |
+| `replace_colon_with_dash` | No | Boolean | ⚠️ Confirmed dead — same as above, zero references repo-wide. | `true` | — |
+
+**Example YAML:**
 ```yaml
 ehr_field_name: "HPI:"
 ```
 
-### Section names and codes (HL7)
-
-
-| Section                          | `ehr_field_name`       | `section_code` | OBR segment |
-| -------------------------------- | ---------------------- | -------------- | ----------- |
-| Chief Complaints                 | `Chief Complaints`     | `CC`           | OBR 4.0     |
-| HPI                              | `HPI`                  | `HPI`          | OBR 4.0     |
-| HPI > General subsection         | `HPI`                  | `GEN`          | OBR 5.0     |
-| Medical History                  | `Medical History`      | `MHX`          | OBR 4.0     |
-| Surgical History                 | `Surgical History`     | `SUR`          | OBR 4.0     |
-| Hospitalization                  | `Hospitalization`      | `HOS`          | OBR 4.0     |
-| Family History                   | `Family History`       | `FHX`          | OBR 4.0     |
-| Social History                   | `Social History`       | `SHX`          | OBR 4.0     |
-| ROS                              | `ROS`                  | `ROS`          | OBR 4.0     |
-| Examination                      | `Examination`          | `EXM`          | OBR 4.0     |
-| Examination > General subsection | `Examination`          | `GEX`          | OBR 5.0     |
-| Physical Examination             | `Physical Examination` | `PEX`          | OBR 4.0     |
-| Assessment                       | `Assessment`           | `ASM`          | OBR 4.0     |
-| Treatment                        | `Treatment`            | `TRT`          | OBR 4.0     |
-| Procedure                        | `Procedure`            | `PRO`          | OBR 4.0     |
-
+> **Tooltip text (for the mapping UI):** ECW auto-inserts the shortcut name with a colon (e.g. `HPI:`) as the paste target — the mapping must match this exact text, including the colon, or the paste lands in the wrong section (or silently fails).
 
 ### Selective Copy — available shortcut commands
 
-**Shortcut Commands:** Chief Complaints · HPI · ROS · ROS Note · Examination · Procedures · Preventive Medicine · Allergies · Social History · Medical History · Hospitalization · Surgical History · Family History · Physical Therapy Assessment · Vitals · Assessment Notes · Treatment Notes · Clinical Notes · Assessment · Next Appointment · OB History · GYN History
+These are the ECW shortcut commands available for Scribe-it paste targets:
 
-**Merge / Order / Other:** see ops onboarding lists (Merge Last Progress Notes, Order {Lab/DI/…}, Lock Progress Notes, etc.).
+Chief Complaints · HPI · ROS · ROS Note · Examination · Procedures · Preventive Medicine · Allergies · Social History · Medical History · Hospitalization · Surgical History · Family History · Physical Therapy Assessment · Vitals · Assessment Notes · Treatment Notes · Clinical Notes · Assessment · Next Appointment · OB History · GYN History
 
-**Prototype Primary picker** shows shortcut commands **with trailing colon** (`HPI:`, `Assessment:`) — the literal commands eCW recognizes for paste / selective copy. HL7 YAML still uses names without colon + `section_code`.
+> ECW's own command palette also has "Merge", "Order", and "Other" groups (merging previous notes, ordering labs/imaging, adding billing codes, locking/printing the note) — these are ECW UI actions, not places to paste note content, so they're not valid `ehr_field_name` values and are excluded from the list above and from the Marvix field picker.
 
-**Prototype Scribe-it picker** uses a separate note-panel list (`ScribeIt > HPI`, `ScribeIt > Physical Exam`, …).
+> The template must have **Selective Copy** checked in the V2/V1 Template Editor for Scribe-it push to work.
 
----
+### Flow 2 — What breaks it
 
-## What doctors can change
-
-
-| Why                               | Doctor / Admin action                   | Effect on mapping                                                  | Needs ops?                                                  |
-| --------------------------------- | --------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------- |
-| Wrong Primary shortcut            | Remap from fixed list in My Templates   | Points at a different `ehr_field_name`                             | No                                                          |
-| Wrong Scribe-it destination       | Remap Scribe-it column                  | Different paste target                                             | No                                                          |
-| Practice IT changed section codes | Admin changes ECW section structure     | `section_code` mismatch — HL7 uploaded but ECW may reject silently | Yes — update `section_code` in YAML                         |
-| New Scribe-it configuration       | Practice / doctor shortcut list changes | Paste lands wrong or does nothing                                  | Sometimes — remap if shortcut still in fixed list; else ops |
-
-
-No AMD-style auto-remap. Remap is **Flow A** — reopen fixed dropdown, no API call.
-
----
-
-## Settings — global and local
-
-Product model: **template defaults**, with **per-section overrides only where noted**.  
-YAML today still stores some values per row (`config.`*) until Template Settings migration lands.
-
-
-| Scope | Settings |
-|---|---|
-| **Global** | **Character limit** (`char_limit`). **Section / subsection separators** (`separator`). **Line separator** (`line_separator`) — ECW HL7 main only. Subsection join (`push_subsections`, `retain_headings`, `skip_empty_subsections`) → Template Settings |
-| **Local** | Additional text, Default negative |
-| **Not on ECW** | **Push setting** (`append` / `prepend`) — AMD-only (ECW does not fetch existing note content) |
-
-
-### `line_separator`
-
-
-| Key              | Type | What it does                                                                                                                 |
-| ---------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `line_separator` | Text | Replaces all `\n` with this string — required for the ECW HL7 ORU pipeline to format correctly. Not used for Selective Copy. |
-
-
-Common value: `\X0A\` (HL7 hex LF). Prototype template bar exposes this control.
-
-### Other `config` keys (moving to Template Settings)
-
-
-| Key                                                               | Useful?                | Notes                                    |
-| ----------------------------------------------------------------- | ---------------------- | ---------------------------------------- |
-| `append` / `prepend`                                              | ❌ No                   | ECW does not fetch existing note content |
-| `separator`                                                       | ✅ Yes                  | → Template Settings                      |
-| `char_limit`                                                      | ✅ Yes                  | → Template Settings (global)             |
-| `push_subsections` / `retain_headings` / `skip_empty_subsections` | ✅ Yes                  | → Template Settings                      |
-| `line_separator`                                                  | ✅ Yes — main mode only | → Template Settings                      |
-
-
----
-
-## Push errors
-
-### Surface (in-app)
-
-Errors appear at **two levels** at once when detectable / ops-flagged:
-
-1. **Template banner** — summary
-2. **Section row strip** — primary action surface
-
-
-| Action              | Meaning                                                   |
-| ------------------- | --------------------------------------------------------- |
-| **Remap**           | Open dual-column picker → Primary and/or Scribe-it → Save |
-| **Got it**          | Dismiss awareness (rare for eCW)                          |
-| **Contact support** | Ops / practice admin must act                             |
-
-
-### Note text (HL7 ORU) — largely undetectable
-
-Lambda uploads the HL7 file to S3 and receives a 200. ECW polls S3 asynchronously with **no callback**. Lambda never knows if ECW accepted or rejected the note text.
-
-
-| What can go wrong                        | How it fails                                    | Visible? | Doctor sees                    | Actions                                                     |
-| ---------------------------------------- | ----------------------------------------------- | -------- | ------------------------------ | ----------------------------------------------------------- |
-| Wrong `section_code` or `ehr_field_name` | HL7 uploaded; ECW rejects or misroutes silently | ❌ No     | Nothing unless ops spot-checks | Ops YAML / doctor Remap after spot-check (`mapping_broken`) |
-| ECW system issue                         | File never processed                            | ❌ No     | Nothing                        | Ops                                                         |
-
-
-**Mitigation:** ops spot-checks the ECW chart after onboarding and after any mapping change. Prototype scenario: `ecw_wrong_shortcut`.
-
-### Selective Copy (Scribe-it) — entirely manual
-
-Marvix has no automated push for this path. Doctor copies and pastes. Wrong shortcut → paste lands wrong or does nothing. Doctor may notice. Prototype: `ecw_scribeit_mismatch` (Remap + Contact support).
-
-### Order sections — detectable as Lambda WARNINGs
-
-Order pushes (lab, prescription, referral, imaging, procedure, vaccine) **do** surface as WARNINGs in Lambda when pattern matching fails — these are **not** note-text HL7 failures.
-
-Log pattern (May–Aug 2026, ~2,100 records):  
-`Couldn't find any Orders of type: [order_type], pattern matching failed or empty field provided`
-
-
-| Order type                                      | Approx. 3-mo count |
-| ----------------------------------------------- | ------------------ |
-| vaccine_order / procedure_order / imaging_order | ~392 each          |
-| referral_order                                  | ~374               |
-| lab_order                                       | ~366               |
-| prescription_order                              | ~184               |
-
-
-
-| Error                 | Behaviour today                           | Doctor sees                                                      | Actions                                                                                   |
-| --------------------- | ----------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Order config mismatch | WARNING in Lambda; ops email / CloudWatch | "Couldn't find any Orders of type: … Support has been notified." | Contact support only (`order_config`) — Remap of note-text fields will not fix order YAML |
-
-
-> **PRD footnote:** Saying “all ECW failures are undetectable” is overstated. **Note text** failures remain undetectable; **order-section** failures surface as WARNINGs.
-
-Prototype tweak: `ecw_order_config`.
-
-### Action matrix
-
-
-| Type                                                       | Remap | Got it | Contact support      |
-| ---------------------------------------------------------- | ----- | ------ | -------------------- |
-| `mapping_broken` (spot-check / wrong shortcut / Scribe-it) | ✅     | —      | ✅                    |
-| `order_config`                                             | —     | —      | ✅                    |
-| Note text silent reject                                    | —     | —      | — (no in-app signal) |
-
-
-### Proactive validation (Layer 2)
-
-
-| Check                                             | Feasible?            |
-| ------------------------------------------------- | -------------------- |
-| `ehr_field_name` in known shortcut / section list | ✅ Free — no API call |
-| `section_code` in known codes for that section    | ✅ Free               |
-
-
-Run on mapping save / Validate Mapping / nightly job.
-
----
-
-## Code
-
-
-| Location                            | Role                                                        |
-| ----------------------------------- | ----------------------------------------------------------- |
-| `ehr_layer/section_text_builder.py` | Reads `config` keys including `line_separator` at push time |
-| HL7 ORU builder / S3 upload         | Main mode push — 200 from S3 ≠ ECW acceptance               |
-| Order push paths                    | WARNING on pattern match failure                            |
-
-
----
-
-## My Templates prototype
-
-Branch `cursor/ecw-ehr-f6a6` — visual / UX only. EHR locked to **eCW**. Entry: `index.html`.
-
-PRD is structured as **two ownership flows** — see [MY_TEMPLATES_PRD.md](../MY_TEMPLATES_PRD.md).
-
-### Flow 1 — Ops-operated
-
-Ops owns structure. Doctor remaps Primary / Scribe-it, tunes output + global Character limit / Line separator, **Request New Section**, **Reset to default**. No Add section / Prompt edit.
-
-### Flow 2 — Self-serve
-
-Doctor owns structure. **Create template** (no Connect EHR — Cat 1), **+ Add section**, **Prompt** edit, remap, output settings. No Reset / Request.
-
-### Capability matrix
-
-| Capability | Ops-operated | Self-serve |
+| What breaks it | How it fails | Visible to doctor? |
 |---|---|---|
-| List tab / Remap Primary + Scribe-it / output settings | ✅ | ✅ |
-| Global Character limit + Line separator | ✅ | ✅ |
-| Preview / Save | ✅ | ✅ |
-| **Reset to default** | ✅ only | ❌ |
-| **Request New Section** | ✅ only | ❌ |
-| **+ Add section** / **Prompt** edit | ❌ | ✅ |
-| **Create → Connect EHR** | ❌ | ❌ — Cat 1 fixed list; create skips Connect |
+| `ehr_field_name` doesn't exactly match ECW shortcut command | Scribe-it paste lands in wrong field or does nothing | Sometimes — doctor may notice wrong field |
 
-### Subtle UI elements
+### Flow 2 — Push errors
 
-| Element | Behaviour |
+**Entirely manual, nothing to detect server-side:** Marvix has no push mechanism for this flow — there's no request to ECW to fail. If content is wrong, it's because the mapping (`ehr_field_name`) points at the wrong shortcut, or the client-side formatting doesn't match what the doctor expects.
+
+---
+
+## Where this lives in the code
+
+| Location | Role |
 |---|---|
-| Dual-column picker | **Primary** (shortcut commands with `:`) + **Scribe-it** (optional note-panel fields). Both optional. |
-| Scribe-it table column | Shown only when EHR is eCW |
-| Field labels | Shortcut commands shown as-is (`HPI:`) — literal eCW commands |
-| Shared field (2+ parents → one destination) | Neutral **Shared** chip; push order = Marvix UI section order |
-| No Push setting | ECW cannot read existing field content |
-| Line separator bar | Template-level; HL7 main only |
-
-### Gaps / open product questions
-
-1. **ECW selective copy — user-level vs. practice-level** — Which fields are owned at user vs practice level? Affects whether remap UI is per-doctor or per-practice. (Owner: Vignesh)
-2. **When to surface order WARNINGs in-app** — Today ops-only via logs/email; prototype shows Contact support if we promote them to `push_errors`.
-3. **HL7 YAML vs UI colon** — Align ops portal display (no colon + `section_code`) with doctor-facing shortcut colon convention.
-
-### Footnotes
-
-† **ECW FHIR** is a separate integration stub (`ECW_FHIR.md`) — **not** in the My Templates Cat 1–3 taxonomy.  
-†† **Path style** — Primary: `HPI:` / `Assessment:`; Scribe-it: `ScribeIt > Title Case`.
+| `ehr_layer/section_text_builder.py` | Reads `config` keys including `line_separator` at push time — **Flow 1 only** |
+| `app/dependencies/models.py:811-857` | `Template.ehr_mapping_id`/`selective_copy_mapping_id` — the two parallel `EHRMapping` FKs |
+| `app/routers/internal_endpoints.py:3017-3053` | `/update_ehr_mapping/{doctor_id}/{template_id}` — shared ops editor for both flows, keyed by `?selective_copy=` |
+| `app/routers/internal_endpoints.py:4310-4353` | Mapping save — writes to `selective_copy_mapping_id` or `ehr_mapping_id` depending on `data.selective_copy` |
+| `app/dependencies/api_utils.py:1988-1991` | `NoteModelWithNote.ehr_mapping` — pulls `selective_copy_mapping.ehr_push_mapping` verbatim into the note API response |
+| `app/routers/endpoints.py:2511` | `note.extras["selective_copy"]` — the per-note flag the client uses to show/hide Scribe-it UI |

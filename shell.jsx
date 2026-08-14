@@ -1,5 +1,5 @@
 // shell.jsx — Sidebar nav + Template list panel
-const { useState, useEffect } = React;
+const { useState } = React;
 
 function Logo() {
   return (
@@ -19,7 +19,7 @@ function Sidebar() {
     { id: "macros", label: "Macros", icon: I.bolt, badge: true },
     { id: "refer", label: "Refer", icon: I.refer },
     { id: "faq", label: "FAQ", icon: I.faq },
-    { id: "settings", label: "Settings", icon: I.gear, active: true },
+    { id: "settings", label: "Settings", icon: I.gear },
   ];
   return (
     <nav className="sidebar">
@@ -38,24 +38,10 @@ function Sidebar() {
   );
 }
 
-function TemplateList({ templates, activeId, onSelect, onRequest, onCreateTemplate, collapsed, onToggle }) {
-  const list = templates || [];
-  const active = list.find((t) => t.id === activeId);
-  const [tab, setTab] = useState(() => (active && active.userCreated ? "self" : "ops"));
+function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate, onOpenSettings, onOpenTemplateSettings, collapsed, onToggle }) {
   const [query, setQuery] = useState("");
-
-  // Keep the tab in sync when the active template changes (e.g. after create).
-  useEffect(() => {
-    if (!active) return;
-    setTab(active.userCreated ? "self" : "ops");
-  }, [activeId]);
-
-  const opsCount = list.filter((t) => !t.userCreated).length;
-  const selfCount = list.filter((t) => !!t.userCreated).length;
-  const scoped = list.filter((t) => (tab === "self" ? !!t.userCreated : !t.userCreated));
-
   const q = query.trim().toLowerCase();
-  const groups = window.groupsFor(scoped);
+
   const filteredGroups = q
     ? groups
         .map((g) => ({
@@ -63,18 +49,14 @@ function TemplateList({ templates, activeId, onSelect, onRequest, onCreateTempla
           templates: g.templates.filter(
             (t) =>
               t.name.toLowerCase().includes(q) ||
-              (t.derivative && t.derivative.toLowerCase().includes(q))
+              (t.derivative && t.derivative.toLowerCase().includes(q)) ||
+              (t.ehrSystem && t.ehrSystem.toLowerCase().includes(q))
           ),
         }))
         .filter((g) => g.templates.length > 0)
     : groups;
 
   const totalFiltered = filteredGroups.reduce((n, g) => n + g.templates.length, 0);
-
-  const switchTab = (next) => {
-    setTab(next);
-    setQuery("");
-  };
 
   return (
     <aside className={"tpl-panel" + (collapsed ? " tpl-panel--collapsed" : "")}>
@@ -89,26 +71,6 @@ function TemplateList({ templates, activeId, onSelect, onRequest, onCreateTempla
         <button className="btn-ghost tpl-request" onClick={onRequest}>
           Request from ops
         </button>
-
-        <div className="tpl-tabs" role="tablist" aria-label="Template ownership">
-          <button
-            role="tab"
-            aria-selected={tab === "ops"}
-            className={"tpl-tab" + (tab === "ops" ? " tpl-tab--active" : "")}
-            onClick={() => switchTab("ops")}
-          >
-            Ops-managed <span className="tpl-tab-count">{opsCount}</span>
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === "self"}
-            className={"tpl-tab" + (tab === "self" ? " tpl-tab--active" : "")}
-            onClick={() => switchTab("self")}
-          >
-            Self-serve <span className="tpl-tab-count">{selfCount}</span>
-          </button>
-        </div>
-
         <div className="tpl-search-wrap">
           <span className="tpl-search-ico">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -129,13 +91,6 @@ function TemplateList({ templates, activeId, onSelect, onRequest, onCreateTempla
           )}
         </div>
         <div className="tpl-scroll">
-          {scoped.length === 0 && !q && (
-            <div className="tpl-empty-tab">
-              {tab === "self"
-                ? "No self-serve templates yet. Create one to customize sections and prompts."
-                : "No ops-managed templates."}
-            </div>
-          )}
           {q && totalFiltered === 0 && (
             <div className="tpl-no-results">No templates match "{query}"</div>
           )}
@@ -143,19 +98,37 @@ function TemplateList({ templates, activeId, onSelect, onRequest, onCreateTempla
             <div className="tpl-group" key={g.label}>
               <div className="tpl-group-label">{g.label}</div>
               {g.templates.map((t) => (
-                <button
+                <div
                   key={t.id}
+                  role="button"
+                  tabIndex={0}
                   className={"tpl-item" + (t.id === activeId ? " tpl-item--active" : "")}
                   onClick={() => onSelect(t.id)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(t.id); } }}
                 >
                   <span className="tpl-item-text">
-                    <span className="tpl-item-name">{t.name}</span>
+                    <span className="tpl-item-name-row">
+                      <span className="tpl-item-name">{t.name}</span>
+                      <button
+                        className="tpl-item-settings"
+                        onClick={(e) => { e.stopPropagation(); onOpenTemplateSettings && onOpenTemplateSettings(t.id); }}
+                        title={"Template settings — " + t.name}
+                        aria-label={"Template settings for " + t.name}
+                      >
+                        <window.Icons.gear width={13} height={13} />
+                      </button>
+                    </span>
                     {t.derivative && <span className="tpl-item-derivative">({t.derivative})</span>}
                   </span>
-                </button>
+                </div>
               ))}
             </div>
           ))}
+        </div>
+        <div style={{ borderTop: "1px solid var(--border, #E7E7E9)", padding: "10px 20px", flexShrink: 0 }}>
+          <button className="btn-ghost tpl-request" style={{ margin: 0, width: "100%" }} onClick={onOpenSettings}>
+            <window.Icons.gear /> Push settings
+          </button>
         </div>
       </div>
     </aside>

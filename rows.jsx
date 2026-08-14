@@ -41,7 +41,13 @@ function fieldLabel(f) {
   return labels[raw] || labels[f] || raw;
 }
 
-function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeIt, ehr, contentSource, onSelect, onClose }) {
+function fieldHint(f) {
+  const hints = window.EHR_FIELD_HINTS || {};
+  const raw = f.split(" > ").pop();
+  return hints[raw] || hints[f] || "";
+}
+
+function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeIt, ehr, ehrTemplateName, onSelect, onClose }) {
   const [query, setQuery] = useStateR("");
   const [scribeQuery, setScribeQuery] = useStateR("");
   const [pendingEhr, setPendingEhr] = useStateR(currentEhr);
@@ -51,57 +57,13 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
   const ehrCat = window.EHR_CATEGORY && window.EHR_CATEGORY[ehr];
   const isFixedList = ehrCat && ehrCat.fieldSource === "fixed";
   const isCharm = ehr === "Charm";
-  const isCodeSource = contentSource === "icd" || contentSource === "em";
-  const preferredMap = ((window.CODE_PREFERRED_FIELDS || {})[contentSource]) || {};
-  const preferredFields = preferredMap[ehr] || preferredMap.default || [];
+  const isNereg = ehr === "Nereg";
+  // Real check is on the backend ehr_template_name prefix — the mock's synthetic template name
+  // just needs to contain "soap" to simulate it. See FIELD_LIST_REFERENCE.md — Cat 2 — CharmHealth.
+  const isSoapMode = isCharm && (ehrTemplateName || "").toLowerCase().includes("soap");
 
   const confirm = () => {
     onSelect(sectionId, pendingEhr, isEcw ? pendingScribeIt : undefined);
-  };
-
-  const renderFieldGroups = (groups, selectedVal, onPick, q) => {
-    const filtered = groups.map(g => ({
-      ...g,
-      fields: g.fields.filter(f => {
-        const label = fieldLabel(f);
-        return label.toLowerCase().includes(q.toLowerCase()) || g.group.toLowerCase().includes(q.toLowerCase());
-      }),
-    })).filter(g => g.fields.length > 0);
-
-    let ordered = filtered;
-    if (isCodeSource && preferredFields.length) {
-      const preferredSet = new Set(preferredFields);
-      const preferred = [];
-      const rest = [];
-      filtered.forEach((g) => {
-        const prefFields = g.fields.filter((f) => preferredSet.has(f));
-        const otherFields = g.fields.filter((f) => !preferredSet.has(f));
-        if (prefFields.length) preferred.push({ group: g.group + " · suggested", fields: prefFields });
-        if (otherFields.length) rest.push({ ...g, fields: otherFields });
-      });
-      ordered = [...preferred, ...rest];
-    }
-
-    if (ordered.length === 0) return <div className="mapping-picker-empty">No fields match "{q}"</div>;
-    return ordered.map(g => (
-      <div key={g.group}>
-        <div className="mapping-picker-group-label">{g.group}</div>
-        {g.fields.map(f => {
-          const isSelected = f === selectedVal;
-          const isPreferred = preferredFields.includes(f);
-          return (
-            <button key={f}
-              className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "") + (isPreferred ? " mapping-picker-field--preferred" : "")}
-              onClick={() => onPick(f)}
-            >
-              <span>{fieldLabel(f)}</span>
-              {isPreferred && <span className="mapping-preferred-chip">Suggested</span>}
-              {isSelected && <span className="mapping-picker-check"><I.check /></span>}
-            </button>
-          );
-        })}
-      </div>
-    ));
   };
 
   return (
@@ -114,9 +76,23 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
             <button className="mapping-picker-close" onClick={onClose} aria-label="Close"><I.close /></button>
           </div>
           <div className="mapping-picker-sub">Section: <strong>{sectionName}</strong></div>
-          {isFixedList && (
+          {isFixedList && !isEcw && (
             <div className="mapping-picker-fixed-notice">
               Fixed list — defined by {ehr}'s API
+            </div>
+          )}
+          {isEcw && (
+            <div className="mapping-picker-fixed-notice">
+              Two independent push paths. Main pushes via HL7 ORU and can fail silently after
+              upload — ECW processes it asynchronously with no callback. Scribe-it (right) is a
+              manual copy aid — nothing is pushed automatically.
+            </div>
+          )}
+          {isCharm && (
+            <div className="mapping-picker-fixed-notice">
+              {isSoapMode
+                ? "SOAP mode — every field except Chief Complaint is identified by a numeric ID from your practice's Charm SOAP template; the names below stand in for those. Chief Complaint always uses the fixed \"chief_complaints\" field."
+                : "Default mode — pick from Charm's fixed keyword list below. Any other value still pushes but won't match existing content for append/prepend."}
             </div>
           )}
           {isCharm && (
@@ -125,9 +101,11 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
               <button className="mapping-picker-support-btn" onClick={() => {}}>Contact support</button>
             </div>
           )}
-          {isCodeSource && (
-            <div className="mapping-picker-code-notice">
-              This section derives content from {contentSource === "icd" ? "ICD" : "EM"} codes — map the generated output to an EHR field below.
+          {isNereg && (
+            <div className="mapping-picker-fixed-notice">
+              No auto-mapping — a field left blank here is skipped entirely; nothing is inferred
+              from the section name. Push is all-or-nothing, so a rejection from Nereg won't say
+              which field caused it.
             </div>
           )}
           {pendingEhr && (
@@ -146,12 +124,39 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                   value={query} onChange={e => setQuery(e.target.value)} autoFocus />
               </div>
               <div className="mapping-picker-body">
-                {renderFieldGroups(
-                  (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [],
-                  pendingEhr,
-                  setPendingEhr,
-                  query
-                )}
+                {(() => {
+                  const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [];
+                  const filtered = groups.map(g => ({
+                    ...g,
+                    fields: g.fields.filter(f => {
+                      const label = f.split(" > ").pop();
+                      return label.toLowerCase().includes(query.toLowerCase()) || g.group.toLowerCase().includes(query.toLowerCase());
+                    }),
+                  })).filter(g => g.fields.length > 0);
+                  return filtered.length === 0
+                    ? <div className="mapping-picker-empty">No fields match "{query}"</div>
+                    : filtered.map(g => (
+                      <div key={g.group}>
+                        <div className="mapping-picker-group-label">{g.group}</div>
+                        {g.fields.map(f => {
+                          const isSelected = f === pendingEhr;
+                          const hint = fieldHint(f);
+                          return (
+                            <div key={f}>
+                              <button
+                                className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
+                                onClick={() => setPendingEhr(f)}
+                              >
+                                <span>{fieldLabel(f)}</span>
+                                {isSelected && <span className="mapping-picker-check"><I.check /></span>}
+                              </button>
+                              {hint && <div className="mapping-picker-field-hint">{hint}</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ));
+                })()}
               </div>
               <div className="mapping-picker-foot">
                 <button className="mapping-picker-clear" onClick={() => setPendingEhr("")}>Clear primary mapping</button>
@@ -162,6 +167,9 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
               <div className="mapping-picker-ecw-col-label">
                 Also push to Scribe-it
                 <span className="mapping-picker-optional">optional</span>
+              </div>
+              <div className="adv-field-hint" style={{ padding: "0 14px 8px" }}>
+                Must match the shortcut command's exact text, colon included.
               </div>
               <div className="mapping-picker-search">
                 <input className="mapping-picker-input" placeholder="Search Scribe-it fields…"
@@ -189,7 +197,7 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                               className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
                               onClick={() => setPendingScribeIt(f)}
                             >
-                              <span>{fieldLabel(f)}</span>
+                              <span>{f}</span>
                               {isSelected && <span className="mapping-picker-check"><I.check /></span>}
                             </button>
                           );
@@ -210,12 +218,39 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
                 value={query} onChange={e => setQuery(e.target.value)} autoFocus />
             </div>
             <div className="mapping-picker-body">
-              {renderFieldGroups(
-                (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [],
-                pendingEhr,
-                setPendingEhr,
-                query
-              )}
+              {(() => {
+                const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [];
+                const filtered = groups.map(g => ({
+                  ...g,
+                  fields: g.fields.filter(f => {
+                    const label = f.split(" > ").pop();
+                    return label.toLowerCase().includes(query.toLowerCase()) || g.group.toLowerCase().includes(query.toLowerCase());
+                  }),
+                })).filter(g => g.fields.length > 0);
+                return filtered.length === 0
+                  ? <div className="mapping-picker-empty">No fields match "{query}"</div>
+                  : filtered.map(g => (
+                    <div key={g.group}>
+                      <div className="mapping-picker-group-label">{g.group}</div>
+                      {g.fields.map(f => {
+                        const isSelected = f === pendingEhr;
+                        const hint = fieldHint(f);
+                        return (
+                          <div key={f}>
+                            <button
+                              className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
+                              onClick={() => setPendingEhr(f)}
+                            >
+                              <span>{fieldLabel(f)}</span>
+                              {isSelected && <span className="mapping-picker-check"><I.check /></span>}
+                            </button>
+                            {hint && <div className="mapping-picker-field-hint">{hint}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ));
+              })()}
             </div>
             <div className="mapping-picker-foot">
               <button className="mapping-picker-clear" onClick={() => setPendingEhr("")}>Clear mapping — remove EHR destination</button>
@@ -233,8 +268,9 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, currentScribeI
 }
 
 // ── Editable mapping chip (leaf sections) ─────────────────────────────────
-function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride }) {
+function EditableMappingCell({ s, onOpenMapping, isDuplicate, sharedGroup, onReorderShared, ehr, demoOverride }) {
   const I = window.Icons;
+  const [orderOpen, setOrderOpen] = useStateR(false);
 
   const chipBase = {
     display:"flex", alignItems:"center", gap:6, alignSelf:"flex-start",
@@ -279,7 +315,7 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride 
           <span style={{...typeTag,border:"1px solid #fde68a",color:"#92400e"}}>checkbox</span>
         </div>
         <div style={{fontSize:11.5,color:"#888",marginTop:2}}>
-          Selected from the same field picker — prompt must output one of its allowed values
+          Selected from the same field picker. CC Enable pushes a fixed configured value (e.g. "Yes") whenever this section has any generated content, and an empty string when it doesn't — driven by content presence, not by matching the prompt's output text against allowed values.
         </div>
       </div>
     );
@@ -298,16 +334,41 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride 
         <span className="mapping-edit-ico"><I.pencil /></span>
       </button>
       {isDuplicate && (
-        <span className="mapping-shared" title="Multiple sections push to this field — content is combined in section order">
-          Shared
-        </span>
+        <div className="mapping-shared-wrap">
+          <button
+            type="button"
+            className={"mapping-shared" + (orderOpen ? " mapping-shared--open" : "")}
+            onClick={() => setOrderOpen(o => !o)}
+            title="Multiple sections push to this field — click to set push order"
+          >
+            Shared · order {(sharedGroup || []).findIndex(g => g.id === s.id) + 1}/{(sharedGroup || []).length}
+          </button>
+          {orderOpen && (
+            <div className="row-popover mapping-order-popover">
+              <div className="row-popover-title">Push order into this field</div>
+              <div className="mapping-order-hint">
+                This is the order these sections' text is combined when pushed to {fieldLabel(s.ehr)} — independent of where they appear in this note; the two orders can be different.
+              </div>
+              {(sharedGroup || []).map((g, i) => (
+                <div key={g.id} className={"mapping-order-item" + (g.id === s.id ? " mapping-order-item--self" : "")}>
+                  <span className="mapping-order-num">{i + 1}</span>
+                  <span className="mapping-order-name">{g.name}</span>
+                  <div className="mapping-order-btns">
+                    <button type="button" disabled={i === 0} onClick={() => onReorderShared(s.ehr, g.id, -1)} aria-label={"Move " + g.name + " up"}>▲</button>
+                    <button type="button" disabled={i === sharedGroup.length - 1} onClick={() => onReorderShared(s.ehr, g.id, 1)} aria-label={"Move " + g.name + " down"}>▼</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
 // ── Parent mapping cell (mode toggle + chip or label) ─────────────────────
-function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, ehr }) {
+function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, sharedGroup, onReorderShared, ehr }) {
   const mode = s.mappingMode || 'whole';
   return (
     <div className="mapping-mode-wrap">
@@ -324,7 +385,7 @@ function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, eh
         >Each separately</button>
       </div>
       {mode === 'whole' ? (
-        <EditableMappingCell s={s} onOpenMapping={onOpenMapping} isDuplicate={isDuplicate} ehr={ehr} />
+        <EditableMappingCell s={s} onOpenMapping={onOpenMapping} isDuplicate={isDuplicate} sharedGroup={sharedGroup} onReorderShared={onReorderShared} ehr={ehr} />
       ) : (
         <span className="mapping-individual-note">Subsections mapped individually</span>
       )}
@@ -332,66 +393,129 @@ function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, eh
   );
 }
 
-// ── Soft-hidden details panel — 4 tabs ────────────────────────────────────
+// ── Soft-hidden details panel ─────────────────────────────────────────────
+// Split into the two tiers from Settings hierarchy — Section settings (the section's own
+// content, independent of any EHR mapping) vs. Mapping settings (this mapping row's push
+// behavior) — instead of one undifferentiated list. Mapping-specific things like write mode
+// and checkbox push don't belong mixed in with section content settings.
 function InlineAdvPanel({ s, onUpdate, ehr }) {
   const I = window.Icons;
+  const hasEhrSpecificMappingSettings = !!s.ehr && (ehr === "AMD" || ehr === "AthenaOne");
+  const amdCharLimit = ehr === "AMD" && s.ehr ? (window.AMD_CHAR_LIMITS || {})[s.ehr] : null;
+  const amdFields = ehr === "AMD"
+    ? (((window.EHR_FIELDS_BY_SYSTEM || {}).AMD || []).flatMap((g) => g.fields).filter((f) => f !== s.ehr))
+    : [];
+
   return (
     <div className="adv">
+      <div className="adv-tab-body">
+        <div className="adv-group-label">Section settings</div>
+        <div className="adv-field">
+          <label className="adv-field-label">Additional text</label>
+          <div className="adv-additional-row">
+            <select className="adv-additional-placement"
+              value={s.additionalPlacement || "before"}
+              onChange={e => onUpdate(s.id, { additionalPlacement: e.target.value })}>
+              <option value="before">Before content</option>
+              <option value="after">After content</option>
+            </select>
+            <input className="adv-field-input adv-field-input--grow" value={s.additionalText || ""}
+              placeholder="Fixed text added around section content on push…"
+              onChange={e => onUpdate(s.id, { additionalText: e.target.value })} />
+          </div>
+        </div>
+        <div className="adv-field">
+          <label className="adv-field-label">Default negative</label>
+          <input className="adv-field-input" value={s.defaultNegative || ""}
+            placeholder='e.g. "Not reported" or "None"'
+            onChange={e => onUpdate(s.id, { defaultNegative: e.target.value })} />
+        </div>
 
-      {/* ── Output & EHR (always shown, no tab strip) ── */}
-      {(
-        <div className="adv-tab-body">
-          <div className="adv-field">
-            <label className="adv-field-label">Additional text</label>
-            <div className="adv-additional-row">
-              <select className="adv-additional-placement"
-                value={s.additionalPlacement || "before"}
-                onChange={e => onUpdate(s.id, { additionalPlacement: e.target.value })}>
-                <option value="before">Before content</option>
-                <option value="after">After content</option>
-              </select>
-              <input className="adv-field-input adv-field-input--grow" value={s.additionalText || ""}
-                placeholder="Fixed text added around section content on push…"
-                onChange={e => onUpdate(s.id, { additionalText: e.target.value })} />
+        <div className="adv-group-label adv-group-label--mapping">Mapping settings{s.ehr ? " — for " + fieldLabel(s.ehr) : ""}</div>
+
+          <div className="adv-field adv-checkbox-field" style={{ marginTop: 0 }}>
+            <label className="adv-checkbox-toggle-label">
+              <Toggle on={!!s.otherDerivative} onChange={(v) => onUpdate(s.id, {
+                otherDerivative: v ? ((window.OTHER_DERIVATIVE_OPTIONS || [])[0]?.key || "") : null,
+                stylePrompt: v ? "" : s.stylePrompt,
+              })} />
+              <span>Pull from another derivative instead of a prompt</span>
+            </label>
+            <div className="adv-field-hint">
+              A direct pass-through, not a merge: whatever this derivative generates is pushed straight to this section's mapped field, as-is — no prompt, no combining logic.
             </div>
+            {s.otherDerivative && (
+              <select className="adv-field-input" style={{ marginTop: 8 }} value={s.otherDerivative} onChange={(e) => onUpdate(s.id, { otherDerivative: e.target.value })}>
+                {(window.OTHER_DERIVATIVE_OPTIONS || []).map((opt) => (
+                  <option key={opt.key} value={opt.key}>{opt.label}</option>
+                ))}
+              </select>
+            )}
           </div>
-          <div className="adv-field">
-            <label className="adv-field-label">Default negative</label>
-            <input className="adv-field-input" value={s.defaultNegative || ""}
-              placeholder='e.g. "Not reported" or "None"'
-              onChange={e => onUpdate(s.id, { defaultNegative: e.target.value })} />
-          </div>
-          {ehr === "AMD" && s.ehr && (() => {
-            const limit = (window.AMD_CHAR_LIMITS || {})[s.ehr];
-            if (!limit) return null;
-            return (
-              <div className="adv-char-limit">
-                <span className="adv-char-limit-label">AMD field limit</span>
-                <span className="adv-char-limit-val">{limit.toLocaleString()} characters</span>
-              </div>
-            );
-          })()}
 
-          {ehr === "AMD" && (
+          {hasEhrSpecificMappingSettings && (
             <>
-              <div className="adv-field adv-field--push-mode">
-                <label className="adv-field-label">Push mode</label>
-                <div className="adv-seg-row">
-                  {["Prepend", "Append", "Replace"].map(mode => (
-                    <button key={mode}
-                      className={"seg-btn" + ((s.config || "Prepend") === mode ? " seg-btn--on" : "")}
-                      onClick={() => onUpdate(s.id, { config: mode })}>
-                      {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
-                    </button>
-                  ))}
-                </div>
+            {amdCharLimit && (
+              <div className="adv-char-limit">
+                <span className="adv-char-limit-label">AMD field limit (reference)</span>
+                <span className="adv-char-limit-val">{amdCharLimit.toLocaleString()} characters</span>
               </div>
+            )}
+
+            {(() => {
+              // AthenaOne only fetches-and-prepends for HPI / Physical Exam / ROS — Assessment
+              // and Chief Complaint just toggle the EHR API's own append/replace flag, no prepend.
+              const athenaFullSupport = ["History of Present Illness", "Physical Exam", "Review of Systems"].includes(s.name);
+              const modes = ehr === "AthenaOne" && !athenaFullSupport
+                ? ["Append", "Replace"]
+                : ["Prepend", "Append", "Replace"];
+              return (
+                <div className="adv-field adv-field--push-mode">
+                  <label className="adv-field-label">Write mode</label>
+                  <div className="adv-seg-row">
+                    {modes.map(mode => (
+                      <button key={mode}
+                        className={"seg-btn" + ((s.config || "Prepend") === mode ? " seg-btn--on" : "")}
+                        onClick={() => onUpdate(s.id, { config: mode })}>
+                        {{ Prepend: "Insert before", Append: "Insert after", Replace: "Overwrite" }[mode]}
+                      </button>
+                    ))}
+                  </div>
+                  {ehr === "AthenaOne" && (
+                    <div className="adv-field-hint">
+                      {athenaFullSupport
+                        ? "Athena fetches existing content for this section, so Insert before genuinely combines with what's already there."
+                        : "Athena doesn't fetch existing content for this section — no Insert before option, Insert after / Overwrite toggle the EHR's own flag."}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {ehr === "AMD" && (
+              <div className="adv-field adv-checkbox-field">
+                <label className="adv-checkbox-toggle-label">
+                  <Toggle on={!!s.checkboxField} onChange={(v) => onUpdate(s.id, { checkboxField: v ? (amdFields[0] || "") : "" })} />
+                  <span>Also push as a checkbox to another field</span>
+                </label>
+                <div className="adv-field-hint">
+                  Pushes a fixed value when this section has any generated content, empty otherwise — content-presence-driven, not a match against the prompt's output text. One section, two independent mapping rows.
+                </div>
+                {s.checkboxField && (
+                  <div className="adv-checkbox-config">
+                    <select className="adv-field-input" value={s.checkboxField} onChange={(e) => onUpdate(s.id, { checkboxField: e.target.value })}>
+                      {amdFields.map((f) => <option key={f} value={f}>{fieldLabel(f)}</option>)}
+                    </select>
+                    <input className="adv-field-input" value={s.checkboxValue || "Yes"}
+                      placeholder='Value to push, e.g. "Yes"'
+                      onChange={(e) => onUpdate(s.id, { checkboxValue: e.target.value })} />
+                  </div>
+                )}
+              </div>
+            )}
             </>
           )}
-
-        </div>
-      )}
-
+      </div>
     </div>
   );
 }
@@ -402,8 +526,8 @@ function SectionRow({
   onToggle, onExpand, onToggleDetails, onTogglePrompt, onDeleteSection,
   onOpenMapping, onSetMappingMode, onUpdate,
   onDragStart, onDragEnd, onDragOver, onDrop,
-  isDragging, dropBefore, dropAfter, isDuplicate,
-  parentMappingMode, ehr, pushIssue, canEditPrompt, canEditCodeSource, dualMappingDemo,
+  isDragging, dropBefore, dropAfter, isDuplicate, sharedGroup, onReorderShared,
+  parentMappingMode, ehr, pushIssue, canEditPrompt, dualMappingDemo,
 }) {
   const I = window.Icons;
   if (s.ghost) return null;
@@ -411,19 +535,18 @@ function SectionRow({
 
   const hasMacros = !!(s.macros && s.macros.length);
   const hasSums = !!(s.summarizers && s.summarizers.length);
-  const contentSource = s.contentSource || "prompt";
-  const isCodeSource = contentSource === "icd" || contentSource === "em";
-  const codeTemplates = ((window.CODE_GENERATOR_TEMPLATES || {})[contentSource]) || [];
-  const codeTemplate = codeTemplates.find((t) => t.id === s.codeTemplateId);
-  const sourceMeta = ((window.CODE_CONTENT_SOURCES || []).find((c) => c.id === contentSource));
 
   const togglePopover = (key) => setPopover(p => p === key ? null : key);
 
   const hasKids = !!(s.children && s.children.length);
   const treeOpen = !!s.expanded;
   const detailsOpen = !!s.detailsExpanded;
-  const ehrRowCat = ((window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {}).cat;
-  const hasOutputSettings = ehrRowCat === 1 || ehrRowCat === 2;
+  const ehrRowCatObj = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
+  const ehrRowCat = ehrRowCatObj.cat;
+  // Centricity is cat 3 (no doctor-facing field picker) but still routes each section to its
+  // own ehr_field_name under the hood — autoRoutedPerSection keeps output settings meaningful
+  // for it, unlike Cerner/ModMed's true whole-note push.
+  const hasOutputSettings = ehrRowCat === 1 || ehrRowCat === 2 || !!ehrRowCatObj.autoRoutedPerSection;
   const promptOpen = !!s.promptOpen;
 
   // Dual-mapping demo override — applies to "Assessment & Plan" only
@@ -481,14 +604,6 @@ function SectionRow({
               aria-label="Section header"
             />
             <div className="name-icons" style={{position:"relative"}}>
-              {isCodeSource && (
-                <span
-                  className={"content-source-chip content-source-chip--" + contentSource}
-                  title={sourceMeta ? sourceMeta.hint : (contentSource === "icd" ? "Derived from ICD codes" : "Derived from EM codes")}
-                >
-                  {contentSource === "icd" ? "ICD" : "EM"}
-                </span>
-              )}
               {/* Macros icon */}
               <button type="button"
                 className={"row-icon-btn" + (hasMacros ? " row-icon-btn--active" : "") + (popover === "macros" ? " row-icon-btn--open" : "")}
@@ -556,10 +671,12 @@ function SectionRow({
                 onOpenMapping={onOpenMapping}
                 onSetMappingMode={onSetMappingMode}
                 isDuplicate={isDuplicate}
+                sharedGroup={sharedGroup}
+                onReorderShared={onReorderShared}
                 ehr={ehr}
               />
             ) : (
-              <EditableMappingCell s={s} onOpenMapping={onOpenMapping} isDuplicate={isDuplicate} ehr={ehr} demoOverride={demoOverride} />
+              <EditableMappingCell s={s} onOpenMapping={onOpenMapping} isDuplicate={isDuplicate} sharedGroup={sharedGroup} onReorderShared={onReorderShared} ehr={ehr} demoOverride={demoOverride} />
             );
           })()}
         </div>
@@ -575,27 +692,18 @@ function SectionRow({
         )}
         {/* Actions */}
         <div className="row-actions">
-          {canEditPrompt && !isCodeSource && (
+          {canEditPrompt && (
             <button
               type="button"
-              className={"row-icon-btn row-icon-btn--prompt" + (s.stylePrompt ? " row-icon-btn--active" : "") + (promptOpen ? " row-icon-btn--open" : "")}
+              className={"row-icon-btn row-icon-btn--prompt" + ((s.stylePrompt || s.otherDerivative) ? " row-icon-btn--active" : "") + (promptOpen ? " row-icon-btn--open" : "")}
               onClick={() => onTogglePrompt(s.id)}
-              title={promptOpen ? "Hide prompt" : "Edit prompt"}
+              title={promptOpen ? "Hide" : (s.otherDerivative ? "Change derivative source" : "Edit prompt")}
               aria-expanded={promptOpen}
             >
-              Prompt
-              {!s.stylePrompt && <span className="row-prompt-missing" title="No prompt written yet">!</span>}
-            </button>
-          )}
-          {(canEditPrompt || canEditCodeSource) && isCodeSource && (
-            <button
-              type="button"
-              className={"row-icon-btn row-icon-btn--prompt row-icon-btn--active" + (promptOpen ? " row-icon-btn--open" : "")}
-              onClick={() => onTogglePrompt(s.id)}
-              title={promptOpen ? "Hide code source" : "View code source"}
-              aria-expanded={promptOpen}
-            >
-              {contentSource === "icd" ? "ICD source" : "EM source"}
+              {s.otherDerivative
+                ? "📎 " + (((window.OTHER_DERIVATIVE_OPTIONS || []).find(o => o.key === s.otherDerivative) || {}).label || s.otherDerivative)
+                : "Prompt"}
+              {!s.stylePrompt && !s.otherDerivative && <span className="row-prompt-missing" title="No prompt written yet">!</span>}
             </button>
           )}
           {s.custom && (
@@ -643,7 +751,7 @@ function SectionRow({
           </div>
         </div>
       )}
-      {promptOpen && !isCodeSource && canEditPrompt && (
+      {promptOpen && !s.otherDerivative && (
         <div className="row-prompt-panel">
           <label className="row-prompt-label">
             Prompt
@@ -656,73 +764,12 @@ function SectionRow({
             placeholder="e.g. Summarize the patient's chief complaint in one or two sentences, in their own words where possible."
             onChange={(e) => onUpdate(s.id, { stylePrompt: e.target.value })}
           />
-          {canEditPrompt && (
-            <div className="content-source-switch">
-              <span className="code-source-panel-k">Or derive from</span>
-              <button type="button" className="content-source-switch-btn" onClick={() => onUpdate(s.id, { contentSource: "icd", codeTemplateId: "icd_std", stylePrompt: "", promptOpen: true })}>ICD codes</button>
-              <button type="button" className="content-source-switch-btn" onClick={() => onUpdate(s.id, { contentSource: "em", codeTemplateId: "em_std", stylePrompt: "", promptOpen: true })}>EM codes</button>
-            </div>
-          )}
         </div>
       )}
-      {promptOpen && isCodeSource && (canEditPrompt || canEditCodeSource) && (
-        <div className="row-prompt-panel row-prompt-panel--code">
-          <label className="row-prompt-label">
-            {contentSource === "icd" ? "ICD" : "EM"} code source
-            <span className="row-prompt-label-hint">— content is derived from codes, then mapped to the EHR field</span>
-          </label>
-          <div className="code-source-panel">
-            {canEditPrompt && (
-              <div className="code-source-panel-row">
-                <span className="code-source-panel-k">Source</span>
-                <div className="content-source-row content-source-row--compact">
-                  {((window.CODE_CONTENT_SOURCES || [])).map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      className={"content-source-btn" + (contentSource === opt.id ? " content-source-btn--on" : "")}
-                      onClick={() => {
-                        if (opt.id === "prompt") {
-                          onUpdate(s.id, { contentSource: "prompt", codeTemplateId: "", stylePrompt: s.stylePrompt || "", promptOpen: true });
-                        } else {
-                          const gens = ((window.CODE_GENERATOR_TEMPLATES || {})[opt.id]) || [];
-                          onUpdate(s.id, {
-                            contentSource: opt.id,
-                            codeTemplateId: s.codeTemplateId && ((window.CODE_GENERATOR_TEMPLATES || {})[opt.id] || []).some((g) => g.id === s.codeTemplateId)
-                              ? s.codeTemplateId
-                              : (gens[0] && gens[0].id) || "",
-                            stylePrompt: "",
-                            promptOpen: true,
-                          });
-                        }
-                      }}
-                    >
-                      {opt.short || opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="code-source-panel-row">
-              <span className="code-source-panel-k">Generator</span>
-              <select
-                className="code-source-panel-select"
-                value={s.codeTemplateId || ""}
-                onChange={(e) => onUpdate(s.id, { codeTemplateId: e.target.value })}
-              >
-                <option value="" disabled>Select generator…</option>
-                {codeTemplates.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-            </div>
-            {codeTemplate && (
-              <div className="code-source-panel-desc">{codeTemplate.description}</div>
-            )}
-            <div className="code-source-panel-sample">
-              <span className="code-source-panel-k">Sample output</span>
-              <pre className="code-source-panel-pre">{((window.SAMPLE_CODE_OUTPUT || {})[contentSource]) || "—"}</pre>
-            </div>
+      {promptOpen && s.otherDerivative && (
+        <div className="row-prompt-panel">
+          <div className="adv-field-hint">
+            This section pulls from a derivative instead of a prompt — set which one under Output settings <I.sliders />, in Mapping settings. Switch it back to a written prompt from there too.
           </div>
         </div>
       )}
@@ -754,7 +801,7 @@ function AddSubsectionGhostRow({ depth, onClick }) {
 
 // ── Render tree recursively ────────────────────────────────────────────────
 function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
-  const { handlers, dragId, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, canEditCodeSource, dualMappingDemo } = ctx;
+  const { handlers, dragId, dropTarget, ehrCounts, ehrGroups, reorderPushGroup, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo } = ctx;
   const isDragging = dragId === s.id;
   const dropBefore = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'before');
   const dropAfter = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'after');
@@ -771,11 +818,12 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
       dropBefore={dropBefore}
       dropAfter={dropAfter}
       isDuplicate={isDuplicate}
+      sharedGroup={isDuplicate ? (ehrGroups[s.ehr] || []) : null}
+      onReorderShared={reorderPushGroup}
       parentMappingMode={parentMappingMode}
       ehr={ehr}
       pushIssue={pushIssuesByName ? pushIssuesByName[s.name] : null}
       canEditPrompt={canEditPrompt}
-      canEditCodeSource={canEditCodeSource}
       dualMappingDemo={dualMappingDemo}
       {...handlers}
     />,
@@ -795,10 +843,10 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
 
 // ── Section table (manages drag state + mapping panel) ────────────────────
 function SectionTable({
-  sections, ehr, pushIssues,
+  sections, ehr, ehrTemplateName, pushIssues,
   onToggle, onExpand, onToggleDetails, onTogglePrompt, onDeleteSection,
   onReorder, onRemap, onSetMappingMode, onUpdate, remapTarget, onRemapTargetHandled,
-  onAddSection, canEditPrompt, canEditCodeSource, dualMappingDemo,
+  onAddSection, canEditPrompt, dualMappingDemo,
 }) {
   const { useEffect: useEffectR } = React;
   const [dragState, setDragState] = useStateR(null);   // { id }
@@ -815,24 +863,49 @@ function SectionTable({
       return null;
     };
     const sec = findByName(sections);
-    if (sec) setMappingPanel({ sectionId: sec.id, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "", contentSource: sec.contentSource || "prompt" });
+    if (sec) setMappingPanel({ sectionId: sec.id, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "" });
     onRemapTargetHandled && onRemapTargetHandled();
   }, [remapTarget]);
 
-  // Compute duplicate EHR destinations across all sections
+  // Compute duplicate EHR destinations across all sections — a field with 2+ sections mapped
+  // to it needs an explicit push order (which section's text comes first when combined into
+  // that one EHR field). ehrGroups holds every section mapped to each field, in their *current*
+  // push order — independent of, and not necessarily matching, their order in this note.
   const ehrCounts = {};
+  const ehrGroups = {};
   const walkEhr = (list) => {
     for (const s of list) {
-      if (!s.ghost && s.ehr) ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
+      if (!s.ghost && s.ehr) {
+        ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
+        (ehrGroups[s.ehr] = ehrGroups[s.ehr] || []).push(s);
+      }
       if (s.children) walkEhr(s.children);
     }
   };
   walkEhr(sections);
+  Object.keys(ehrGroups).forEach((k) => {
+    ehrGroups[k] = ehrGroups[k].slice().sort((a, b) => {
+      if (a.pushOrder == null && b.pushOrder == null) return 0;
+      if (a.pushOrder == null) return 1;
+      if (b.pushOrder == null) return -1;
+      return a.pushOrder - b.pushOrder;
+    });
+  });
+
+  const reorderPushGroup = (fieldVal, id, dir) => {
+    const group = ehrGroups[fieldVal] || [];
+    const idx = group.findIndex((s) => s.id === id);
+    const j = idx + dir;
+    if (idx < 0 || j < 0 || j >= group.length) return;
+    const reordered = group.slice();
+    const tmp = reordered[idx]; reordered[idx] = reordered[j]; reordered[j] = tmp;
+    reordered.forEach((s, i) => onUpdate(s.id, { pushOrder: i }));
+  };
 
   const openMapping = (sectionId) => {
     const sec = findSecR(sections, sectionId);
     if (!sec) return;
-    setMappingPanel({ sectionId, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "", contentSource: sec.contentSource || "prompt" });
+    setMappingPanel({ sectionId, sectionName: sec.name, currentEhr: sec.ehr || "", currentScribeIt: sec.scribeIt || "" });
   };
 
   const pickEhr = (sectionId, ehrVal, scribeIt) => {
@@ -864,7 +937,7 @@ function SectionTable({
 
   const pushIssuesByName = {};
   (pushIssues || []).forEach(pi => { pushIssuesByName[pi.section] = pi; });
-  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, pushIssuesByName, onAddSection, canEditPrompt, canEditCodeSource, dualMappingDemo };
+  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehrGroups, reorderPushGroup, ehr, pushIssuesByName, onAddSection, canEditPrompt, dualMappingDemo };
 
   // ── Add Section availability — varies by EHR category ──
   const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[ehr]) || {};
@@ -885,6 +958,16 @@ function SectionTable({
 
   return (
     <div className={"table table-edit" + (ehr ? " table--" + ehr.toLowerCase() : "")}>
+      {isCat2 && canEditPrompt && (
+        <div className="ehr-tpl-banner">
+          <div className="ehr-tpl-banner-left">
+            <span className="ehr-tpl-banner-label">{ehrCat.label || ehr} template</span>
+            {ehrTemplateName
+              ? <span className="ehr-tpl-banner-value">{ehrTemplateName} — fields below are fetched from this template</span>
+              : <span className="ehr-tpl-banner-unset">Not set — this template was created before EHR template selection existed</span>}
+          </div>
+        </div>
+      )}
       <div className="section-toolbar">
         {onAddSection && (
           <button
@@ -897,6 +980,7 @@ function SectionTable({
             + Add section
           </button>
         )}
+        <span className="section-toolbar-legend">M = macro connected · S = summarizer connected</span>
         {isCat1 && totalFieldCount > 0 && (
           <span className="section-toolbar-hint">{usedFieldCount}/{totalFieldCount} {ehrCat.label || ehr} fields used</span>
         )}
@@ -919,8 +1003,8 @@ function SectionTable({
           sectionName={mappingPanel.sectionName}
           currentEhr={mappingPanel.currentEhr}
           currentScribeIt={mappingPanel.currentScribeIt}
-          contentSource={mappingPanel.contentSource}
           ehr={ehr}
+          ehrTemplateName={ehrTemplateName}
           onSelect={pickEhr}
           onClose={() => setMappingPanel(null)}
         />

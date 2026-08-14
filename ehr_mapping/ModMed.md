@@ -49,7 +49,7 @@ Mapping column shows the auto-push label *"Whole note pushed as PDF"* on every s
 
 | Scenario | Detectable? | Resolution |
 |---|---|---|
-| Binary URL fetch fails | ✅ Yes — `response.ok` check | Ops |
-| S3 upload fails | ✅ Yes — `response.ok` check | Ops |
-| DocumentReference creation fails | ✅ Yes (assumed) | Ops |
+| Binary URL fetch fails | ⚠️ Only `print()`s the error — does not raise or stop the push. Execution continues and a `DocumentReference` is still created, pointing at whatever (possibly empty) `s3_url` came back | Not surfaced to ops automatically; note may look "pushed" but link to a missing/broken PDF |
+| S3 upload fails | ⚠️ Same as above — `print()` only, no raise. `create_note` continues and creates the `DocumentReference` regardless | Not surfaced to ops automatically |
+| DocumentReference creation fails | ✅ Yes — raises `Exception(f"Note push failed: ...")` if `response.ok` is false | Ops |
 | Encounter lookup from appointment fails | ⚠️ Silently caught — push continues without encounter context | Note created without encounter link; ops investigates if note not visible in chart |

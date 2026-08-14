@@ -60,7 +60,7 @@ This survives field reordering and ID reassignment. It **fails** if `page_name` 
 | `append` | ✅ Yes | AMD fetches existing note content before pushing — append works |
 | `prepend` | ✅ Yes | Same as above |
 | `separator` | ✅ Yes | Joins text when multiple sections map to one field. **→ Moving to Template Settings** |
-| `char_limit` | ✅ Yes | AMD enforces `max_character_length` per field — set this to avoid push errors. **→ Moving to Template Settings** |
+| `char_limit` | ✅ Yes | A different mechanism from `max_character_length` above — Marvix truncates the section's outgoing text to this length *before* pushing, to avoid AMD rejecting an over-length push. Doctor/ops-settable. **→ Moving to Template Settings** |
 | `push_subsections` | ✅ Yes | **→ Moving to Template Settings** |
 | `retain_headings` | ✅ Yes | **→ Moving to Template Settings** |
 | `skip_empty_subsections` | ✅ Yes | **→ Moving to Template Settings** |
@@ -80,6 +80,7 @@ This survives field reordering and ID reassignment. It **fails** if `page_name` 
 | MA account missing Create Pt Notes permission | `FatalException`: `"permission level does not allow Create Pt Notes"` | No retry — ops email only | ✅ Yes — practice admin fixes MA account in AMD |
 | Provider not found | `FatalException`: `"Provider not found."` | No retry — ops email only | ❌ No — ops/tech fixes setup |
 | Field value rejected | `FatalException`: `"Value is not valid"` | No retry — ops email only | ❌ No — ops fixes YAML |
+| `"add a new patient note"` error from AMD | `ManagedException` (`alert_policy="final_failure"`) | Retried; ops only emailed if retries are exhausted | ❌ No — resolves automatically unless retries exhaust |
 
 **No `push_errors` DB table exists today** — all failures go to ops email and CloudWatch only. Doctor is not notified in-app.
 
@@ -89,6 +90,7 @@ This survives field reordering and ID reassignment. It **fails** if `page_name` 
 
 | Location | Role |
 |---|---|
-| `internal_endpoints.py:3797` | Auto-populates `max_character_length` from AMD API |
-| `ehr_layer/advancedmd.py:1629` | `get_updated_ehr_mapping()` — auto-remap logic |
+| `internal_endpoints.py:4311` | Auto-populates `max_character_length` from AMD API |
+| `ehr_layer/advancedmd.py:1647` | `get_updated_ehr_mapping()` — auto-remap logic |
+| `ehr_layer/advancedmd.py:239` | `handle_push_note_failures()` — maps AMD error text to `FatalException`/`ManagedException`/`EhrTemplateChangeException` |
 | `ehr_layer/section_text_builder.py` | Reads `config` keys at push time |

@@ -73,8 +73,8 @@ ehr_field_name: "historySections"
 
 | What breaks it | How it fails | Visible to doctor? |
 |---|---|---|
-| Wrong `ehr_field_name` (not in the known 7-item list) | `FieldPushException` raised with field name in message → `FatalException` → ops email | No |
-| Chart locked by another user | `FieldPushException` with lock message → `FatalException` → ops email | No — currently ops email only; no in-app notification |
+| Wrong `ehr_field_name` (not in the known 7-item list) | Per-field failure caught and re-raised as `FieldPushException` after all fields are attempted → ops email | No |
+| Chart locked by another user | Raised directly as `FatalException` from `_extract_encounter_info()` (not via `FieldPushException` — this happens before the per-field loop even starts) with `alert_policy="never"` → **no ops email is sent** for this case | No — silent to both doctor and ops beyond the raised exception in logs |
 
 ---
 
@@ -82,8 +82,8 @@ ehr_field_name: "historySections"
 
 | Error | Exception | Behaviour | Doctor-actionable? |
 |---|---|---|---|
-| Field failed to save (wrong `ehr_field_name` or API rejection) | `FieldPushException` → `FatalException` | No retry — ops email | ✅ Yes — ops remaps the field |
-| Chart locked by another user | `FieldPushException` with lock message → `FatalException` | No retry — ops email | ✅ Yes — doctor exits chart in Veradigm, pushes again from note screen |
+| Field failed to save (wrong `ehr_field_name` or API rejection) | Each field is tried independently; any exception is logged and the first one is re-raised as `FieldPushException` after the loop finishes | No retry — ops email | ✅ Yes — ops remaps the field |
+| Chart locked by another user | `FatalException` raised directly from `_extract_encounter_info()` before any field is processed, with `alert_policy="never"` | No retry — **no ops email** (alert suppressed by design) | ✅ Yes — doctor exits chart in Veradigm, pushes again from note screen |
 
 **No `push_errors` DB table exists today** — all failures go to ops email and CloudWatch only. Doctor is not notified in-app.
 
@@ -93,7 +93,19 @@ ehr_field_name: "historySections"
 
 | Location | Role |
 |---|---|
-| `ehr_layer/veradigm.py:770` | `_process_field()` — reads `ehr_field_name`, calls `SaveXNote` |
-| `ehr_layer/veradigm.py:344` | `section_name_mapping` — maps `ehr_field_name` to Veradigm API action |
-| `ehr_layer/veradigm.py:810` | `_process_icd_codes()` — separate handler for `ICD` field |
+| `ehr_layer/veradigm.py:787` | `_process_field()` — reads `ehr_field_name`, calls `SaveXNote` |
+| `ehr_layer/veradigm.py:343` | `section_name_mapping` — maps `ehr_field_name` to Veradigm API action (`action = f"Save{push_section_name}Note"`) |
+| `ehr_layer/veradigm.py:843` | `_process_icd_codes()` — separate handler for `ICD` field |
 | `ehr_layer/section_text_builder.py` | Reads `config` keys at push time |
+
+---
+
+## Open questions — prototype / design (from Veradigm prototype checklist discussion)
+
+| Question | Context | Status |
+|---|---|---|
+| Which encounter does Marvix push into when one appointment has two encounters in Veradigm? | Marvix currently resolves the encounter via `GetEncounterByApptID` (`__get_encounter_or_create`, `veradigm.py:242`) keyed only on appointment ID — there's no code path that disambiguates between multiple encounters on the same appointment. If this happens, the push may land in the wrong encounter with no error (a valid `SaveXNote` call would still return `"Success"`). | Open — needs a decision on how Marvix identifies the correct encounter, and whether this is detectable at all before push |
+| Should section separator and subsection separator be split into two independently configurable settings? | Confirmed: this is going live. Today, both are the same single `config.separator` key (`section_text_builder.py:189` — one `.join()` call handles both multi-section-into-one-field joining and subsection joining). Splitting them is new backend work, not a UI-only change. | Open — confirm whether this ships as Veradigm-specific or becomes the general separator model across all EHRs |
+| Is "note push vs. document push" a per-practice setup choice, a per-template choice, or something a doctor could toggle per push? | No code implements a document-push mode today (see "How note push works" above — `save_note()` has one path). | Open |
+| Can a single template need both push modes simultaneously (some sections as structured note fields, others as an attached document), or are they mutually exclusive per template? | Same — no code precedent either way. | Open |
+| Who configures note-vs-document push at launch — ops only, or does the doctor get any say? | Same. | Open |
