@@ -55,11 +55,11 @@ Left nav's template list is searchable by name and EHR system.
 ### 1. Creating a new template (self-serve)
 
 1. **"+ Create template"**
-2. **Pick a starting point** — blank or a stencil (e.g. Cardiology Follow-up). Stencils have a **Preview** (read-only prompt + sample output) and pre-fill sections/prompts.
+2. **Pick a starting point** — blank or a stencil (e.g. Cardiology Follow-up). Stencils have a **Preview** — just the assembled sample note, read-only, nothing else — and pre-fill sections/prompts.
 3. **Describe it** — name, purpose note (ops-only), document type (Note/Letter).
 4. **Pick EHR template** — Cat 2 only (AMD, DrChrono, CharmHealth). Others skip — fixed field list.
 5. **Template-level settings** — separator, character limit, push subsections, retain headings, skip empty subsections, keep bullet points (AthenaOne). Optional, defaults pre-filled, editable later.
-6. **Review and create** → lands in editor with sections in place. Mapping/section settings happen after, not in this wizard.
+6. **Create template** → lands in editor with sections in place, no separate review step. Mapping/section settings happen after, not in this wizard.
 
 ### 2. Adding a new section
 

@@ -132,15 +132,13 @@ Opened via the row's toolbox icon, tooltip "Section settings" (renamed from "Out
 
 - "Create a template": title
 - "You'll configure sections and EHR mapping after creation": subtitle
-- Step labels: "Starting point", "Describe", "EHR template" (AMD, DrChrono, CharmHealth only), "Template settings", "Review"
+- Step labels: "Starting point", "Describe", "EHR template" (AMD, DrChrono, CharmHealth only), "Template settings" — last step, its Next button reads "Create template" (no separate Review step)
 
 **Step 1: Starting point**
 - "Start blank"
 - Stencil names (data.jsx): "Cardiology Follow-up", "Primary Care Visit", "Neurology Consultation", "General SOAP Note" (each also has a one-line description shown on its card)
-- "Preview": button. Preview overlay:
+- "Preview": button. Preview overlay — just the assembled sample note, one continuous document, nothing else (no per-section prompt view):
   - "← Back to templates": back link
-  - "Output (sample)" / "Prompt": column labels
-  - "Full note view": sub-section label
   - "✓ Selected" / "Use this template": confirm button, by state
 
 **Step 2: Describe**
@@ -153,14 +151,10 @@ Opened via the row's toolbox icon, tooltip "Section settings" (renamed from "Out
 - "No {ehrLabel} templates are set up for this practice yet, ask ops to add one."
 - "Search {ehrLabel} templates…"
 
-**Step 4: Template settings**
+**Step 4: Template settings** (last step)
 - "These apply once, to the whole template, not per section. You can change them later from the Template settings button in the header."
 - Same six fields as Section 5 below.
-
-**Step 5: Review**
-- Table rows: "Name", "Type", "EHR", "EHR template", "Starting point", "Template settings"
-- "Blank template" / "Unknown"
-- "After creation, you'll land in the template editor to configure sections and mappings."
+- "Create template": final button (replaces "Next" on the last step)
 
 ---
 

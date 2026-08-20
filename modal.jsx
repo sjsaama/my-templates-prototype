@@ -324,7 +324,8 @@ function TemplateGalleryStep({ selected, onSelect, onPreviewOpenChange, doctorSp
 
   const preview = previewId ? getPreviewData(previewId) : null;
 
-  // Flatten (with depth) for the "Full note view" — one continuous assembled document.
+  // Flatten (with depth) so the assembled note reads as one continuous document,
+  // sections in order, subsections nested — no per-section prompt/output split.
   const flattenWithDepth = (list, depth) => {
     let out = [];
     (list || []).forEach(s => {
@@ -333,21 +334,6 @@ function TemplateGalleryStep({ selected, onSelect, onPreviewOpenChange, doctorSp
     });
     return out;
   };
-
-  // Renders one column of the doc — either every prompt or every sample output, mirrored
-  // section-for-section so the two sides can be read side by side like Quick Look.
-  const renderDocColumn = (mode) => (list, depth = 0) =>
-    (list || []).map(s => (
-      <div key={s.id} className={"ql-doc-node" + (depth ? " ql-doc-node--sub" : "")}>
-        <div className="ql-doc-heading">{depth ? "↳ " : ""}{s.name.toUpperCase()}</div>
-        <div className="ql-doc-text">
-          {mode === "prompt"
-            ? (s.prompt || "(no prompt set)")
-            : (preview.sampleOutput[s.id] || "(no sample output configured for this section)")}
-        </div>
-        {s.children && s.children.length > 0 && renderDocColumn(mode)(s.children, depth + 1)}
-      </div>
-    ));
 
   if (preview) {
     const flat = flattenWithDepth(preview.sections, 0);
@@ -359,28 +345,13 @@ function TemplateGalleryStep({ selected, onSelect, onPreviewOpenChange, doctorSp
           <span className="gallery-preview-title">{preview.name}</span>
           {preview.specialty && <span className="gallery-card-tag">{preview.specialty}</span>}
         </div>
-        <div className="ql-columns">
-          <div className="ql-column">
-            <div className="ql-column-label">Output (sample)</div>
-            <div className="ql-column-scroll">
-              {renderDocColumn("output")(preview.sections)}
-              <div className="ql-fullnote">
-                <div className="ql-fullnote-label">Full note view</div>
-                {flat.map(s => (
-                  <div key={s.id} className="preview-section">
-                    <div className="preview-section-name">{s.name}</div>
-                    <div className="preview-section-text">{preview.sampleOutput[s.id] || "(no sample output configured for this section)"}</div>
-                  </div>
-                ))}
-              </div>
+        <div className="ql-column-scroll edit-template-doc">
+          {flat.map(s => (
+            <div key={s.id} className="preview-section">
+              <div className="preview-section-name">{s.depth ? "↳ " : ""}{s.name}</div>
+              <div className="preview-section-text">{preview.sampleOutput[s.id] || "(no sample output configured for this section)"}</div>
             </div>
-          </div>
-          <div className="ql-column">
-            <div className="ql-column-label">Prompt</div>
-            <div className="ql-column-scroll">
-              {renderDocColumn("prompt")(preview.sections)}
-            </div>
-          </div>
+          ))}
         </div>
         <div className="gallery-preview-foot">
           <button className="btn-teal" onClick={() => { onSelect(previewId); setPreviewId(null); }}>
@@ -470,11 +441,11 @@ function CreateTemplateModal({ ehr, doctorSpecialty, onClose, onCreate }) {
     ? ehrTemplateOptions.filter(t => t.name.toLowerCase().includes(ehrTplQueryTrimmed))
     : ehrTemplateOptions;
   const steps = needsEhrTemplate
-    ? ["gallery", "describe", "ehrTemplate", "templateSettings", "review"]
-    : ["gallery", "describe", "templateSettings", "review"];
+    ? ["gallery", "describe", "ehrTemplate", "templateSettings"]
+    : ["gallery", "describe", "templateSettings"];
   const totalSteps = steps.length;
   const stepKey = steps[step - 1];
-  const stepLabel = (n) => ({ gallery: "Starting point", describe: "Describe", ehrTemplate: "EHR template", templateSettings: "Template settings", review: "Review" }[steps[n - 1]]);
+  const stepLabel = (n) => ({ gallery: "Starting point", describe: "Describe", ehrTemplate: "EHR template", templateSettings: "Template settings" }[steps[n - 1]]);
 
   const step1Valid = true; // gallery always has a selection (blank by default)
   const step2Valid = !!name.trim(); // "What is this template for?" is optional
@@ -656,32 +627,6 @@ function CreateTemplateModal({ ehr, doctorSpecialty, onClose, onCreate }) {
                   <window.Toggle on={keepBulletPoints} onChange={setKeepBulletPoints} />
                 </div>
               )}
-            </div>
-          )}
-
-          {/* ── Review ── */}
-          {stepKey === "review" && (
-            <div className="create-step-body">
-              <table className="create-review-table">
-                <tbody>
-                  <tr><td>Name</td><td><strong>{name}</strong></td></tr>
-                  <tr><td>Type</td><td>{type}</td></tr>
-                  <tr><td>EHR</td><td>{ehrLabel}</td></tr>
-                  {needsEhrTemplate && (
-                    <tr><td>EHR template</td><td>{selectedEhrTemplate ? selectedEhrTemplate.name : "—"}</td></tr>
-                  )}
-                  <tr><td>Starting point</td><td>{
-                    gallerySelection === "__blank__" ? "Blank template" :
-                    ((window.STARTER_TEMPLATES || []).find(t => t.id === gallerySelection) || {}).name || "Unknown"
-                  }</td></tr>
-                  <tr><td>Template settings</td><td>
-                    {CT.separator.label} {JSON.stringify(separator)} · {CT.charLimit.label} {charLimit || "none"}{pushSubsectionsApplies ? ` · ${CT.pushSubsections.label} ${pushSubsections ? "on" : "off"}` : ""} · {CT.retainHeadings.label} {retainHeadings ? "on" : "off"} · {CT.skipEmptySubsections.label} {skipEmptySubsections ? "on" : "off"}{ehr === "AthenaOne" ? ` · ${CT.keepBulletPoints.label} ${keepBulletPoints ? "on" : "off"}` : ""}
-                  </td></tr>
-                </tbody>
-              </table>
-              <p className="create-review-hint">
-                {CW.reviewClosingLine}
-              </p>
             </div>
           )}
 

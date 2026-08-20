@@ -97,7 +97,6 @@ const COPY = {
     title: "Create a template",
     subtitle: "You'll configure sections and EHR mapping after creation",
     ehrTemplateStepHint: (ehrLabel) => `You can only map to templates ops has already set up in ${ehrLabel}. Picking one fetches its field list for the next step.`,
-    reviewClosingLine: "After creation, you'll land in the template editor to configure sections and mappings.",
   },
 
   // Template Settings modal, opened from the header button (modal.jsx)
