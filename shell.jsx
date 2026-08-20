@@ -12,11 +12,11 @@ function Logo() {
   );
 }
 
-function Sidebar() {
+function Sidebar({ activeView, onNavigate }) {
   const I = window.Icons;
   const items = [
-    { id: "home", label: "Home", icon: I.home },
-    { id: "macros", label: "Macros", icon: I.bolt, badge: true },
+    { id: "home", label: "Home", icon: I.home, view: "templates" },
+    { id: "macros", label: "Macros", icon: I.bolt, badge: true, view: "macros" },
     { id: "refer", label: "Refer", icon: I.refer },
     { id: "faq", label: "FAQ", icon: I.faq },
     { id: "settings", label: "Settings", icon: I.gear },
@@ -26,7 +26,10 @@ function Sidebar() {
       <div className="sidebar-logo"><Logo /></div>
       <div className="sidebar-items">
         {items.map((it) => (
-          <button key={it.id} className={"nav-item" + (it.active ? " nav-item--active" : "")}>
+          <button key={it.id}
+            className={"nav-item" + (it.view && it.view === activeView ? " nav-item--active" : "")}
+            onClick={it.view ? () => onNavigate(it.view) : undefined}
+          >
             <span className={"nav-ico" + (it.badge ? " nav-ico--badge" : "")}>
               <it.icon />
             </span>
@@ -38,7 +41,7 @@ function Sidebar() {
   );
 }
 
-function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate, onOpenSettings, onOpenTemplateSettings, collapsed, onToggle }) {
+function TemplateList({ groups, activeId, onSelect, onCreateTemplate, collapsed, onToggle }) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
 
@@ -67,9 +70,6 @@ function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate,
         <h1 className="tpl-title">My Templates</h1>
         <button className="btn-teal tpl-create" onClick={onCreateTemplate}>
           + Create template
-        </button>
-        <button className="btn-ghost tpl-request" onClick={onRequest}>
-          Request from ops
         </button>
         <div className="tpl-search-wrap">
           <span className="tpl-search-ico">
@@ -109,30 +109,100 @@ function TemplateList({ groups, activeId, onSelect, onRequest, onCreateTemplate,
                   <span className="tpl-item-text">
                     <span className="tpl-item-name-row">
                       <span className="tpl-item-name">{t.name}</span>
-                      <button
-                        className="tpl-item-settings"
-                        onClick={(e) => { e.stopPropagation(); onOpenTemplateSettings && onOpenTemplateSettings(t.id); }}
-                        title={"Template settings — " + t.name}
-                        aria-label={"Template settings for " + t.name}
-                      >
-                        <window.Icons.gear width={13} height={13} />
-                      </button>
                     </span>
-                    {t.derivative && <span className="tpl-item-derivative">({t.derivative})</span>}
+                    <span className="tpl-item-meta">
+                      {t.derivative && <span className="tpl-item-derivative">({t.derivative})</span>}
+                      {t.ehrSystem && <span className="tpl-item-ehr-tag">{t.ehrSystem}</span>}
+                    </span>
                   </span>
                 </div>
               ))}
             </div>
           ))}
         </div>
-        <div style={{ borderTop: "1px solid var(--border, #E7E7E9)", padding: "10px 20px", flexShrink: 0 }}>
-          <button className="btn-ghost tpl-request" style={{ margin: 0, width: "100%" }} onClick={onOpenSettings}>
-            <window.Icons.gear /> Push settings
-          </button>
-        </div>
       </div>
     </aside>
   );
 }
 
-Object.assign(window, { Sidebar, TemplateList });
+// ── Macros view — flat list of every macro used anywhere in the current
+// template, aggregated by name across sections. Supports a deep-link: set
+// deepLinkMacro to a macro name to scroll to and briefly highlight that row.
+function collectMacroUsages(sections, list) {
+  (sections || []).forEach((s) => {
+    (s.macros || []).forEach((m) => {
+      list.push({ macroName: m.name, sectionName: s.name });
+    });
+    if (s.children) collectMacroUsages(s.children, list);
+  });
+  return list;
+}
+
+function slugifyMacroName(name) {
+  return (name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+function MacrosView({ sections, templateName, deepLinkMacro, onDeepLinkHandled }) {
+  const { useEffect } = React;
+  const [highlighted, setHighlighted] = useState(null);
+
+  const usages = collectMacroUsages(sections, []);
+  const byName = {};
+  usages.forEach((u) => {
+    if (!byName[u.macroName]) byName[u.macroName] = { name: u.macroName, usages: [] };
+    byName[u.macroName].usages.push({ sectionName: u.sectionName });
+  });
+  const macros = Object.values(byName).sort((a, b) => a.name.localeCompare(b.name));
+
+  // Split in two: this effect only reacts to an incoming deep link. Calling
+  // onDeepLinkHandled() clears the parent's deepLinkMacro prop, which would
+  // re-run this same effect if the fade-out timeout lived here too — the
+  // cleanup from that re-run would cancel the timeout before it ever fires,
+  // leaving the highlight stuck forever. The fade-out lives in its own
+  // effect below, keyed on `highlighted` instead, so it's unaffected.
+  useEffect(() => {
+    if (!deepLinkMacro) return;
+    const el = document.getElementById("macro-" + slugifyMacroName(deepLinkMacro));
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlighted(deepLinkMacro);
+    onDeepLinkHandled && onDeepLinkHandled();
+  }, [deepLinkMacro]);
+
+  useEffect(() => {
+    if (!highlighted) return;
+    const t = setTimeout(() => setHighlighted(null), 2000);
+    return () => clearTimeout(t);
+  }, [highlighted]);
+
+  return (
+    <main className="macros-view">
+      <div className="macros-view-inner">
+        <h1 className="macros-view-title">Macros</h1>
+        <p className="macros-view-sub">
+          {templateName ? "Connected across " + templateName : "Connected across the current template"}
+        </p>
+        {macros.length === 0 ? (
+          <div className="macros-view-empty">No macros connected in this template yet.</div>
+        ) : (
+          <div className="macros-view-list">
+            {macros.map((m) => (
+              <div key={m.name} id={"macro-" + slugifyMacroName(m.name)}
+                className={"macros-view-card" + (highlighted === m.name ? " macros-view-card--highlight" : "")}>
+                <div className="macros-view-card-name">{m.name}</div>
+                <div className="macros-view-card-usages">
+                  {m.usages.map((u, i) => (
+                    <div key={i} className="macros-view-usage-row">
+                      <span>{u.sectionName}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
+
+Object.assign(window, { Sidebar, TemplateList, MacrosView });

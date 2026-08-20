@@ -1,25 +1,28 @@
 // data.jsx — template + section data for the My Templates editor
 // Exposed on window for the Babel-transpiled component scripts.
 
+// One self-serve + one managed template per EHR — enough to demo every EHR category's
+// behavior without maintaining a pile of near-duplicate templates per EHR.
 const TEMPLATES = [
   { id: "gen1", name: "Cardiology Visit", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Self-serve", selfServe: true, userCreated: true },
-  { id: "gen2", name: "Post-Op Follow Up", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Self-serve", selfServe: true, userCreated: true },
   { id: "gen3", name: "General 3", derivative: "Clinical Note", ehr: "AMD_General_Template", ehrSystem: "AMD", group: "Managed" },
-  { id: "first", name: "First Visit", derivative: "Clinical Note", ehr: "AMD_FirstVisit_Template", ehrSystem: "AMD", group: "Managed" },
-  { id: "follow", name: "Follow Up", derivative: "Clinical Note", ehr: "AMD_FollowUp_Template", ehrSystem: "AMD", group: "Managed" },
-  { id: "neuro", name: "Neurology Consultation", derivative: "Clinical Note", ehr: "AMD_Neuro_Template", ehrSystem: "AMD", group: "Managed" },
-  { id: "avs", name: "AVS", derivative: "After Visit Summary", ehr: "AMD_AVS_Template", ehrSystem: "AMD", group: "Managed" },
-  { id: "referral", name: "Referral Letter", derivative: "Letter", ehr: "AMD_Referral_Template", ehrSystem: "AMD", group: "Managed" },
-  { id: "leave", name: "Medical Leave Letter", derivative: "Letter", ehr: "AMD_Leave_Template", ehrSystem: "AMD", group: "Managed" },
-  { id: "ddx", name: "DDx (Beta)", derivative: "Clinical Note", ehr: "AMD_DDx_Template", ehrSystem: "AMD", group: "Managed" },
+  { id: "athenaSS", name: "Wellness Visit", derivative: "Clinical Note", ehr: "AthenaOne_OV", ehrSystem: "AthenaOne", group: "Self-serve", selfServe: true, userCreated: true },
   { id: "athena1", name: "Office Visit", derivative: "Clinical Note", ehr: "AthenaOne_OV", ehrSystem: "AthenaOne", group: "Managed" },
+  { id: "ecwSS", name: "Follow-up Visit", derivative: "Clinical Note", ehr: "ECW_Progress", ehrSystem: "eCW", group: "Self-serve", selfServe: true, userCreated: true },
   { id: "ecw1", name: "Progress Note", derivative: "Clinical Note", ehr: "ECW_Progress", ehrSystem: "eCW", group: "Managed" },
+  { id: "charmSS", name: "Initial Evaluation", derivative: "Clinical Note", ehr: "SOAP Note", ehrSystem: "Charm", group: "Self-serve", selfServe: true, userCreated: true },
   { id: "charm1", name: "SOAP Note", derivative: "Clinical Note", ehr: "SOAP Note", ehrSystem: "Charm", group: "Managed" },
+  { id: "drchronoSS", name: "New Patient Visit", derivative: "Clinical Note", ehr: "DrChrono_OV", ehrSystem: "DrChrono", group: "Self-serve", selfServe: true, userCreated: true },
   { id: "drchrono1", name: "Office Visit", derivative: "Clinical Note", ehr: "DrChrono_OV", ehrSystem: "DrChrono", group: "Managed" },
+  { id: "veradigmSS", name: "Annual Physical", derivative: "Clinical Note", ehr: "Veradigm_Progress", ehrSystem: "Veradigm", group: "Self-serve", selfServe: true, userCreated: true },
   { id: "veradigm1", name: "Progress Note", derivative: "Clinical Note", ehr: "Veradigm_Progress", ehrSystem: "Veradigm", group: "Managed" },
+  { id: "centricitySS", name: "Consultation Note", derivative: "Clinical Note", ehr: "Centricity_OV", ehrSystem: "Centricity", group: "Self-serve", selfServe: true, userCreated: true },
   { id: "centricity1", name: "Office Visit", derivative: "Clinical Note", ehr: "Centricity_OV", ehrSystem: "Centricity", group: "Managed" },
+  { id: "cernerSS", name: "Follow-up Note", derivative: "Clinical Note", ehr: "Cerner_OV", ehrSystem: "Cerner", group: "Self-serve", selfServe: true, userCreated: true },
   { id: "cerner1", name: "Office Visit", derivative: "Clinical Note", ehr: "Cerner_OV", ehrSystem: "Cerner", group: "Managed" },
+  { id: "neregSS", name: "Visit Note", derivative: "Clinical Note", ehr: "Nereg_Progress", ehrSystem: "Nereg", group: "Self-serve", selfServe: true, userCreated: true },
   { id: "nereg1", name: "Progress Note", derivative: "Clinical Note", ehr: "Nereg_Progress", ehrSystem: "Nereg", group: "Managed" },
+  { id: "modmedSS", name: "Office Visit", derivative: "Clinical Note", ehr: "ModMed_OV", ehrSystem: "ModMed", group: "Self-serve", selfServe: true, userCreated: true },
   { id: "modmed1", name: "Progress Note", derivative: "Clinical Note", ehr: "ModMed_OV", ehrSystem: "ModMed", group: "Managed" },
 ];
 
@@ -62,8 +65,8 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
       { name: "Symptom Duration Macro", mode: "Y/N Logic" },
     ],
     summarizers: [
-      { name: "HPI Chronological Summarizer", mode: "Replace" },
-      { name: "ROS Summarizer", mode: "Append" },
+      { name: "Previous note", mode: "Inform" },
+      { name: "Lab reports", mode: "Append" },
     ],
     staticStart: "Patient presents today with the following complaint:",
     staticEnd: "All findings reviewed with the patient.",
@@ -82,7 +85,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     config: "Prepend",
     enabled: true,
     macros: [{ name: "Example Macro", mode: "Y/N Logic" }],
-    summarizers: [{ name: "Example Summarizer", mode: "Append" }],
+    summarizers: [{ name: "Lab reports", mode: "Append" }],
     staticStart: "",
     staticEnd: "",
     expanded: true,
@@ -101,7 +104,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     config: "Append",
     enabled: true,
     macros: [{ name: "ROS Negatives Macro", mode: "Free Text" }],
-    summarizers: [{ name: "ROS Summarizer", mode: "Append" }],
+    summarizers: [{ name: "Lab reports", mode: "Append" }],
     staticStart: "",
     staticEnd: "",
     expanded: true,
@@ -261,7 +264,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     config: "Prepend",
     enabled: true,
     macros: [{ name: "Follow-up Macro", mode: "Y/N Logic" }],
-    summarizers: [{ name: "Plan Summarizer", mode: "Inform" }],
+    summarizers: [{ name: "Previous note", mode: "Inform" }],
     staticStart: "",
     staticEnd: "Return to clinic as scheduled or sooner if symptoms worsen.",
     expanded: false,
@@ -272,7 +275,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
 // Ensure every template section has a defaultNegative field (ghost sections excluded).
 function withDefaultNegatives(sections) {
   return sections.map((s) => {
-    const out = { ...s, detailsExpanded: !!s.detailsExpanded, promptOpen: !!s.promptOpen };
+    const out = { ...s, detailsExpanded: !!s.detailsExpanded };
     if (!s.ghost) {
       out.defaultNegative = s.defaultNegative != null ? s.defaultNegative : "";
       out.styleDetail   = s.styleDetail   || 'Standard';
@@ -319,21 +322,6 @@ function ehrFieldTotalCount(ehrSystem) {
   return groups.reduce((sum, g) => sum + (g.fields ? g.fields.length : 0), 0);
 }
 
-// Impact counts for disable confirmation (includes child sections).
-function sectionImpact(s) {
-  let macros = (s.macros || []).length;
-  let summarizers = (s.summarizers || []).length;
-  const walk = (list) => {
-    list.forEach((c) => {
-      macros += (c.macros || []).length;
-      summarizers += (c.summarizers || []).length;
-      if (c.children) walk(c.children);
-    });
-  };
-  if (s.children) walk(s.children);
-  return { macros, summarizers };
-}
-
 // AMD push detail: how content is inserted + static text position.
 function amdPushDetail(s) {
   const parts = [s.config || "—"];
@@ -348,27 +336,17 @@ const INITIAL_PENDING_REQUESTS = [
     id: "req_social",
     name: "Social History",
     description: "Capture tobacco, alcohol, occupation, and living situation for every visit.",
-    tplIds: ["gen1", "gen2", "gen3"],
+    tplIds: ["gen1", "gen3"],
     daysAgo: 2,
     status: "approved",
     ops_note: "",
     seenByDoctor: false,
   },
   {
-    id: "req_seizure",
-    name: "Seizure Frequency",
-    description: "Track seizure count, duration, and post-ictal state for epilepsy follow-ups.",
-    tplIds: ["neuro", "follow"],
-    daysAgo: 5,
-    status: "rejected",
-    ops_note: "This section already exists as a subsection under Neurology Consultation.",
-    seenByDoctor: false,
-  },
-  {
     id: "req_family",
     name: "Family History",
     description: "Document hereditary conditions and relevant family medical background.",
-    tplIds: ["gen1", "first"],
+    tplIds: ["gen1", "gen3"],
     daysAgo: 1,
     status: "pending",
     ops_note: "",
@@ -377,8 +355,6 @@ const INITIAL_PENDING_REQUESTS = [
 ];
 
 const CONFIG_OPTIONS = ["Prepend", "Append", "Replace"];
-const MACRO_MODES = ["Y/N Logic", "Free Text", "Lorem Ipsum"];
-const SUMMARIZER_MODES = ["Replace", "Append", "Prepend", "Inform"];
 
 // EHR field lists per system. AMD uses "Page > Field Name", eCW uses shortcut command names,
 // others use plain snake_case or display field names.
@@ -697,17 +673,19 @@ const ECW_SCRIBEIT_FIELDS = [
   ]},
 ];
 
-// Character limits for AMD EHR fields. Keyed by the AMD "Page > Field Name" string.
-const AMD_CHAR_LIMITS = {
-  "Office Visit > History of Present Illness": 2000,
-  "Office Visit > Review of Systems": 1500,
-  "Office Visit > Physical Exam": 3000,
-  "Office Visit > Assessment & Plan": 4000,
-  "Office Visit > Chief Complaint": 500,
-  "Office Visit > Past Medical History": 2000,
-  "Administrative > Patient Instructions": 1000,
-  "Administrative > Follow-up Instructions": 1000,
-};
+// Shortcut Commands whose name exactly matches a Main Push field — Scribe-it auto-attaches
+// for these (same category, no reason to make the doctor pick it twice). The remaining
+// Shortcut Commands (Vitals, Allergies, OB/GYN History, Preventive Medicine, etc.) have no
+// Main Push equivalent — those stay a real, independent, manual choice.
+const ECW_SCRIBEIT_AUTOMATCH = [
+  "Chief Complaints", "HPI", "ROS", "Examination", "Social History",
+  "Medical History", "Hospitalization", "Surgical History", "Family History", "Assessment",
+];
+
+function ecwScribeItAutoMatch(primaryField) {
+  if (!primaryField || primaryField.includes(" > ")) return ""; // subsections route via section_code, not a shortcut
+  return ECW_SCRIBEIT_AUTOMATCH.includes(primaryField) ? primaryField + ":" : "";
+}
 
 const SAMPLE_TRANSCRIPT = `Doctor: Good morning, Mrs. Chen. What brings you in today?
 Patient: Hi doctor. I've been having this chest tightness for about three days now. It's worse when I climb stairs.
@@ -740,13 +718,13 @@ const STARTER_TEMPLATES = [
     id: "starter_cardiology",
     name: "Cardiology Follow-up",
     specialty: "Cardiology",
-    description: "Standard follow-up note for cardiology patients. Covers cardiac exam, current medications, and plan.",
+    description: "Cardiology follow-up note — cardiac exam, medications, and plan.",
     sections: [
-      { id: "s_cc",   name: "Chief Complaint",              prompt: "Document the patient's chief complaint concisely in their own words." },
-      { id: "s_hpi",  name: "History of Present Illness",   prompt: "Narrative of the presenting illness including onset, duration, quality, and associated symptoms." },
-      { id: "s_ros",  name: "Review of Systems",            prompt: "Cardiovascular and relevant system review. Note positive and pertinent negative findings." },
-      { id: "s_exam", name: "Physical Exam",                prompt: "Vital signs, cardiac and pulmonary exam findings." },
-      { id: "s_ap",   name: "Assessment & Plan",            prompt: "List each problem with ICD-10 code and the corresponding plan, including medications, orders, and follow-up." },
+      { id: "s_cc",   name: "Chief Complaint",              prompt: "State the primary problem(s) the patient reported to the doctor, in the patient's own words where possible." },
+      { id: "s_hpi",  name: "History of Present Illness",   prompt: "Be thorough — do not miss any details about the patient's history. Describe the patient's cardiac symptoms, reason for visit, and diagnosis in full. Mention every problem discussed in the transcript without omission.\n\nList each cardiovascular condition or symptom the patient presents with (e.g. chest pain, palpitations, dyspnea, edema, syncope) and describe onset and duration, frequency and severity, impact on daily activities, and any triggers or exacerbating/relieving factors. Use quotation marks for the patient's exact words describing their symptoms. Note any interventions or prior treatments already tried, and specific dates or time periods for notable changes.\n\nInclude both positive and pertinent negative symptoms the patient reports, especially where the doctor asked about them directly. Mention prior treatments, prior diagnostics, and how the patient is currently managing their condition, including current medications, dosage, and how well they've been working. Include results of any health checkups the patient mentions. Summarize relevant social history — tobacco, alcohol, or drug use, occupation, marital status, and living situation — and any relevant family cardiac history.\n\nMention the patient's name and age. Note whether this is an initial visit or a follow-up, and if a follow-up, the date of the last visit if available. If the patient was referred by another physician, note that.\n\nThis section should only capture the patient's own description of their condition — do not include the doctor's assessment, diagnosis, differential diagnosis, treatment plan, ordered tests, advice, explanations, or instructions given to the patient. Avoid redundancy; be comprehensive without repeating the same fact twice." },
+      { id: "s_ros",  name: "Review of Systems",            prompt: "Only note what the patient reported when asked, not what the doctor observed on exam. Cover: Cardiovascular (chest pain, palpitations), Respiratory (cough, shortness of breath), General (weight change, fatigue, fever), GI (abdominal pain, nausea, vomiting), Musculoskeletal (joint or muscle pain, swelling), Neurological (dizziness, weakness, headaches), and Psychiatric (mood, sleep, anxiety) — as discussed. Include pertinent positives and negatives." },
+      { id: "s_exam", name: "Physical Exam",                prompt: "Only mention what the doctor observed or found on examination, not what the patient reported. Be concise and technical, using the terms an experienced doctor would use even if not stated verbatim in the transcript. Include vital signs, cardiac auscultation findings (rate, rhythm, murmurs, gallops, rubs), pulmonary findings (breath sounds, wheezing, rales), and extremities (edema, cyanosis, clubbing, pulses)." },
+      { id: "s_ap",   name: "Assessment & Plan",            prompt: "If there are multiple diagnoses or problems being managed, list each one followed by a one-paragraph summary of the discussion and a bullet list (using '-') of the plan to manage it. Capture the full discussion, including advice on treatment, procedures, and side-effect management. Include any referrals, and list all tests, labs, or imaging ordered for each problem. Note all new medications prescribed, medications continued, and medications discontinued. Write in the first person ('I'), and use technical, clinical language rather than the layman's terms the doctor may have used with the patient." },
     ],
     sampleOutput: {
       s_cc:   "Chest tightness × 3 days, exertional, worse with stair climbing.",
@@ -760,7 +738,7 @@ const STARTER_TEMPLATES = [
     id: "starter_primary_care",
     name: "Primary Care Visit",
     specialty: "Primary Care",
-    description: "General outpatient visit note for primary care. Suitable for follow-ups and chronic disease management.",
+    description: "Primary care visit note for follow-ups and chronic disease management.",
     sections: [
       { id: "s_cc",   name: "Chief Complaint",              prompt: "Brief statement of the reason for today's visit in the patient's own words." },
       { id: "s_hpi",  name: "History of Present Illness",   prompt: "Comprehensive narrative of the presenting concern including timeline, severity, and modifying factors." },
@@ -782,7 +760,7 @@ const STARTER_TEMPLATES = [
     id: "starter_neuro",
     name: "Neurology Consultation",
     specialty: "Neurology",
-    description: "New or follow-up neurology consult. Includes detailed neurological exam and differential diagnosis.",
+    description: "Neurology consult with neurological exam and differential diagnosis.",
     sections: [
       { id: "s_cc",   name: "Chief Complaint",              prompt: "Reason for neurology referral or visit in the patient's own words." },
       { id: "s_hpi",  name: "History of Present Illness",   prompt: "Detailed timeline of neurological symptoms including onset, progression, character, and associated symptoms." },
@@ -802,7 +780,7 @@ const STARTER_TEMPLATES = [
     id: "starter_soap",
     name: "General SOAP Note",
     specialty: "General",
-    description: "Standard SOAP format suitable for any specialty. Clean structure, no specialty-specific sections.",
+    description: "Generic SOAP note — no specialty-specific sections.",
     sections: [
       { id: "s_cc",   name: "Subjective",   prompt: "Patient's chief complaint, HPI, and relevant history in their own words and the clinician's summary." },
       { id: "s_exam", name: "Objective",    prompt: "Vital signs, physical exam findings, and relevant lab or imaging results reviewed today." },
@@ -849,28 +827,120 @@ function collectEnabledSections(sections) {
   return result;
 }
 
+// Doctor-facing labels for the template-level settings that "Save changes" versions alongside
+// sections — keep in sync with the fields TemplateSettingsModal actually edits.
+const TEMPLATE_SETTING_LABELS = {
+  separator: "Separator",
+  charLimit: "Character limit",
+  pushSubsections: "Push subsections",
+  retainHeadings: "Retain headings",
+  skipEmptySubsections: "Skip empty subsections",
+  keepBulletPoints: "Keep bullet points",
+};
+
+// Flattens a section tree (including disabled sections, unlike collectEnabledSections) into a
+// flat list, tagging each node with its parent's name so diff messages can say "subsection of X".
+function flattenSections(sections, parentName) {
+  const out = [];
+  (sections || []).forEach((s) => {
+    out.push({ ...s, parentName: parentName || null });
+    if (s.children) out.push(...flattenSections(s.children, s.name));
+  });
+  return out;
+}
+
+// True if any level of the tree has the same set of sibling ids in a different order —
+// reorders are reported once ("Reordered sections"), not per-section, since a drag can shift
+// several rows at once and per-row noise isn't useful in a changelog.
+function sectionOrderChanged(prevList, nextList) {
+  const idsOf = (list) => (list || []).map((s) => s.id);
+  const walk = (prev, next) => {
+    const prevIds = idsOf(prev);
+    const nextIdsShared = idsOf(next).filter((id) => prevIds.includes(id));
+    const prevIdsShared = prevIds.filter((id) => nextIdsShared.includes(id));
+    if (JSON.stringify(prevIdsShared) !== JSON.stringify(nextIdsShared)) return true;
+    for (const p of prev || []) {
+      const match = (next || []).find((n) => n.id === p.id);
+      if (match && sectionOrderChanged(p.children, match.children)) return true;
+    }
+    return false;
+  };
+  return walk(prevList, nextList);
+}
+
+// Computes a human-readable "what changed" summary between two saved snapshots (section tree +
+// template settings), used by the version history list and to back up the restore confirmation's
+// claims about what restoring will actually change. Diffs by section `id`, which is stable within
+// a single prototype session — the real backend equivalent needs `section_uuid` stability before
+// a diff like this is safe to build (see docs/BACKEND.md, Phase 2).
+function summarizeVersionChanges(prev, next) {
+  const changes = [];
+  const prevById = {};
+  flattenSections(prev.sections).forEach((s) => { prevById[s.id] = s; });
+  const nextFlat = flattenSections(next.sections);
+  const nextIds = new Set(nextFlat.map((s) => s.id));
+
+  // Section-level changes collapse to just the section's name — no field-by-field detail —
+  // since a section can be touched several different ways in one save and the log only needs
+  // to say which sections were edited, not how. Template-level settings, connections between
+  // saves, and reordering aren't tied to one section, so those keep their own descriptive lines.
+  nextFlat.forEach((s) => {
+    const before = prevById[s.id];
+    if (!before) { changes.push(`Added "${s.name}"`); return; }
+    const edited =
+      before.name !== s.name ||
+      !!before.enabled !== !!s.enabled ||
+      (before.ehr || "") !== (s.ehr || "") ||
+      (before.config || "") !== (s.config || "") ||
+      (before.mappingMode || "whole") !== (s.mappingMode || "whole") ||
+      (before.stylePrompt || "") !== (s.stylePrompt || "") ||
+      JSON.stringify(before.fillSegments || []) !== JSON.stringify(s.fillSegments || []) ||
+      (before.staticStart || "") !== (s.staticStart || "") ||
+      (before.staticEnd || "") !== (s.staticEnd || "") ||
+      (before.defaultNegative || "") !== (s.defaultNegative || "") ||
+      JSON.stringify(before.macros || []) !== JSON.stringify(s.macros || []) ||
+      JSON.stringify(before.summarizers || []) !== JSON.stringify(s.summarizers || []);
+    if (edited) changes.push(`Edited "${s.name}"`);
+  });
+
+  Object.keys(prevById).forEach((id) => {
+    if (!nextIds.has(id)) changes.push(`Removed "${prevById[id].name}"`);
+  });
+
+  if (sectionOrderChanged(prev.sections, next.sections)) changes.push("Reordered sections");
+
+  const prevSettings = prev.templateSettings || {};
+  const nextSettings = next.templateSettings || {};
+  Object.keys(TEMPLATE_SETTING_LABELS).forEach((key) => {
+    if ((prevSettings[key] ?? "") !== (nextSettings[key] ?? "")) {
+      changes.push(`Changed ${TEMPLATE_SETTING_LABELS[key]}`);
+    }
+  });
+
+  return changes;
+}
+
 Object.assign(window, {
   TEMPLATES,
   groupsFor,
   ECW_SCRIBEIT_FIELDS,
+  ECW_SCRIBEIT_AUTOMATCH,
+  ecwScribeItAutoMatch,
   EHR_FIELD_LABELS,
   EHR_FIELD_HINTS,
   makeSections,
   INITIAL_PENDING_REQUESTS,
-  sectionImpact,
   amdPushDetail,
   CONFIG_OPTIONS,
-  MACRO_MODES,
-  SUMMARIZER_MODES,
   EHR_FIELDS,
   EHR_FIELDS_BY_SYSTEM,
   EHR_CATEGORY,
-  AMD_CHAR_LIMITS,
   EHR_TEMPLATES_BY_SYSTEM,
   SAMPLE_TRANSCRIPT,
   SAMPLE_OUTPUT,
   STARTER_TEMPLATES,
   collectEnabledSections,
+  summarizeVersionChanges,
   DEFAULT_TEMPLATE_SETTINGS,
   formatVersionDate,
 });

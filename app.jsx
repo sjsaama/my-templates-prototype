@@ -40,10 +40,15 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "density": "regular",
   "showAdvancedInline": true,
   "monoMapping": true,
-  "ehr": "AMD",
   "errorScenario": "none",
-  "dualMappingDemo": "none"
+  "dualMappingDemo": "none",
+  "doctorSpecialty": "Neurology"
 }/*EDITMODE-END*/;
+
+// Doctor's own specialty — narrows the "Create a template" starting-point gallery to the
+// stencil(s) relevant to them plus the specialty-agnostic ones, instead of showing every
+// specialty's starter to every doctor.
+const DOCTOR_SPECIALTY_OPTIONS = ["Cardiology", "Primary Care", "Neurology"];
 
 const ERROR_SCENARIOS = {
   none: [],
@@ -80,10 +85,6 @@ const ERROR_SCENARIOS = {
 };
 
 
-// Athena (legacy), ECW FHIR, and Greenway are out of scope for this version — not push-capable
-// integrations in active use. See engineering_docs/ehr_mapping/README.md.
-const EHR_OPTIONS = ["AMD", "AthenaOne", "eCW", "Charm", "DrChrono", "Veradigm", "Centricity", "Cerner", "Nereg", "ModMed", "Tebra"];
-
 function mapSectionTree(list, id, fn) {
   return list.map((s) => {
     if (s.id === id) return fn(s);
@@ -91,21 +92,29 @@ function mapSectionTree(list, id, fn) {
     return { ...s, children: mapSectionTree(s.children, id, fn) };
   });
 }
-function findSection(sections, id) {
-  for (const s of sections) {
-    if (s.id === id) return s;
+function removeSectionFromTree(list, id) {
+  return list
+    .filter((s) => s.id !== id)
+    .map((s) => (s.children ? { ...s, children: removeSectionFromTree(s.children, id) } : s));
+}
+function findSectionByName(list, name) {
+  for (const s of list) {
+    if (s.name === name) return s;
     if (s.children) {
-      const hit = findSection(s.children, id);
+      const hit = findSectionByName(s.children, name);
       if (hit) return hit;
     }
   }
   return null;
 }
 
-function removeSectionFromTree(list, id) {
-  return list
-    .filter((s) => s.id !== id)
-    .map((s) => (s.children ? { ...s, children: removeSectionFromTree(s.children, id) } : s));
+// Dev-only: reads state overrides from the URL so a specific UI state (active template,
+// error scenario, a forced duplicate-field mapping, an auto-opened settings panel) can be
+// reached in one navigation instead of several manual steps.
+// See devserver.py / README for the param list. Never touched by the real app flow.
+function getUrlOverrides() {
+  if (typeof window === "undefined" || !window.location) return {};
+  return Object.fromEntries(new URLSearchParams(window.location.search).entries());
 }
 
 function EditorEmpty() {
@@ -122,10 +131,17 @@ function Toast({ msg }) {
 }
 
 function App() {
-  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [urlOverrides] = useStateA(getUrlOverrides);
+  const [t] = useTweaks({
+    ...TWEAK_DEFAULTS,
+    ...(urlOverrides.errorScenario && { errorScenario: urlOverrides.errorScenario }),
+    ...(urlOverrides.dualMapping && { dualMappingDemo: urlOverrides.dualMapping }),
+  });
   const [templates, setTemplates] = useStateA(window.TEMPLATES);
+  const [activeView, setActiveView] = useStateA("templates"); // "templates" | "macros"
+  const [macroDeepLink, setMacroDeepLink] = useStateA(null); // macro name to scroll to + highlight on the Macros view
   const [createTemplateOpen, setCreateTemplateOpen] = useStateA(false);
-  const [activeTpl, setActiveTpl] = useStateA("gen3");
+  const [activeTpl, setActiveTpl] = useStateA(() => urlOverrides.tpl || "gen3");
   const [sectionRequestOpen, setSectionRequestOpen] = useStateA(false);
   const [pendingRequests, setPendingRequests] = useStateA(() =>
     window.INITIAL_PENDING_REQUESTS.map((r) => ({ ...r }))
@@ -133,7 +149,6 @@ function App() {
   const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
   const [versionsByTpl, setVersionsByTpl] = useStateA({}); // { [tplId]: [{id, timestamp, sections, label?}] }, newest first
   const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
-  const [disableTarget, setDisableTarget] = useStateA(null);
   const [toast, setToast] = useStateA("");
   const [navCollapsed, setNavCollapsed] = useStateA(false);
   const [versionHistoryOpen, setVersionHistoryOpen] = useStateA(false);
@@ -145,19 +160,14 @@ function App() {
   const [remapTarget, setRemapTarget] = useStateA(null);
   const [previewOpen, setPreviewOpen] = useStateA(false);
   const [addSectionOpen, setAddSectionOpen] = useStateA(null); // { parentId: string|null } | null
-  const [settingsOpen, setSettingsOpen] = useStateA(false);
   const [templateSettingsFor, setTemplateSettingsFor] = useStateA(null); // template id | null
 
   const tpl = activeTpl ? templates.find((x) => x.id === activeTpl) : null;
-  // The Tweaks "EHR system" control is a manual override for demo purposes, but switching
-  // templates should default the mapping picker etc. to that template's *real* EHR — otherwise
-  // every template looks like whatever EHR was last selected in Tweaks, not its own actual one.
-  useEffectA(() => {
-    if (tpl && tpl.ehrSystem && tpl.ehrSystem !== t.ehr) setTweak("ehr", tpl.ehrSystem);
-  }, [activeTpl]);
-  const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[t.ehr]) || {};
+  // Every EHR has its own dedicated self-serve + managed template now, so the active
+  // template's own ehrSystem *is* the current EHR — no separate override needed.
+  const currentEhr = tpl ? tpl.ehrSystem : "AMD";
+  const ehrCat = (window.EHR_CATEGORY && window.EHR_CATEGORY[currentEhr]) || {};
   const unseenCount = pendingRequests.filter(r => !r.seenByDoctor && r.status !== "pending").length;
-  const pendingCount = pendingRequests.length;
   const groups = window.groupsFor(templates);
   const sections = activeTpl
     ? (sectionsByTpl[activeTpl] || (sectionsByTpl[activeTpl] = window.makeSections()))
@@ -171,7 +181,9 @@ function App() {
       id: "v_" + Date.now().toString(36),
       timestamp: new Date(),
       sections: JSON.parse(JSON.stringify(sections)),
+      templateSettings: JSON.parse(JSON.stringify(tpl.templateSettings || window.DEFAULT_TEMPLATE_SETTINGS)),
       label: "Original",
+      changes: [],
     }];
   }
   const versions = activeTpl ? (versionsByTpl[activeTpl] || []) : [];
@@ -186,33 +198,52 @@ function App() {
   const applyToggle = (id, v) => setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, enabled: v })));
 
   const handlers = {
-    onToggle: (id, v) => {
-      if (v) { applyToggle(id, true); return; }
-      const sec = findSection(sections, id);
-      if (!sec) return;
-      const impact = window.sectionImpact(sec);
-      if (impact.macros > 0 || impact.summarizers > 0) setDisableTarget({ id, section: sec, impact });
-      else applyToggle(id, false);
-    },
+    onToggle: (id, v) => applyToggle(id, v),
     onExpand: (id) => setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, expanded: !s.expanded }))),
     onToggleDetails: (id) =>
       setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, detailsExpanded: !s.detailsExpanded }))),
     onReorder: (dragId, targetId, pos) =>
       setSections((arr) => reorderSections(arr, dragId, targetId, pos)),
-    onRemap: (id, ehr, scribeIt) =>
-      setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, ehr, scribeIt: scribeIt !== undefined ? scribeIt : s.scribeIt }))),
+    // Scribe-it (eCW only) auto-attaches to the matching shortcut command whenever the
+    // primary field changes, unless the doctor already picked one explicitly (scribeItManual).
+    onRemap: (id, ehrVal) =>
+      setSections((arr) => mapSectionTree(arr, id, (s) => {
+        const next = { ...s, ehr: ehrVal };
+        if (currentEhr === "eCW" && !s.scribeItManual) next.scribeIt = window.ecwScribeItAutoMatch(ehrVal);
+        return next;
+      })),
+    onSetScribeIt: (id, value) =>
+      setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, scribeIt: value, scribeItManual: true }))),
+    onResetScribeItAuto: (id) =>
+      setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, scribeIt: window.ecwScribeItAutoMatch(s.ehr), scribeItManual: false }))),
     onSetMappingMode: (id, mode) =>
       setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, mappingMode: mode }))),
     onUpdate: (id, fields) =>
       setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, ...fields }))),
-    onTogglePrompt: (id) =>
-      setSections((arr) => mapSectionTree(arr, id, (s) => ({ ...s, promptOpen: !s.promptOpen }))),
     onDeleteSection: (id) => {
       setSections((arr) => removeSectionFromTree(arr, id));
-      flash("Section deleted");
+      flash(window.COPY.toasts.sectionDeleted);
     },
     onAddSection: (parentId) => setAddSectionOpen({ parentId }),
   };
+
+  // Dev-only: apply forceSharedMapping / openSettings URL overrides once, after this
+  // template's sections have been seeded above. Lets a specific mapping/settings state
+  // be reached by URL instead of manually remapping fields or clicking through panels.
+  useEffectA(() => {
+    if (urlOverrides.forceSharedMapping) {
+      const [nameA, nameB] = urlOverrides.forceSharedMapping.split(",").map((s) => s.trim());
+      const secA = findSectionByName(sections, nameA);
+      const secB = nameB ? findSectionByName(sections, nameB) : null;
+      if (secA && secB && secA.ehr) {
+        setSections((arr) => mapSectionTree(arr, secB.id, (s) => ({ ...s, ehr: secA.ehr })));
+      }
+    }
+    if (urlOverrides.openSettings) {
+      const sec = findSectionByName(sections, urlOverrides.openSettings);
+      if (sec) setSections((arr) => mapSectionTree(arr, sec.id, (s) => ({ ...s, detailsExpanded: true })));
+    }
+  }, []);
 
   const handleCreateSection = (data) => {
     if (!addSectionOpen) return;
@@ -229,14 +260,17 @@ function App() {
       staticEnd: "",
       expanded: false,
       detailsExpanded: false,
-      promptOpen: false,
-      additionalPlacement: data.additionalPlacement || "before",
-      additionalText: data.additionalText || "",
+      additionalTextBefore: data.additionalTextBefore || "",
+      additionalTextAfter: data.additionalTextAfter || "",
       defaultNegative: data.defaultNegative || "",
       styleDetail: "Standard",
       styleFormat: "Prose",
       stylePrompt: data.prompt,
-      otherDerivative: null,
+      otherDerivative: data.sectionType === "derivative" ? data.otherDerivative : null,
+      sectionType: data.sectionType || "open",
+      allowedValues: data.sectionType === "restricted" ? (data.allowedValues || []) : undefined,
+      fillSegments: data.sectionType === "fillup" ? (data.fillSegments || []) : undefined,
+      ehrValueMap: {},
     };
     const insertAt = (list) => {
       const arr = list || [];
@@ -255,7 +289,7 @@ function App() {
       setSections((arr) => insertAt(arr));
     }
     setAddSectionOpen(null);
-    flash("Section added");
+    flash(window.COPY.toasts.sectionAdded);
   };
 
   const handleCreateTemplate = (data) => {
@@ -265,7 +299,7 @@ function App() {
       name: data.name,
       derivative: data.type,
       ehr: data.ehrTemplateName || "",
-      ehrSystem: t ? t.ehr : "",
+      ehrSystem: currentEhr,
       group: "Self-serve",
       selfServe: true,
       userCreated: true,
@@ -280,7 +314,7 @@ function App() {
     setSectionsByTpl(m => ({ ...m, [newId]: baseSections }));
     setActiveTpl(newId);
     setCreateTemplateOpen(false);
-    flash("Template created — configure your sections and EHR mapping below");
+    flash(window.COPY.toasts.templateCreated);
   };
 
   const selectTpl = (id) => {
@@ -307,32 +341,52 @@ function App() {
       },
     ]);
     setSectionRequestOpen(false);
-    flash("Section request sent — ops will review");
+    flash(window.COPY.toasts.sectionRequestSent);
   };
 
   const densityVars = window.densityStyle(t.density, t.accent);
-  const isLocalDev =
-    typeof location !== 'undefined' &&
-    (location.hostname === 'localhost' ||
-      location.hostname === '127.0.0.1' ||
-      location.protocol === 'file:');
+
+  // ── Add Section availability — varies by EHR category ──
+  const isCat1 = ehrCat.cat === 1;
+  const isCat2 = ehrCat.cat === 2;
+  // Only count fields actually in *this* EHR's field list — sections mapped under a
+  // previously-selected EHR (or seeded demo data) shouldn't count against a different EHR's cap.
+  const ehrCounts = {};
+  const walkEhrCounts = (list) => {
+    for (const s of list) {
+      if (!s.ghost && s.ehr) ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
+      if (s.children) walkEhrCounts(s.children);
+    }
+  };
+  walkEhrCounts(sections);
+  const validFieldSet = new Set(
+    ((window.EHR_FIELDS_BY_SYSTEM && window.EHR_FIELDS_BY_SYSTEM[currentEhr]) || []).flatMap((g) => g.fields)
+  );
+  const usedFieldCount = Object.keys(ehrCounts).filter((f) => validFieldSet.has(f)).length;
+  const totalFieldCount = window.ehrFieldTotalCount ? window.ehrFieldTotalCount(currentEhr) : 0;
+  const capReached = (isCat1 || isCat2) && (totalFieldCount === 0 || usedFieldCount >= totalFieldCount);
+
+  let addDisabledReason = "";
+  if (capReached && ehrCat.fieldsPending) addDisabledReason = (ehrCat.label || currentEhr) + "'s field list isn't confirmed yet — check with ops";
+  else if (capReached) addDisabledReason = "All available " + (ehrCat.label || currentEhr) + " fields are already used";
 
   return (
     <div className="app" style={densityVars}>
-      {isLocalDev && (
-        <div className="dev-ribbon" role="status">
-          Local preview — use <strong>Tweaks</strong> (bottom-right) → Row density &amp; Accent. Hard-refresh if styles look stale (⌘⇧R).
-        </div>
-      )}
-      <window.Sidebar />
+      <window.Sidebar activeView={activeView} onNavigate={setActiveView} />
+      {activeView === "macros" ? (
+        <window.MacrosView
+          sections={sections}
+          templateName={tpl ? tpl.name : ""}
+          deepLinkMacro={macroDeepLink}
+          onDeepLinkHandled={() => setMacroDeepLink(null)}
+        />
+      ) : (
+      <>
       <window.TemplateList
         groups={groups}
         activeId={activeTpl}
         onSelect={selectTpl}
-        onRequest={() => flash("Request from ops → Style Transfer")}
         onCreateTemplate={() => setCreateTemplateOpen(true)}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onOpenTemplateSettings={(id) => setTemplateSettingsFor(id)}
         collapsed={navCollapsed}
         onToggle={() => setNavCollapsed((c) => !c)}
       />
@@ -346,40 +400,57 @@ function App() {
               <header className="ed-head">
                 <div className="ed-head-left">
                   <h2 className="ed-title">{tpl.name}</h2>
-                  <div className="ed-meta">
-                    {tpl.derivative && <span className="ed-meta-tag">{tpl.derivative}</span>}
-                    {tpl.ehrSystem && <span className="ed-meta-tag">{tpl.ehrSystem}</span>}
-                  </div>
                 </div>
                 <div className="ed-head-right">
-                  <button className="btn-ghost btn-sm" onClick={() => setPreviewOpen(true)}>Preview output</button>
-                  <button className="btn-ghost btn-sm" onClick={() => setVersionHistoryOpen(true)}>Version history</button>
+                  {tpl.userCreated && (
+                    <button
+                      type="button"
+                      className="btn-outline btn-sm add-section-btn"
+                      disabled={!!addDisabledReason}
+                      title={addDisabledReason || undefined}
+                      onClick={() => handlers.onAddSection(null)}
+                    >
+                      + Add section
+                    </button>
+                  )}
+                  {tpl.userCreated && (
+                    <button type="button" className="btn-ghost btn-sm btn-icon" onClick={() => setPreviewOpen(true)} title="Edit template" aria-label="Edit template">
+                      <window.Icons.pencil />
+                    </button>
+                  )}
+                  <button type="button" className="btn-ghost btn-sm btn-icon" onClick={() => setTemplateSettingsFor(activeTpl)} title="Template settings" aria-label="Template settings">
+                    <window.Icons.gear width={15} height={15} />
+                  </button>
+                  <button type="button" className="btn-ghost btn-sm btn-icon" onClick={() => setVersionHistoryOpen(true)} title="Version history" aria-label="Version history">
+                    <window.Icons.history />
+                  </button>
+                  {tpl.group === "Managed" && (
+                    <button type="button" className="btn-ghost btn-sm btn-icon" onClick={() => {
+                      setSectionRequestOpen(true);
+                      setPendingRequests(arr => arr.map(r => ({ ...r, seenByDoctor: true })));
+                    }} title="Request new section" aria-label="Request new section">
+                      <window.Icons.send />
+                      {unseenCount > 0 && (
+                        <span className="btn-badge-count" aria-label={unseenCount + " updates"}>{unseenCount}</span>
+                      )}
+                    </button>
+                  )}
                   <button className="btn-teal btn-sm" onClick={() => {
+                    const nextSnapshot = {
+                      sections: JSON.parse(JSON.stringify(sections)),
+                      templateSettings: JSON.parse(JSON.stringify(tpl.templateSettings || window.DEFAULT_TEMPLATE_SETTINGS)),
+                    };
+                    const prevSnapshot = versions[0] || { sections: [], templateSettings: {} };
+                    const changes = window.summarizeVersionChanges(prevSnapshot, nextSnapshot);
                     setVersionsByTpl(m => ({
                       ...m,
                       [activeTpl]: [
-                        { id: "v_" + Date.now().toString(36), timestamp: new Date(), sections: JSON.parse(JSON.stringify(sections)) },
+                        { id: "v_" + Date.now().toString(36), timestamp: new Date(), ...nextSnapshot, changes },
                         ...(m[activeTpl] || []),
                       ],
                     }));
-                    flash("Changes saved — version recorded");
+                    flash(window.COPY.toasts.changesSaved);
                   }}>Save changes</button>
-                  {tpl.userCreated && (
-                    <button className="btn-outline btn-outline--req" onClick={() => {
-                      setSectionRequestOpen(true);
-                      setPendingRequests(arr => arr.map(r => ({ ...r, seenByDoctor: true })));
-                    }}>
-                      {unseenCount > 0 && (
-                        <span className="btn-outline-badge" aria-label={unseenCount + " updates"}>{unseenCount}</span>
-                      )}
-                      <span className="btn-outline-main">Request New Section</span>
-                      {unseenCount > 0
-                        ? <span className="btn-outline-sub btn-outline-sub--coral">{unseenCount} update{unseenCount === 1 ? "" : "s"}</span>
-                        : pendingCount > 0
-                        ? <span className="btn-outline-sub">{pendingCount} request{pendingCount === 1 ? "" : "s"}</span>
-                        : <span className="btn-outline-sub">Add a section to any template</span>}
-                    </button>
-                  )}
                 </div>
               </header>
               {/* Cat 4 — no push integration notice */}
@@ -387,7 +458,7 @@ function App() {
                 <div className="cat4-notice">
                   <span className="cat4-notice-icon">ℹ</span>
                   <span className="cat4-notice-text">
-                    <strong>{ehrCat.label}</strong> doesn't have a push integration — notes are copied manually after each visit. Section mapping isn't needed, but you can still configure content and style.
+                    <strong>{ehrCat.label}</strong> {window.COPY.banners.noPushSuffix}
                   </span>
                 </div>
               )}
@@ -428,7 +499,9 @@ function App() {
 
               <window.SectionTable
                 sections={sections}
-                ehr={t.ehr}
+                ehr={currentEhr}
+                templateSettings={tpl.templateSettings || window.DEFAULT_TEMPLATE_SETTINGS}
+                onNavigateToMacro={(name) => { setActiveView("macros"); setMacroDeepLink(name); }}
                 ehrTemplateName={tpl.ehr}
                 pushIssues={pushIssues}
                 dualMappingDemo={t.dualMappingDemo}
@@ -437,19 +510,21 @@ function App() {
                 onToggle={handlers.onToggle}
                 onExpand={handlers.onExpand}
                 onToggleDetails={handlers.onToggleDetails}
-                onTogglePrompt={handlers.onTogglePrompt}
                 onDeleteSection={handlers.onDeleteSection}
                 onReorder={handlers.onReorder}
                 onRemap={handlers.onRemap}
+                onSetScribeIt={handlers.onSetScribeIt}
+                onResetScribeItAuto={handlers.onResetScribeItAuto}
                 onSetMappingMode={handlers.onSetMappingMode}
                 onUpdate={handlers.onUpdate}
-                onAddSection={tpl.userCreated ? handlers.onAddSection : null}
                 canEditPrompt={!!tpl.userCreated}
               />
             </>
           )}
         </div>
       </main>
+      </>
+      )}
 
       {versionHistoryOpen && (
         <window.VersionHistoryModal
@@ -470,42 +545,38 @@ function App() {
           onConfirm={() => {
             const snapshot = restoreTarget;
             setSections(() => JSON.parse(JSON.stringify(snapshot.sections)));
+            if (snapshot.templateSettings) {
+              setTemplates(arr => arr.map(x => x.id === activeTpl
+                ? { ...x, templateSettings: JSON.parse(JSON.stringify(snapshot.templateSettings)) }
+                : x));
+            }
             setRestoreTarget(null);
-            flash("Restored version from " + window.formatVersionDate(snapshot.timestamp));
+            flash(window.COPY.toasts.versionRestored(window.formatVersionDate(snapshot.timestamp)));
           }}
         >
-          <p className="confirm-lead">Your current unsaved changes will be replaced with this version. This doesn't delete any version — you can always come back for the one you're on now if you save it first.</p>
+          <p className="confirm-lead">{window.COPY.versionHistory.restoreConfirmBody}</p>
           <ul className="confirm-list confirm-list--warn">
-            <li>EHR mappings will match this version</li>
-            <li>Section order will match this version</li>
-            <li>Output settings will match this version</li>
+            {window.COPY.versionHistory.restoreWarnings.map((w, i) => <li key={i}>{w}</li>)}
           </ul>
         </window.ConfirmModal>
-      )}
-
-      {disableTarget && (
-        <window.DisableConfirmModal
-          section={disableTarget.section}
-          impact={disableTarget.impact}
-          onClose={() => setDisableTarget(null)}
-          onConfirm={() => { applyToggle(disableTarget.id, false); setDisableTarget(null); }}
-        />
       )}
 
       {previewOpen && (
         <window.PreviewModal
           sections={sections}
           tpl={tpl}
-          onUpdatePrompt={(id, stylePrompt) => handlers.onUpdate(id, { stylePrompt })}
+          ehr={currentEhr}
+          templateSettings={tpl.templateSettings || window.DEFAULT_TEMPLATE_SETTINGS}
+          onUpdateSection={handlers.onUpdate}
+          canEditPrompt={!!tpl.userCreated}
           onClose={() => setPreviewOpen(false)}
         />
       )}
 
       {createTemplateOpen && (
         <window.CreateTemplateModal
-          ehr={t.ehr}
-          templates={templates}
-          sectionsByTpl={sectionsByTpl}
+          ehr={currentEhr}
+          doctorSpecialty={t.doctorSpecialty}
           onClose={() => setCreateTemplateOpen(false)}
           onCreate={handleCreateTemplate}
         />
@@ -513,7 +584,7 @@ function App() {
 
       {sectionRequestOpen && (
         <window.RequestNewSectionModal
-          templates={templates}
+          templates={templates.filter((t) => t.group === "Managed")}
           activeTplId={activeTpl}
           pending={pendingRequests}
           onClose={() => setSectionRequestOpen(false)}
@@ -530,10 +601,6 @@ function App() {
         />
       )}
 
-      {settingsOpen && (
-        <window.SettingsModal onClose={() => setSettingsOpen(false)} />
-      )}
-
       {templateSettingsFor && (
         <window.TemplateSettingsModal
           template={templates.find((x) => x.id === templateSettingsFor)}
@@ -547,29 +614,6 @@ function App() {
       )}
 
       <Toast msg={toast} />
-
-      <TweaksPanel>
-        <TweakSection label="Theme" />
-        <TweakColor label="Accent" value={t.accent}
-          options={["#747AF7", "#4F46E5", "#11C9C9", "#0EA5A6", "#E0723C"]}
-          onChange={(v) => setTweak("accent", v)} />
-        <TweakSection label="Layout" />
-        <TweakRadio label="Row density" value={t.density}
-          options={["compact", "regular", "comfy"]}
-          onChange={(v) => setTweak("density", v)} />
-        <TweakSection label="EHR" />
-        <TweakSelect label="EHR system" value={t.ehr}
-          options={EHR_OPTIONS}
-          onChange={(v) => setTweak("ehr", v)} />
-        <TweakSection label="Simulate push error" />
-        <TweakSelect label="Error scenario" value={t.errorScenario}
-          options={["none","athena_checkin","athena_section","athena_transient","athena_auth","amd_template_changed","amd_too_long","amd_no_permission","veradigm_chart","veradigm_locked"]}
-          onChange={(v) => setTweak("errorScenario", v)} />
-        <TweakSection label="Advanced mapping demos" />
-        <TweakSelect label="Dual field mapping" value={t.dualMappingDemo}
-          options={["none","one_to_two","amd_checkbox"]}
-          onChange={(v) => setTweak("dualMappingDemo", v)} />
-      </TweaksPanel>
     </div>
   );
 }

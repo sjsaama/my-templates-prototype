@@ -1,95 +1,5 @@
-// modal.jsx — Connections & Static Text editor
+// modal.jsx
 const { useState: useStateM, useEffect: useEffectM } = React;
-
-function ConnList({ title, icon, items, modes, onChangeMode, onRemove, accent }) {
-  const I = window.Icons;
-  const Ico = icon === "bolt" ? I.bolt : I.list;
-  return (
-    <div className="cl">
-      <div className="cl-head">
-        <span className={"cl-ico cl-ico--" + accent}><Ico /></span>
-        {title}
-        <span className={"cl-count cl-count--" + accent}>{items.length}</span>
-      </div>
-      <div className="cl-box">
-        {items.length === 0 && <div className="cl-empty">Nothing connected yet.</div>}
-        {items.map((it, i) => (
-          <div className="cl-item" key={i}>
-            <span className="cl-name">{it.name}</span>
-            <div className="cl-right">
-              <select className="cl-mode" value={it.mode} onChange={(e) => onChangeMode(i, e.target.value)}>
-                {modes.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
-              <button className="cl-x" onClick={() => onRemove(i)} title="Remove">{I.trash({ width: 15, height: 15 })}</button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ConnectionsModal({ section, onClose, onSave }) {
-  const I = window.Icons;
-  const [macros, setMacros] = useStateM(() => section.macros.map((m) => ({ ...m })));
-  const [sums, setSums] = useStateM(() => section.summarizers.map((m) => ({ ...m })));
-  const [startTxt, setStartTxt] = useStateM(section.staticStart || "");
-  const [endTxt, setEndTxt] = useStateM(section.staticEnd || "");
-
-  useEffectM(() => {
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  const upd = (setter) => (i, mode) => setter((arr) => arr.map((x, j) => (j === i ? { ...x, mode } : x)));
-  const rm = (setter) => (i) => setter((arr) => arr.filter((_, j) => j !== i));
-
-  return (
-    <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" role="dialog" aria-modal="true">
-        <div className="modal-head">
-          <h2>Connections &amp; Static Text</h2>
-          <span className="modal-sub">{section.name}{section.static ? " · Static section" : ""}</span>
-          <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
-        </div>
-
-        <div className="modal-body">
-          <div className="modal-grid">
-            <ConnList title="Connected Macros" icon="bolt" accent="purple"
-              items={macros} modes={window.MACRO_MODES}
-              onChangeMode={upd(setMacros)} onRemove={rm(setMacros)} />
-            <ConnList title="Connected Summarizers" icon="list" accent="teal"
-              items={sums} modes={window.SUMMARIZER_MODES}
-              onChangeMode={upd(setSums)} onRemove={rm(setSums)} />
-          </div>
-
-          <div className="static-block">
-            <div className="static-title">Static Text</div>
-            <p className="static-hint">Fixed text inserted around this section. The model never rewrites it.</p>
-            <div className="static-field">
-              <label>At the beginning of section</label>
-              <textarea value={startTxt} onChange={(e) => setStartTxt(e.target.value)}
-                placeholder="Starting static text (pre-literal)…" rows={3} />
-            </div>
-            <div className="static-field">
-              <label>At the end of section</label>
-              <textarea value={endTxt} onChange={(e) => setEndTxt(e.target.value)}
-                placeholder="Ending static text (post-literal)…" rows={3} />
-            </div>
-          </div>
-        </div>
-
-        <div className="modal-foot">
-          <button className="btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn-teal" onClick={() => onSave({ macros, summarizers: sums, staticStart: startTxt, staticEnd: endTxt })}>
-            Save Changes
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function ConfirmModal({ title, subtitle, children, confirmLabel, onConfirm, onClose, danger }) {
   const I = window.Icons;
@@ -119,18 +29,22 @@ function ConfirmModal({ title, subtitle, children, confirmLabel, onConfirm, onCl
 // ── Version History Modal — restore to any saved version, not just an ops default ─────────
 function VersionHistoryModal({ versions, templateName, onClose, onRestore }) {
   const I = window.Icons;
+  const CVH = window.COPY.versionHistory;
+  const [expanded, setExpanded] = useStateM({}); // { [versionId]: true } — which rows show all changes
   useEffectM(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const CHANGE_PREVIEW_COUNT = 3;
+
   return (
     <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal modal--confirm" role="dialog" aria-modal="true">
         <div className="modal-head">
-          <h2>Version history</h2>
-          <span className="modal-sub">{templateName} — restore to any saved version, not just the original</span>
+          <h2>{CVH.title}</h2>
+          <span className="modal-sub">{CVH.subtitle(templateName)}</span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
         <div className="modal-body">
@@ -138,53 +52,60 @@ function VersionHistoryModal({ versions, templateName, onClose, onRestore }) {
             <div className="mapping-picker-empty">No versions saved yet.</div>
           ) : (
             <div className="version-list">
-              {versions.map((v, i) => (
-                <div key={v.id} className="version-row">
-                  <div className="version-row-info">
-                    <span className="version-row-date">{window.formatVersionDate(v.timestamp)}</span>
-                    {v.label && <span className="version-row-tag">{v.label}</span>}
-                    {i === 0 && !v.label && <span className="version-row-tag version-row-tag--current">Most recent save</span>}
+              {versions.map((v, i) => {
+                const changes = v.changes || [];
+                const isExpanded = !!expanded[v.id];
+                const shown = isExpanded ? changes : changes.slice(0, CHANGE_PREVIEW_COUNT);
+                const hiddenCount = changes.length - shown.length;
+                return (
+                  <div key={v.id} className="version-row">
+                    <div className="version-row-top">
+                      <div className="version-row-info">
+                        <span className="version-row-date">{window.formatVersionDate(v.timestamp)}</span>
+                        {v.label && <span className="version-row-tag">{v.label}</span>}
+                        {i === 0 && !v.label && <span className="version-row-tag version-row-tag--current">Most recent save</span>}
+                      </div>
+                      <button className="btn-ghost btn-sm" onClick={() => onRestore(v)}>Restore</button>
+                    </div>
+                    {v.label === "Original" ? (
+                      <div className="version-row-changes-empty">Template created</div>
+                    ) : changes.length === 0 ? (
+                      <div className="version-row-changes-empty">No changes detected since the previous save</div>
+                    ) : (
+                      <ul className="version-row-changes">
+                        {shown.map((c, ci) => <li key={ci}>{c}</li>)}
+                        {hiddenCount > 0 && (
+                          <li>
+                            <button
+                              type="button"
+                              className="version-row-more-btn"
+                              onClick={() => setExpanded(e => ({ ...e, [v.id]: true }))}
+                            >
+                              +{hiddenCount} more
+                            </button>
+                          </li>
+                        )}
+                        {isExpanded && changes.length > CHANGE_PREVIEW_COUNT && (
+                          <li>
+                            <button
+                              type="button"
+                              className="version-row-more-btn"
+                              onClick={() => setExpanded(e => ({ ...e, [v.id]: false }))}
+                            >
+                              Show less
+                            </button>
+                          </li>
+                        )}
+                      </ul>
+                    )}
                   </div>
-                  <button className="btn-ghost btn-sm" onClick={() => onRestore(v)}>Restore</button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
         <div className="modal-foot">
           <button className="btn-ghost" onClick={onClose}>Close</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DisableConfirmModal({ section, impact, onConfirm, onClose }) {
-  const I = window.Icons;
-  let msg = "This section will be hidden from generated notes for this template. Do you want to continue?";
-  if (impact.macros > 0) {
-    msg = "Disabling this section will also disable the " + impact.macros + " macro" + (impact.macros === 1 ? "" : "s") + " linked to it. Do you want to continue?";
-  } else if (impact.summarizers > 0) {
-    msg = "This section is affected by " + impact.summarizers + " summarizer" + (impact.summarizers === 1 ? "" : "s") + " — that content will no longer appear. Do you want to continue?";
-  }
-  useEffectM(() => {
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-  return (
-    <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal modal--disable" role="dialog" aria-modal="true">
-        <div className="modal-head">
-          <h2>Disable Section</h2>
-          <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
-        </div>
-        <div className="modal-body confirm-body">
-          <p className="confirm-lead">{msg}</p>
-        </div>
-        <div className="modal-foot modal-foot--split">
-          <button className="btn-outline-danger" onClick={onClose}>No, Cancel</button>
-          <button className="btn-teal btn-teal--warn" onClick={onConfirm}>Yes, Disable</button>
         </div>
       </div>
     </div>
@@ -208,6 +129,8 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
     const ids = templates.map((t) => t.id);
     return activeTplId && ids.includes(activeTplId) ? [activeTplId] : ids.slice(0, 1);
   });
+  const [tplPickerOpen, setTplPickerOpen] = useStateM(false);
+  const [tplQuery, setTplQuery] = useStateM("");
 
   useEffectM(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -215,9 +138,12 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const groups = window.groupsFor(templates);
   const toggleTpl = (id) =>
     setTplIds((arr) => (arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]));
+  const tplQueryTrimmed = tplQuery.trim().toLowerCase();
+  const filteredTemplates = tplQueryTrimmed
+    ? templates.filter((t) => t.name.toLowerCase().includes(tplQueryTrimmed))
+    : templates;
 
   const send = () => {
     if (!name.trim() || !desc.trim() || !ehr.trim()) return;
@@ -270,21 +196,66 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
 
           <div className="req-apply">
             <div className="req-apply-title">Add to templates</div>
-            <div className="req-apply-cols">
-              {groups.map((g) => (
-                <div className="req-apply-group" key={g.label}>
-                  <div className="req-apply-label">{g.label}</div>
-                  <div className="req-checks">
-                    {g.templates.map((t) => (
-                      <label className="req-check" key={t.id}>
-                        <input type="checkbox" checked={tplIds.includes(t.id)} onChange={() => toggleTpl(t.id)} />
-                        {t.name}
-                      </label>
-                    ))}
+            <div className="tpl-multiselect">
+              <button type="button" className="tpl-multiselect-trigger" onClick={() => setTplPickerOpen((o) => !o)}>
+                <span className="tpl-multiselect-summary">
+                  {tplIds.length === 0 ? "Select templates…" : tplIds.length + " template" + (tplIds.length === 1 ? "" : "s") + " selected"}
+                </span>
+                <span className="tpl-multiselect-caret">{tplPickerOpen ? "▲" : "▼"}</span>
+              </button>
+              {tplPickerOpen && (
+                <>
+                  <div className="tpl-multiselect-scrim" onClick={() => setTplPickerOpen(false)} />
+                  <div className="tpl-multiselect-menu">
+                    <div className="tpl-search-wrap" style={{ margin: "8px" }}>
+                      <span className="tpl-search-ico">
+                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                          <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.4"/>
+                          <path d="M8.5 8.5L11.5 11.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                        </svg>
+                      </span>
+                      <input
+                        className="tpl-search"
+                        type="search"
+                        placeholder="Search templates…"
+                        value={tplQuery}
+                        onChange={(e) => setTplQuery(e.target.value)}
+                        aria-label="Search templates"
+                      />
+                      {tplQueryTrimmed && (
+                        <button className="tpl-search-clear" onClick={() => setTplQuery("")} aria-label="Clear search">✕</button>
+                      )}
+                    </div>
+                    <div className="tpl-multiselect-list">
+                      {filteredTemplates.length === 0 ? (
+                        <div className="tpl-no-results" style={{ padding: "12px 16px" }}>No templates match "{tplQuery}"</div>
+                      ) : (
+                        filteredTemplates.map((t) => (
+                          <label className="tpl-multiselect-item" key={t.id}>
+                            <input type="checkbox" checked={tplIds.includes(t.id)} onChange={() => toggleTpl(t.id)} />
+                            {t.name}
+                          </label>
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                </>
+              )}
             </div>
+            {tplIds.length > 0 && (
+              <div className="tpl-multiselect-chips">
+                {tplIds.map((id) => {
+                  const t = templates.find((x) => x.id === id);
+                  if (!t) return null;
+                  return (
+                    <span className="tpl-chip" key={id}>
+                      {t.name}
+                      <button type="button" onClick={() => toggleTpl(id)} aria-label={"Remove " + t.name}>✕</button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="req-foot-row">
@@ -324,23 +295,30 @@ function RequestNewSectionModal({ templates, activeTplId, pending, onClose, onSu
   );
 }
 
-const DERIVATIVE_OPTIONS = ["Clinical Note", "After Visit Summary", "Letter", "Other"];
+const DERIVATIVE_OPTIONS = ["Clinical Note", "Letter"];
 
 // ── Template Gallery Step ─────────────────────────────────────────────────
-function TemplateGalleryStep({ templates, sectionsByTpl, selected, onSelect, onPreviewOpenChange }) {
+function TemplateGalleryStep({ selected, onSelect, onPreviewOpenChange, doctorSpecialty }) {
   const [previewId, setPreviewId] = useStateM(null);
-  const starters = window.STARTER_TEMPLATES || [];
+  const allStarters = window.STARTER_TEMPLATES || [];
+  // Only surface stencils relevant to this doctor: their own specialty, plus the
+  // specialty-agnostic ones (no `specialty`, or "General") — not every specialty's starter.
+  const starters = doctorSpecialty
+    ? allStarters.filter(t => !t.specialty || t.specialty === "General" || t.specialty === doctorSpecialty)
+    : allStarters;
 
   useEffectM(() => { onPreviewOpenChange && onPreviewOpenChange(!!previewId); }, [previewId]);
+
+  useEffectM(() => {
+    if (!previewId) return;
+    const onKey = (e) => { if (e.key === "Escape") setPreviewId(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [previewId]);
 
   const getPreviewData = (id) => {
     const starter = starters.find(t => t.id === id);
     if (starter) return { name: starter.name, specialty: starter.specialty, sections: starter.sections, sampleOutput: starter.sampleOutput };
-    const myTpl = (templates || []).find(t => t.id === id);
-    if (myTpl) {
-      const secs = (sectionsByTpl || {})[id] || [];
-      return { name: myTpl.name, specialty: myTpl.derivative || "", sections: secs, sampleOutput: window.SAMPLE_OUTPUT || {} };
-    }
     return null;
   };
 
@@ -374,7 +352,8 @@ function TemplateGalleryStep({ templates, sectionsByTpl, selected, onSelect, onP
   if (preview) {
     const flat = flattenWithDepth(preview.sections, 0);
     return (
-      <div className="gallery-preview-full ql-preview">
+      <div className="stencil-preview-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) setPreviewId(null); }}>
+      <div className="stencil-preview-page ql-preview" role="dialog" aria-modal="true">
         <button className="gallery-preview-back" onClick={() => setPreviewId(null)}>← Back to templates</button>
         <div className="gallery-preview-meta">
           <span className="gallery-preview-title">{preview.name}</span>
@@ -409,6 +388,7 @@ function TemplateGalleryStep({ templates, sectionsByTpl, selected, onSelect, onP
           </button>
         </div>
       </div>
+      </div>
     );
   }
 
@@ -428,48 +408,26 @@ function TemplateGalleryStep({ templates, sectionsByTpl, selected, onSelect, onP
           <div key={t.id} className={"gallery-card" + (selected === t.id ? " gallery-card--on" : "")}
             onClick={() => onSelect(t.id)}>
             <div className="gallery-card-body">
-              {t.sections.slice(0, 4).map(s => (
-                <div key={s.id} className="gallery-mini-section">
-                  <div className="gallery-mini-heading">{s.name}</div>
-                  <div className="gallery-mini-text">{(t.sampleOutput[s.id] || s.prompt || "").slice(0, 80)}{(t.sampleOutput[s.id] || "").length > 80 ? "…" : ""}</div>
-                </div>
-              ))}
-              {t.sections.length > 4 && <div className="gallery-mini-more">+{t.sections.length - 4} more</div>}
+              <div className="gallery-card-name">{t.name}</div>
+              <div className="gallery-card-desc">{t.description || "No description available."}</div>
             </div>
             <div className="gallery-card-footer">
-              <span className="gallery-card-name">{t.name}</span>
-              {t.specialty && <span className="gallery-card-tag">{t.specialty}</span>}
               <button className="gallery-preview-btn" onClick={e => { e.stopPropagation(); setPreviewId(t.id); }}>Preview</button>
             </div>
           </div>
         ))}
       </div>
-
-      {templates && templates.length > 0 && (
-        <div className="gallery-mytpls">
-          <div className="gallery-section-label">Or copy from my templates</div>
-          <div className="gallery-my-list">
-            {templates.map(t => (
-              <div key={t.id} className={"gallery-my-item" + (selected === t.id ? " gallery-my-item--on" : "")}
-                onClick={() => onSelect(t.id)}>
-                <span className="gallery-my-name">{t.name}</span>
-                <span className="gallery-my-tag">{t.derivative}</span>
-                <button className="gallery-preview-btn" onClick={e => { e.stopPropagation(); setPreviewId(t.id); }}>Preview</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate }) {
+function CreateTemplateModal({ ehr, doctorSpecialty, onClose, onCreate }) {
   const I = window.Icons;
+  const CW = window.COPY.wizard;
+  const CT = window.COPY.templateSettings;
   const [step, setStep] = useStateM(1);
   const [gallerySelection, setGallerySelection] = useStateM("__blank__");
   const [name, setName] = useStateM("");
-  const [desc, setDesc] = useStateM("");
   const [type, setType] = useStateM("Clinical Note");
   const [ehrTemplateId, setEhrTemplateId] = useStateM("");
   const [separator, setSeparator] = useStateM("\\n");
@@ -478,20 +436,20 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
   const [skipEmptySubsections, setSkipEmptySubsections] = useStateM(false);
   const [keepBulletPoints, setKeepBulletPoints] = useStateM(true);
   const [charLimit, setCharLimit] = useStateM("");
+
   const [galleryPreviewOpen, setGalleryPreviewOpen] = useStateM(false);
 
   useEffectM(() => {
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e) => { if (e.key === "Escape" && !galleryPreviewOpen) onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [galleryPreviewOpen]);
 
-  // Pre-fill name/desc/type when a starter is selected
+  // Pre-fill name/type when a starter is selected
   useEffectM(() => {
     const starter = (window.STARTER_TEMPLATES || []).find(t => t.id === gallerySelection);
     if (starter) {
       if (!name) setName(starter.name);
-      if (!desc) setDesc(starter.description);
     }
   }, [gallerySelection]);
 
@@ -500,7 +458,17 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
   // Cat 2 only — doctor must pick which of their EHR's note templates this maps to before
   // fields can be fetched. Cat 1 (fixed list) and Cat 3/4 (no doctor-facing mapping) skip this.
   const needsEhrTemplate = ehrCat && ehrCat.cat === 2;
+  // Cat 1/2 EHRs already let a doctor choose "As one" vs "Each separately" per section — Push
+  // subsections would be a second, silently-overriding control for the same decision there.
+  // Only meaningful where no such per-section choice exists but content still auto-routes
+  // per section under the hood (Centricity today).
+  const pushSubsectionsApplies = !!(ehrCat && ehrCat.autoRoutedPerSection);
   const ehrTemplateOptions = (window.EHR_TEMPLATES_BY_SYSTEM || {})[ehr] || [];
+  const [ehrTplQuery, setEhrTplQuery] = useStateM("");
+  const ehrTplQueryTrimmed = ehrTplQuery.trim().toLowerCase();
+  const filteredEhrTemplateOptions = ehrTplQueryTrimmed
+    ? ehrTemplateOptions.filter(t => t.name.toLowerCase().includes(ehrTplQueryTrimmed))
+    : ehrTemplateOptions;
   const steps = needsEhrTemplate
     ? ["gallery", "describe", "ehrTemplate", "templateSettings", "review"]
     : ["gallery", "describe", "templateSettings", "review"];
@@ -518,7 +486,6 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
   const handleCreate = () => {
     onCreate({
       name: name.trim(),
-      description: desc.trim(),
       type,
       copyFromId,
       ehrTemplateName: selectedEhrTemplate ? selectedEhrTemplate.name : undefined,
@@ -528,11 +495,11 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
 
   return (
     <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={"modal modal--create-tpl" + (galleryPreviewOpen ? " modal--create-tpl-wide" : "")} role="dialog" aria-modal="true">
+      <div className="modal modal--create-tpl" role="dialog" aria-modal="true">
 
         <div className="modal-head">
-          <h2>Create a template</h2>
-          <span className="modal-sub">You'll configure sections and EHR mapping after creation</span>
+          <h2>{CW.title}</h2>
+          <span className="modal-sub">{CW.subtitle}</span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
 
@@ -551,11 +518,10 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
           {/* ── Gallery ── */}
           {stepKey === "gallery" && (
             <TemplateGalleryStep
-              templates={templates}
-              sectionsByTpl={sectionsByTpl}
               selected={gallerySelection}
               onSelect={setGallerySelection}
               onPreviewOpenChange={setGalleryPreviewOpen}
+              doctorSpecialty={doctorSpecialty}
             />
           )}
 
@@ -567,13 +533,6 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
                 <input className="req-input" value={name} autoFocus
                   onChange={e => setName(e.target.value)}
                   placeholder="e.g. Cardiology Follow-up" />
-              </div>
-              <div className="req-field">
-                <label>What is this template for? <span className="req-optional">optional</span></label>
-                <textarea className="req-input req-textarea" value={desc} rows={3}
-                  onChange={e => setDesc(e.target.value)}
-                  placeholder="Describe the visit type, specialty, or patient population this template should cover…" />
-                <div className="adv-field-hint">Helps ops review and onboard the template correctly — for internal clarity only, no AI is used.</div>
               </div>
               <div className="req-field">
                 <label>Document type</label>
@@ -596,21 +555,46 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
               <div className="req-field">
                 <label>Which {ehrLabel} template does this map to?</label>
                 <div className="adv-field-hint" style={{ marginBottom: 10 }}>
-                  You can only map to templates ops has already set up in {ehrLabel} — Marvix fetches this template's field list once you pick one, and you'll map sections to those fields next.
+                  {CW.ehrTemplateStepHint(ehrLabel)}
                 </div>
                 {ehrTemplateOptions.length === 0 ? (
                   <div className="mapping-picker-empty">No {ehrLabel} templates are set up for this practice yet — ask ops to add one.</div>
                 ) : (
-                  <div className="ehr-tpl-list">
-                    {ehrTemplateOptions.map(t => (
-                      <button key={t.id} type="button"
-                        className={"ehr-tpl-option" + (ehrTemplateId === t.id ? " ehr-tpl-option--selected" : "")}
-                        onClick={() => setEhrTemplateId(t.id)}>
-                        <span className="ehr-tpl-option-name">{t.name}</span>
-                        {ehrTemplateId === t.id && <span className="ehr-tpl-option-check"><I.check /></span>}
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <div className="tpl-search-wrap" style={{ margin: "0 0 12px" }}>
+                      <span className="tpl-search-ico">
+                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                          <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.4"/>
+                          <path d="M8.5 8.5L11.5 11.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                        </svg>
+                      </span>
+                      <input
+                        className="tpl-search"
+                        type="search"
+                        placeholder={`Search ${ehrLabel} templates…`}
+                        value={ehrTplQuery}
+                        onChange={(e) => setEhrTplQuery(e.target.value)}
+                        aria-label={`Search ${ehrLabel} templates`}
+                      />
+                      {ehrTplQueryTrimmed && (
+                        <button className="tpl-search-clear" onClick={() => setEhrTplQuery("")} aria-label="Clear search">✕</button>
+                      )}
+                    </div>
+                    {filteredEhrTemplateOptions.length === 0 ? (
+                      <div className="tpl-no-results" style={{ padding: "12px 0" }}>No {ehrLabel} templates match "{ehrTplQuery}"</div>
+                    ) : (
+                      <div className="ehr-tpl-list">
+                        {filteredEhrTemplateOptions.map(t => (
+                          <button key={t.id} type="button"
+                            className={"ehr-tpl-option" + (ehrTemplateId === t.id ? " ehr-tpl-option--selected" : "")}
+                            onClick={() => setEhrTemplateId(t.id)}>
+                            <span className="ehr-tpl-option-name">{t.name}</span>
+                            {ehrTemplateId === t.id && <span className="ehr-tpl-option-check"><I.check /></span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -620,48 +604,54 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
           {stepKey === "templateSettings" && (
             <div className="create-step-body">
               <div className="adv-field-hint" style={{ marginBottom: 14 }}>
-                These apply once, to the whole template — not per section. You can change them later from the gear icon next to this template in the left nav.
+                {CT.wizardIntro}
               </div>
               <div className="req-field">
-                <label>Separator</label>
+                <div className="field-label-row">
+                  <label>{CT.separator.label}</label>
+                  <window.InfoTip text={CT.separator.info} />
+                </div>
                 <input className="req-input" value={separator}
                   onChange={e => setSeparator(e.target.value)}
-                  placeholder="e.g. \n" />
-                <div className="adv-field-hint">Joins text when multiple sections map to one EHR field.</div>
+                  placeholder={CT.separator.placeholder} />
               </div>
               <div className="req-field">
-                <label>Character limit</label>
+                <div className="field-label-row">
+                  <label>{CT.charLimit.label}</label>
+                  <window.InfoTip text={CT.charLimit.info} />
+                </div>
                 <input className="req-input" type="number" min="0" value={charLimit}
                   onChange={e => setCharLimit(e.target.value)}
-                  placeholder="No limit" />
-                <div className="adv-field-hint">Truncates a section's text to this length before pushing, to avoid the EHR rejecting an over-length push. Leave blank for no limit.</div>
+                  placeholder={CT.charLimit.placeholder} />
               </div>
-              <div className="tpl-setting-toggle-row">
-                <div>
-                  <div className="tpl-setting-toggle-name">Push subsections</div>
-                  <div className="adv-field-hint">Include subsection content when pushing the parent section.</div>
+              {pushSubsectionsApplies && (
+                <div className="tpl-setting-toggle-row">
+                  <div className="tpl-setting-toggle-name">
+                    {CT.pushSubsections.label}
+                    <window.InfoTip text={CT.pushSubsections.info(ehrLabel)} />
+                  </div>
+                  <window.Toggle on={pushSubsections} onChange={setPushSubsections} />
                 </div>
-                <window.Toggle on={pushSubsections} onChange={setPushSubsections} />
-              </div>
+              )}
               <div className="tpl-setting-toggle-row">
-                <div>
-                  <div className="tpl-setting-toggle-name">Retain headings</div>
-                  <div className="adv-field-hint">Keep section/subsection headings in the pushed content.</div>
+                <div className="tpl-setting-toggle-name">
+                  {CT.retainHeadings.label}
+                  <window.InfoTip text={CT.retainHeadings.info} />
                 </div>
                 <window.Toggle on={retainHeadings} onChange={setRetainHeadings} />
               </div>
               <div className="tpl-setting-toggle-row">
-                <div>
-                  <div className="tpl-setting-toggle-name">Skip empty subsections</div>
-                  <div className="adv-field-hint">Omit subsections with no generated content instead of pushing an empty heading.</div>
+                <div className="tpl-setting-toggle-name">
+                  {CT.skipEmptySubsections.label}
+                  <window.InfoTip text={CT.skipEmptySubsections.info} />
                 </div>
                 <window.Toggle on={skipEmptySubsections} onChange={setSkipEmptySubsections} />
               </div>
               {ehr === "AthenaOne" && (
                 <div className="tpl-setting-toggle-row">
-                  <div>
-                    <div className="tpl-setting-toggle-name">Keep bullet points</div>
-                    <div className="adv-field-hint">AthenaOne-only — preserve bullet formatting on push to Assessment/Plan.</div>
+                  <div className="tpl-setting-toggle-name">
+                    {CT.keepBulletPoints.label}
+                    <window.InfoTip text={CT.keepBulletPoints.info} />
                   </div>
                   <window.Toggle on={keepBulletPoints} onChange={setKeepBulletPoints} />
                 </div>
@@ -672,29 +662,25 @@ function CreateTemplateModal({ ehr, templates, sectionsByTpl, onClose, onCreate 
           {/* ── Review ── */}
           {stepKey === "review" && (
             <div className="create-step-body">
-              <div className="create-review-notice">
-                <p className="create-review-lead">Review your template before creating.</p>
-              </div>
               <table className="create-review-table">
                 <tbody>
                   <tr><td>Name</td><td><strong>{name}</strong></td></tr>
                   <tr><td>Type</td><td>{type}</td></tr>
-                  {desc && <tr><td>Purpose</td><td>{desc}</td></tr>}
                   <tr><td>EHR</td><td>{ehrLabel}</td></tr>
                   {needsEhrTemplate && (
                     <tr><td>EHR template</td><td>{selectedEhrTemplate ? selectedEhrTemplate.name : "—"}</td></tr>
                   )}
                   <tr><td>Starting point</td><td>{
                     gallerySelection === "__blank__" ? "Blank template" :
-                    ((window.STARTER_TEMPLATES || []).find(t => t.id === gallerySelection) || (templates || []).find(t => t.id === gallerySelection) || {}).name || "Unknown"
+                    ((window.STARTER_TEMPLATES || []).find(t => t.id === gallerySelection) || {}).name || "Unknown"
                   }</td></tr>
                   <tr><td>Template settings</td><td>
-                    Separator {JSON.stringify(separator)} · Character limit {charLimit || "none"} · Push subsections {pushSubsections ? "on" : "off"} · Retain headings {retainHeadings ? "on" : "off"} · Skip empty subsections {skipEmptySubsections ? "on" : "off"}{ehr === "AthenaOne" ? ` · Keep bullet points ${keepBulletPoints ? "on" : "off"}` : ""}
+                    {CT.separator.label} {JSON.stringify(separator)} · {CT.charLimit.label} {charLimit || "none"}{pushSubsectionsApplies ? ` · ${CT.pushSubsections.label} ${pushSubsections ? "on" : "off"}` : ""} · {CT.retainHeadings.label} {retainHeadings ? "on" : "off"} · {CT.skipEmptySubsections.label} {skipEmptySubsections ? "on" : "off"}{ehr === "AthenaOne" ? ` · ${CT.keepBulletPoints.label} ${keepBulletPoints ? "on" : "off"}` : ""}
                   </td></tr>
                 </tbody>
               </table>
               <p className="create-review-hint">
-                After creation you'll be taken to the template editor where you can configure sections and EHR field mappings.
+                {CW.reviewClosingLine}
               </p>
             </div>
           )}
@@ -746,13 +732,21 @@ function flattenSectionsWithDepth(list, depth) {
 
 function AddSectionModal({ sections, initialParentId, onClose, onCreate }) {
   const I = window.Icons;
+  const CC = window.COPY.contentFields;
+  const CS = window.COPY.contentSource;
+  const [sectionType, setSectionType] = useStateM("open"); // "open" | "restricted" | "derivative" | "fillup"
   const [name, setName] = useStateM("");
   const [prompt, setPrompt] = useStateM("");
-  const [parentId, setParentId] = useStateM(initialParentId || "");
-  const [position, setPosition] = useStateM(-1); // -1 = at the end
+  const [allowedValues, setAllowedValues] = useStateM([]);
+  const [derivativeKey, setDerivativeKey] = useStateM(OTHER_DERIVATIVE_OPTIONS[0]?.key || "");
+  const [fillSegments, setFillSegments] = useStateM([{ type: "text", value: "" }]);
+  const flatInit = flattenSectionsWithDepth(sections, 0);
+  const [addAs, setAddAs] = useStateM(initialParentId ? "sub" : "top"); // "top" | "sub"
+  const [parentId, setParentId] = useStateM(initialParentId || flatInit[0]?.id || "");
+  const [position, setPosition] = useStateM(0); // 0 = first, N = after sibling N-1
   const [settingsOpen, setSettingsOpen] = useStateM(false);
-  const [additionalPlacement, setAdditionalPlacement] = useStateM("before");
-  const [additionalText, setAdditionalText] = useStateM("");
+  const [additionalTextBefore, setAdditionalTextBefore] = useStateM("");
+  const [additionalTextAfter, setAdditionalTextAfter] = useStateM("");
   const [defaultNegative, setDefaultNegative] = useStateM("");
 
   useEffectM(() => {
@@ -762,21 +756,33 @@ function AddSectionModal({ sections, initialParentId, onClose, onCreate }) {
   }, []);
 
   const flat = flattenSectionsWithDepth(sections, 0);
-  const parentNode = parentId ? flat.find((n) => n.id === parentId) : null;
-  const siblings = (parentNode ? parentNode.children : sections) || [];
-  const depthWord = !parentNode ? "New top-level section" : parentNode.depth === 0 ? "Child (subsection)" : "Grandchild (sub-subsection)";
+  const isSub = addAs === "sub";
+  const parentNode = isSub && parentId ? flat.find((n) => n.id === parentId) : null;
+  const siblings = (isSub ? (parentNode ? parentNode.children : []) : sections) || [];
+  const isRestricted = sectionType === "restricted";
+  const isDerivative = sectionType === "derivative";
+  const isFillup = sectionType === "fillup";
 
-  const canSubmit = name.trim() && prompt.trim();
+  const canSubmit = name.trim() && (
+    isDerivative ? !!derivativeKey
+    : isRestricted ? prompt.trim() && allowedValues.length >= 2
+    : isFillup ? fillSegments.some(seg => seg.type === "blank" && seg.label.trim())
+    : prompt.trim()
+  );
 
   const submit = () => {
     if (!canSubmit) return;
     onCreate({
       name: name.trim(),
-      prompt: prompt.trim(),
-      parentId: parentId || null,
+      prompt: isDerivative || isFillup ? "" : prompt.trim(),
+      sectionType,
+      allowedValues: isRestricted ? allowedValues : undefined,
+      otherDerivative: isDerivative ? derivativeKey : undefined,
+      fillSegments: isFillup ? fillSegments : undefined,
+      parentId: isSub ? (parentId || null) : null,
       position,
-      additionalPlacement,
-      additionalText: additionalText.trim(),
+      additionalTextBefore: additionalTextBefore.trim(),
+      additionalTextAfter: additionalTextAfter.trim(),
       defaultNegative: defaultNegative.trim(),
     });
   };
@@ -786,42 +792,127 @@ function AddSectionModal({ sections, initialParentId, onClose, onCreate }) {
       <div className="modal modal--add-section" role="dialog" aria-modal="true">
         <div className="modal-head">
           <h2>Add section</h2>
-          <span className="modal-sub">Header and prompt — you write both, no AI drafting</span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
 
         <div className="modal-body">
+          <div className="adv-settings-group">
+          <div className="adv-group-label">Content</div>
           <div className="req-field">
-            <label>Header</label>
+            <label>Section name</label>
             <input className="req-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Allergy History" autoFocus />
           </div>
 
           <div className="req-field">
-            <label>Prompt</label>
-            <textarea className="req-input req-textarea" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Tell the AI what to write in this section…" />
-            <div className="adv-field-hint">This is the actual instruction the AI follows — write it the way you'd want this section described.</div>
+            <label>Section type</label>
+            <div className="section-type-choice">
+              <button type="button"
+                className={"section-type-card" + (sectionType === "open" ? " section-type-card--on" : "")}
+                onClick={() => setSectionType("open")}>
+                <div className="section-type-card-title">Open-text</div>
+                <div className="section-type-card-desc">AI writes this section in its own words, from your prompt.</div>
+              </button>
+              <button type="button"
+                className={"section-type-card" + (isRestricted ? " section-type-card--on" : "")}
+                onClick={() => setSectionType("restricted")}>
+                <div className="section-type-card-title">Restricted list</div>
+                <div className="section-type-card-desc">AI picks one of a few fixed answers you define, like Y / N / NA.</div>
+              </button>
+              <button type="button"
+                className={"section-type-card" + (isDerivative ? " section-type-card--on" : "")}
+                onClick={() => setSectionType("derivative")}>
+                <div className="section-type-card-title">Pull from another derivative</div>
+                <div className="section-type-card-desc">Copies content straight from another note type, no AI writing.</div>
+              </button>
+              <button type="button"
+                className={"section-type-card" + (isFillup ? " section-type-card--on" : "")}
+                onClick={() => setSectionType("fillup")}>
+                <div className="section-type-card-title">Fill-in-the-blank</div>
+                <div className="section-type-card-desc">Fixed text with blanks the AI fills in from the transcript.</div>
+              </button>
+            </div>
           </div>
 
-          <div className="req-field">
-            <label>Position</label>
-            <div className="add-section-position-row">
-              <select className="req-input" value={parentId}
-                onChange={(e) => { setParentId(e.target.value); setPosition(-1); }}>
-                <option value="">— Top level (new parent section) —</option>
-                {flat.map((n) => (
-                  <option key={n.id} value={n.id}>{"—".repeat(n.depth) + (n.depth ? " " : "")}{n.name}</option>
+          {isDerivative ? (
+            <div className="req-field">
+              <div className="field-label-row">
+                <label>{CS.derivativeLabel}</label>
+                <window.InfoTip text={CS.derivativeInfo} />
+              </div>
+              <select className="req-input" value={derivativeKey} onChange={(e) => setDerivativeKey(e.target.value)}>
+                {OTHER_DERIVATIVE_OPTIONS.map((opt) => (
+                  <option key={opt.key} value={opt.key}>{opt.label}</option>
                 ))}
               </select>
+            </div>
+          ) : isFillup ? (
+            <div className="req-field">
+              <div className="field-label-row">
+                <label>{CS.fillupLabel}</label>
+                <window.InfoTip text={CS.fillupInfo} />
+              </div>
+              <window.FillSegmentsEditor segments={fillSegments} onChange={setFillSegments} />
+            </div>
+          ) : (
+            <>
+              <div className="req-field">
+                <div className="field-label-row">
+                  <label>{isRestricted ? CS.instructionLabel : CS.promptLabel}</label>
+                  <window.InfoTip text={isRestricted ? CS.instructionInfo : CS.promptInfo} />
+                </div>
+                <textarea className="req-input req-textarea" rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)}
+                  placeholder={isRestricted ? CS.instructionPlaceholder : CS.promptPlaceholder} />
+              </div>
+
+              {isRestricted && (
+                <div className="req-field">
+                  <div className="field-label-row">
+                    <label>{CS.allowedValuesLabel}</label>
+                    <window.InfoTip text={CS.allowedValuesInfo} />
+                  </div>
+                  <window.ChipListInput values={allowedValues} onChange={setAllowedValues} placeholder={CS.allowedValuesPlaceholder} />
+                </div>
+              )}
+            </>
+          )}
+          </div>
+
+          <div className="adv-settings-group">
+          <div className="adv-group-label">Position</div>
+          <div className="req-field">
+            <label>Add as</label>
+            <div className="seg-btns">
+              <button type="button" className={"seg-btn" + (!isSub ? " seg-btn--on" : "")}
+                onClick={() => { setAddAs("top"); setPosition(0); }}>New section</button>
+              <button type="button" className={"seg-btn" + (isSub ? " seg-btn--on" : "")}
+                disabled={flat.length === 0}
+                title={flat.length === 0 ? "No existing sections to nest under yet." : undefined}
+                onClick={() => { setAddAs("sub"); setPosition(0); }}>Subsection</button>
+            </div>
+          </div>
+
+          <div className={isSub ? "req-row2" : undefined}>
+            {isSub && (
+              <div className="req-field">
+                <label>Parent section</label>
+                <select className="req-input" value={parentId}
+                  onChange={(e) => { setParentId(e.target.value); setPosition(0); }}>
+                  {flat.map((n) => (
+                    <option key={n.id} value={n.id}>{"—".repeat(n.depth) + (n.depth ? " " : "")}{n.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="req-field">
+              <label>Placement{isSub && parentNode ? " within “" + parentNode.name + "”" : ""}</label>
               <select className="req-input" value={position} onChange={(e) => setPosition(Number(e.target.value))}>
-                <option value={-1}>At the end</option>
-                <option value={0}>At the beginning</option>
+                <option value={0}>{isSub ? "First child" : "First section"}</option>
                 {siblings.filter(s => !s.ghost).map((s, i) => (
                   <option key={s.id} value={i + 1}>After "{s.name}"</option>
                 ))}
               </select>
             </div>
-            <div className="adv-field-hint">{depthWord}{parentNode ? " of “" + parentNode.name + "”" : ""}.</div>
+          </div>
           </div>
 
           <button type="button" className="add-section-settings-toggle" onClick={() => setSettingsOpen(o => !o)}>
@@ -829,22 +920,33 @@ function AddSectionModal({ sections, initialParentId, onClose, onCreate }) {
           </button>
           {settingsOpen && (
             <div className="add-section-settings-body">
-              <div className="req-field">
-                <label>Additional text</label>
-                <div className="adv-additional-row">
-                  <select className="adv-additional-placement" value={additionalPlacement} onChange={(e) => setAdditionalPlacement(e.target.value)}>
-                    <option value="before">Before content</option>
-                    <option value="after">After content</option>
-                  </select>
-                  <input className="adv-field-input adv-field-input--grow" value={additionalText}
-                    placeholder="Fixed text added around section content on push…"
-                    onChange={(e) => setAdditionalText(e.target.value)} />
+              <div className="req-row2">
+                <div className="req-field">
+                  <div className="field-label-row">
+                    <label>{CC.preLiteral.label}</label>
+                    <window.InfoTip text={CC.preLiteral.info} />
+                  </div>
+                  <input className="req-input" value={additionalTextBefore}
+                    placeholder={CC.preLiteral.placeholder}
+                    onChange={(e) => setAdditionalTextBefore(e.target.value)} />
+                </div>
+                <div className="req-field">
+                  <div className="field-label-row">
+                    <label>{CC.postLiteral.label}</label>
+                    <window.InfoTip text={CC.postLiteral.info} />
+                  </div>
+                  <input className="req-input" value={additionalTextAfter}
+                    placeholder={CC.postLiteral.placeholder}
+                    onChange={(e) => setAdditionalTextAfter(e.target.value)} />
                 </div>
               </div>
               <div className="req-field">
-                <label>Default negative</label>
+                <div className="field-label-row">
+                  <label>{CC.defaultText.label}</label>
+                  <window.InfoTip text={CC.defaultText.info} />
+                </div>
                 <input className="req-input" value={defaultNegative}
-                  placeholder='e.g. "Not reported" or "None"'
+                  placeholder={CC.defaultText.placeholder}
                   onChange={(e) => setDefaultNegative(e.target.value)} />
               </div>
             </div>
@@ -861,11 +963,15 @@ function AddSectionModal({ sections, initialParentId, onClose, onCreate }) {
 }
 
 // ── Preview Output Modal ───────────────────────────────────────────────────
-function PreviewModal({ sections, tpl, onUpdatePrompt, onClose }) {
-  const [transcriptOpen, setTranscriptOpen] = useStateM(true);
-  const [transcript, setTranscript] = useStateM(window.SAMPLE_TRANSCRIPT);
+function PreviewModal({ sections, tpl, ehr, templateSettings, onUpdateSection, canEditPrompt, onClose }) {
+  const CS = window.COPY.contentSource;
+  const CE = window.COPY.editTemplate;
+  const [generating, setGenerating] = useStateM(false);
+  const [notes, setNotes] = useStateM([]); // [{ id, number, sections: [{id,name,text}] | null }] — null while generating
+  const [activeTab, setActiveTab] = useStateM("prompt"); // "prompt" | note.id
   const enabledFlat = window.collectEnabledSections(sections);
   const SAMPLE = window.SAMPLE_OUTPUT;
+  const ts = templateSettings || window.DEFAULT_TEMPLATE_SETTINGS;
 
   useEffectM(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -873,248 +979,221 @@ function PreviewModal({ sections, tpl, onUpdatePrompt, onClose }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Walks the real section tree, keeping depth for indentation, but only renders a node
-  // if it's individually enabled — matching collectEnabledSections' flatten semantics
-  // (an enabled child still shows even if its parent is disabled).
-  const renderEnabledDoc = (mode) => (list, depth) =>
-    (list || []).flatMap(s => {
-      const nodes = [];
-      if (s.enabled) {
-        nodes.push(
-          <div key={s.id} className={"ql-doc-node" + (depth ? " ql-doc-node--sub" : "")}>
-            <div className="ql-doc-heading">{depth ? "↳ " : ""}{s.name.toUpperCase()}</div>
-            {mode === "prompt" ? (
-              <textarea
-                className="ql-doc-textarea"
-                value={s.stylePrompt || ""}
-                onChange={(e) => onUpdatePrompt && onUpdatePrompt(s.id, e.target.value)}
-                placeholder="No prompt written yet…"
-              />
-            ) : (
-              <div className="ql-doc-text">
-                {SAMPLE[s.id] || s.defaultNegative || "No content available for this section in the sample."}
-              </div>
-            )}
-          </div>
-        );
-      }
-      if (s.children && s.children.length) nodes.push(...renderEnabledDoc(mode)(s.children, depth + 1));
-      return nodes;
+  // Resolves one setting for a section — its own override wins, else the template default.
+  const resolveSetting = (s, key) => {
+    const overrides = s.settingOverrides || {};
+    return overrides[key] !== undefined ? overrides[key] : ts[key];
+  };
+
+  // Assembles one top-level section's pushed text from the sample output, applying the
+  // settings that actually change note *content* (Retain headings, Skip empty subsections,
+  // Separator, Character limit, Text before/after, Keep bullet points). isRoot suppresses the
+  // inline heading on the outermost call since the UI already labels it via preview-section-name
+  // — everything below the root still embeds its own heading when Retain headings is on, since
+  // that's genuinely part of the pushed text once subsections are joined into their parent.
+  const assembleSectionText = (s, isRoot) => {
+    if (!s.enabled) return null;
+    const retainHeadings = resolveSetting(s, "retainHeadings");
+    const skipEmpty = resolveSetting(s, "skipEmptySubsections");
+    const separator = String(resolveSetting(s, "separator") ?? "\\n").replace(/\\n/g, "\n");
+    const charLimit = resolveSetting(s, "charLimit");
+    const keepBullets = ehr === "AthenaOne" ? resolveSetting(s, "keepBulletPoints") : true;
+
+    let own = SAMPLE[s.id] || s.defaultNegative || "";
+    if (!keepBullets) own = own.split("\n").map(l => l.replace(/^[-•]\s*/, "")).join(" ").trim();
+    if (s.additionalTextBefore) own = s.additionalTextBefore + (own ? "\n" + own : "");
+    if (s.additionalTextAfter) own = (own ? own + "\n" : "") + s.additionalTextAfter;
+    own = own.trim();
+
+    const pieces = [];
+    if (own || !skipEmpty) {
+      pieces.push(retainHeadings && !isRoot ? s.name.toUpperCase() + (own ? "\n" + own : "") : own);
+    }
+    (s.children || []).forEach(c => {
+      const childText = assembleSectionText(c, false);
+      if (childText !== null) pieces.push(childText);
     });
 
-  return (
-    <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal modal--preview" role="dialog" aria-modal="true">
-        <div className="modal-head">
-          <h2>Output preview</h2>
-          <span className="modal-sub">Edit the transcript or a prompt to try a different scenario — output shown is a static sample, it won't regenerate</span>
-          <button className="modal-x" onClick={onClose} aria-label="Close"><window.Icons.close /></button>
-        </div>
+    let result = pieces.filter(p => p !== "").join(separator);
+    if (charLimit && result.length > Number(charLimit)) result = result.slice(0, Number(charLimit)) + "…";
+    return result || (skipEmpty ? null : "");
+  };
 
-        <div className="modal-body preview-body">
-          {/* Editable transcript */}
-          <div className="preview-transcript-wrap">
-            <button className="preview-transcript-toggle" onClick={() => setTranscriptOpen(o => !o)}>
-              <span>Transcript (editable)</span>
-              <span className="preview-chevron">{transcriptOpen ? "▲" : "▼"}</span>
-            </button>
-            {transcriptOpen && (
-              <textarea
-                className="preview-transcript-text preview-transcript-textarea"
-                value={transcript}
-                onChange={(e) => setTranscript(e.target.value)}
-              />
-            )}
-          </div>
-
-          <div className="preview-note-meta">
-            {tpl && <span className="preview-note-tpl">{tpl.name}</span>}
-            {tpl && tpl.ehr && <span className="preview-note-ehr">→ {tpl.ehr}</span>}
-          </div>
-
-          {enabledFlat.length === 0 ? (
-            <div className="preview-empty">All sections are disabled — enable at least one to see output.</div>
+  // Content-source editor for one section's Prompt view — mirrors the row's own Prompt
+  // card so this is a genuine alternate way to reach the same fields, not a narrower one.
+  const renderPromptField = (s) => {
+    if (s.otherDerivative) {
+      return (
+        <div className="ql-doc-field">
+          <div className="ql-doc-field-label">{CS.derivativeLabel}</div>
+          {canEditPrompt ? (
+            <select className="adv-field-input" value={s.otherDerivative}
+              onChange={(e) => onUpdateSection(s.id, { otherDerivative: e.target.value })}>
+              {(window.OTHER_DERIVATIVE_OPTIONS || []).map((opt) => (
+                <option key={opt.key} value={opt.key}>{opt.label}</option>
+              ))}
+            </select>
           ) : (
-            <div className="ql-columns ql-columns--inline">
-              <div className="ql-column">
-                <div className="ql-column-label">Output (sample — read-only)</div>
-                <div className="ql-column-scroll">{renderEnabledDoc("output")(sections, 0)}</div>
-              </div>
-              <div className="ql-column">
-                <div className="ql-column-label">Prompt (editable)</div>
-                <div className="ql-column-scroll">{renderEnabledDoc("prompt")(sections, 0)}</div>
-              </div>
+            <div className="ql-doc-text">
+              {(((window.OTHER_DERIVATIVE_OPTIONS || []).find(o => o.key === s.otherDerivative) || {}).label) || s.otherDerivative}
             </div>
           )}
         </div>
-
-        <div className="modal-foot">
-          <button className="btn-ghost" onClick={onClose}>Close</button>
+      );
+    }
+    if (s.sectionType === "fillup") {
+      return (
+        <div className="ql-doc-field">
+          <div className="ql-doc-field-label">{CS.fillupLabel}</div>
+          {canEditPrompt ? (
+            <window.FillSegmentsEditor segments={s.fillSegments || []}
+              onChange={(segs) => onUpdateSection(s.id, { fillSegments: segs })} />
+          ) : (
+            <div className="ql-doc-text">{window.fillSegmentsPreview(s.fillSegments) || "No instruction written yet…"}</div>
+          )}
         </div>
+      );
+    }
+    if (s.sectionType === "restricted") {
+      return (
+        <div className="ql-doc-field">
+          <div className="ql-doc-field-label">{CS.instructionLabel}</div>
+          {canEditPrompt ? (
+            <textarea
+              className="ql-doc-textarea"
+              value={s.stylePrompt || ""}
+              placeholder={CS.instructionPlaceholder}
+              onChange={(e) => onUpdateSection(s.id, { stylePrompt: e.target.value })}
+            />
+          ) : (
+            <div className="ql-doc-text">{s.stylePrompt || "No instruction written yet…"}</div>
+          )}
+          <div className="ql-doc-field-label" style={{ marginTop: 10 }}>{CS.allowedValuesLabel}</div>
+          {canEditPrompt ? (
+            <window.ChipListInput values={s.allowedValues || []}
+              onChange={(vals) => onUpdateSection(s.id, { allowedValues: vals })}
+              placeholder={CS.allowedValuesPlaceholder} />
+          ) : (
+            <div className="ql-doc-text">{(s.allowedValues || []).join(" / ") || "None set"}</div>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div className="ql-doc-field">
+        <div className="ql-doc-field-label">{CS.promptLabel}</div>
+        {canEditPrompt ? (
+          <textarea
+            className="ql-doc-textarea"
+            value={s.stylePrompt || ""}
+            onChange={(e) => onUpdateSection(s.id, { stylePrompt: e.target.value })}
+            placeholder="No prompt written yet…"
+          />
+        ) : (
+          <div className="ql-doc-text">{s.stylePrompt || "No prompt written yet…"}</div>
+        )}
       </div>
-    </div>
-  );
-}
+    );
+  };
 
-// ── Settings Modal — practice / template / mapping / section hierarchy ─────
-// Four tiers, per the mapping-portal redesign decision: settings must be split into section,
-// template, and mapping layers (practice-level stays separate — the template screen shouldn't
-// deal with practice settings directly). Mapping-level exists because mapping-specific behaviors
-// (write mode, checkbox push, push order, special code extraction) were previously mixed loosely
-// into template/section editing and need their own conceptual bucket.
-//
-// Rendered as a matrix — settings down the side, EHRs across the top — rather than a linear list,
-// so coverage/gaps across EHRs are visible at a glance instead of buried in per-item prose.
-const SETTINGS_EHRS = ["AthenaOne", "ECW", "Veradigm", "Nereg", "Centricity", "AMD", "DrChrono", "CharmHealth", "Cerner", "ModMed", "Tebra"];
-const SETTINGS_MARK = { full: "✅", partial: "⚠️", noop: "◻️", notimpl: "🚧" }; // anything absent from an item's status renders as "—" (not applicable)
+  const flattenAll = (list) => (list || []).flatMap(s => [s, ...flattenAll(s.children)]);
 
-const SETTINGS_TIERS = [
-  {
-    tier: "Practice-level",
-    owner: "Ops / practice admin — doctors do not see or control these",
-    items: [
-      { name: "EHR credentials", what: "API keys, OAuth tokens, practice ID. Set at onboarding.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Nereg: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full", Cerner: "full", ModMed: "full", Tebra: "full" } },
-      { name: "EHR template selection", what: "Which note template in the EHR is connected to this practice — determines the field list every doctor's mapping picker fetches from.",
-        status: { AMD: "full", DrChrono: "full", CharmHealth: "full" } },
-      { name: "Fixed field list source", what: "Field names configured by tech at onboarding, not fetched from a live EHR template — mechanically closer to Cat 1 despite requiring the same explicit per-field mapping as AMD/DrChrono/CharmHealth.",
-        status: { Veradigm: "full", Nereg: "full" } },
-      { name: "CharmHealth push mode (SOAP vs. standard)", what: "Determined by whether the connected template's name has a \"soap\" prefix — ops controls this by which template they pick/name, not a separate toggle.",
-        status: { CharmHealth: "full" } },
-      { name: "Push-as-note vs. push-as-document", what: "No document-push mode exists in the Veradigm integration today.",
-        status: { Veradigm: "notimpl" } },
-      { name: "Selective Copy destination setup", what: "Which ECW shortcut commands the practice's Scribe-it destinations map to — configured by ops through the same mapping editor, keyed by a separate query param.",
-        status: { ECW: "full" } },
-    ],
-  },
-  {
-    tier: "Template-level",
-    owner: "Doctor can set these — apply once to the whole template, not per section or mapping row",
-    items: [
-      { name: "Separator", what: "Joins text when multiple sections map to one EHR field. Today a real per-mapping-row config key; being promoted to one template-wide setting. Nereg hardcodes its separator in the push logic — no config override exists there.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full" } },
-      { name: "Push subsections", what: "Whether subsection content is included when pushing the parent section. Hardcoded (always on) for Nereg.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full" } },
-      { name: "Retain headings", what: "Whether section/subsection headings are kept in the pushed content. Hardcoded (always on) for Nereg.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full" } },
-      { name: "Skip empty subsections", what: "Omit subsections with no generated content instead of pushing an empty heading. Hardcoded off for Nereg, no override.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full" } },
-      { name: "Character limit", what: "A real, enforced `char_limit` config value — Marvix truncates the section's outgoing text to this length before pushing, to avoid the EHR rejecting an over-length push. Genuinely settable today (per mapping row); being promoted to this template-wide level. Not the same thing as AMD field limit below.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full" } },
-      { name: "Keep bullet points", what: "Preserve bullet formatting on push to Assessment/Plan — stripped by default otherwise.",
-        status: { AthenaOne: "full" } },
-      { name: "Document type", what: "Note vs. Letter, set explicitly at creation — the only template-level setting that's truly universal, since it has nothing to do with push mechanics.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Nereg: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full", Cerner: "full", ModMed: "full", Tebra: "full" } },
-      { name: "Selective Copy enabled", what: "Per-template boolean (`extra_settings[\"selective_copy\"]`) that turns on the Scribe-it copy UI for notes created from this template.",
-        status: { ECW: "full" } },
-      { name: "AMD field limit (reference)", what: "AMD's own `max_character_length`, fetched from AMD's API — meant to be auto-populated only, shown so a doctor can see the constraint before pushing. Editing it wouldn't change what AMD actually enforces. (In the real code this is a policy, not a hard block — a manually-entered value can silently survive if the AMD fetch/field-lookup fails, e.g. after a field rename.)",
-        status: { AMD: "full" } },
-      { name: "Line separator", what: "Hardcoded (`\\r\\n` / HL7 formatting) — a real push-time value, but not configurable today despite living in the same config bucket as the settings above.",
-        status: { ECW: "full", Veradigm: "full" } },
-    ],
-  },
-  {
-    tier: "Mapping-level",
-    owner: "Set per EHR-field mapping row — the destination's own push behavior, not the section's content",
-    items: [
-      { name: "Write mode (Prepend / Append / Replace)", what: "Functional only where the EHR genuinely fetches existing field content first. AthenaOne only fetches-and-combines for HPI/Physical Exam/ROS — Assessment/Chief Complaint are append/replace only. ECW, Centricity, and Nereg accept the setting but it's a no-op — they never fetch existing content at all.",
-        status: { AthenaOne: "partial", ECW: "noop", Veradigm: "full", Nereg: "noop", Centricity: "noop", AMD: "full", DrChrono: "full", CharmHealth: "full" } },
-      { name: "Checkbox / boolean push (`extract_boolean_value`)", what: "Pushes a fixed configured value (e.g. \"Yes\") when the section has any generated content, empty string otherwise — content-presence-driven, not a match against the prompt's output text.",
-        status: { AMD: "full" } },
-      { name: "One section → two EHR fields", what: "A section can drive a plain text field and a separate checkbox field at the same time, via two independent mapping rows sharing one section.",
-        status: { AMD: "full" } },
-      { name: "Push order for shared fields", what: "When 2+ sections map to the same field, sets the order their text is combined in — independent of, and can differ from, the note's own section order. Prototype: the \"Shared · order N/M\" control on the mapping cell, shown only when a field has 2+ sections mapped to it.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Nereg: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full" } },
-      { name: "Section code (subsection routing)", what: "Routes content to a chart subsection (e.g. HPI > General) via the OBR-5 field, separately from the main section name written to OBR-4.",
-        status: { ECW: "full" } },
-      { name: "Field identification scheme (SOAP vs. default)", what: "Whether this row is keyed by `ehr_field_id` (numeric) or `ehr_field_name` (fixed keyword) — determined by the practice's connected template name, not set per row directly.",
-        status: { CharmHealth: "full" } },
-      { name: "Special code extraction", what: "A field with one of these names processes the text instead of pushing it raw:\n• AthenaOne's `diagnoses` — resolves SNOMED codes via a separate diagnoses API\n• Veradigm's `ICD` field — sent through a separate diagnosis API, not the normal SaveXNote path\n• Nereg's `diagnosiscodes` / `billingcodes` — regex-extracts ICD codes, or grabs a CPT code heuristically\n• DrChrono's `icd10_codes` / `cpt_codes` — routed to dedicated code-push handlers\nMap the wrong section to one of these and it silently extracts garbage or nothing — no error shown.",
-        status: { AthenaOne: "full", Veradigm: "full", Nereg: "full", DrChrono: "full" } },
-      { name: "Selective Copy shortcut command", what: "The exact `ehr_field_name` string (including the colon) this section's Scribe-it destination matches — a completely separate mapping row from the main HL7 push, with no server-side formatting applied.",
-        status: { ECW: "full" } },
-    ],
-  },
-  {
-    tier: "Section-level",
-    owner: "Doctor sets these per section — the section's own content, independent of which EHR field (if any) it maps to",
-    items: [
-      { name: "Section name & prompt", what: "The section's own header and the instruction the AI follows to generate its content.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Nereg: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full", Cerner: "full", ModMed: "full", Tebra: "full" } },
-      { name: "Enable / disable", what: "Whether this section is included in the note and push at all.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Nereg: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full", Cerner: "full", ModMed: "full", Tebra: "full" } },
-      { name: "Additional text (before / after)", what: "Fixed text placed around the section's generated content on push.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Nereg: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full", Cerner: "full", ModMed: "full", Tebra: "full" } },
-      { name: "Default negative", what: "Text pushed when the section has no generated content.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Nereg: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full", Cerner: "full", ModMed: "full", Tebra: "full" } },
-      { name: "Parent / child structure", what: "Subsection nesting — exists independently of any EHR mapping; a subsection can be pushed as one with its parent or mapped to its own field.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Nereg: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full", Cerner: "full", ModMed: "full", Tebra: "full" } },
-      { name: "Pull from another derivative", what: "A direct pass-through, not a merge: the section pulls whatever content is already generated in another derivative (e.g. ICD-10 codes or E/M coding) and pushes it straight to wherever this section is mapped. No prompt, no combining logic — just catch the data and push it.",
-        status: { AthenaOne: "full", ECW: "full", Veradigm: "full", Nereg: "full", Centricity: "full", AMD: "full", DrChrono: "full", CharmHealth: "full", Cerner: "full", ModMed: "full", Tebra: "full" } },
-    ],
-  },
-];
+  const runGenerate = () => {
+    const number = notes.length + 1;
+    const noteId = "note_" + number;
+    const promptSnapshot = flattenAll(sections).map(s => ({
+      id: s.id, stylePrompt: s.stylePrompt, allowedValues: s.allowedValues, otherDerivative: s.otherDerivative,
+    }));
+    setNotes(prev => [...prev, { id: noteId, number, sections: null, promptSnapshot }]);
+    setActiveTab(noteId);
+    setGenerating(true);
+    clearTimeout(window.__genT);
+    window.__genT = setTimeout(() => {
+      const snapshot = sections.filter(s => s.enabled).map(s => ({ id: s.id, name: s.name, text: assembleSectionText(s, true) }));
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, sections: snapshot } : n));
+      setGenerating(false);
+    }, 700);
+  };
 
-function SettingsModal({ onClose }) {
-  const I = window.Icons;
-  useEffectM(() => {
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  const deleteNote = (noteId) => {
+    setNotes(prev => prev.filter(n => n.id !== noteId));
+    if (activeTab === noteId) setActiveTab("prompt");
+  };
+
+  const restorePrompts = (note) => {
+    (note.promptSnapshot || []).forEach(p => {
+      onUpdateSection(p.id, { stylePrompt: p.stylePrompt, allowedValues: p.allowedValues, otherDerivative: p.otherDerivative });
+    });
+    setActiveTab("prompt");
+  };
 
   return (
-    <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal modal--request modal--settings-wide" role="dialog" aria-modal="true">
-        <div className="modal-head">
-          <h2>Push settings</h2>
-          <span className="modal-sub">Where each push setting lives, and who controls it</span>
-          <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
+    <div className="stencil-preview-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="stencil-preview-page edit-template-page" role="dialog" aria-modal="true">
+        <button className="gallery-preview-back" onClick={onClose}>← Back to editor</button>
+        <div className="gallery-preview-meta">
+          <span className="gallery-preview-title">{CE.title}</span>
+          {tpl && <span className="gallery-card-tag">{tpl.name}</span>}
         </div>
-        <div className="modal-body">
-          <div className="settings-legend">
-            <span><span className="settings-mark">{SETTINGS_MARK.full}</span> functional</span>
-            <span><span className="settings-mark">{SETTINGS_MARK.partial}</span> partial</span>
-            <span><span className="settings-mark">{SETTINGS_MARK.noop}</span> no-op</span>
-            <span><span className="settings-mark">{SETTINGS_MARK.notimpl}</span> not implemented</span>
-            <span><span className="settings-mark">—</span> not applicable</span>
-          </div>
-          {SETTINGS_TIERS.map((tier) => (
-            <div key={tier.tier} style={{ marginBottom: 26 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>{tier.tier}</div>
-              <div style={{ fontSize: 12, color: "var(--gray)", marginBottom: 10 }}>{tier.owner}</div>
-              <div className="settings-matrix-scroll">
-                <table className="settings-matrix">
-                  <thead>
-                    <tr>
-                      <th>Setting</th>
-                      {SETTINGS_EHRS.map((e) => <th key={e}>{e}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tier.items.map((it, i) => (
-                      <tr key={i}>
-                        <td className="settings-matrix-name" title={it.what}>{it.name}</td>
-                        {SETTINGS_EHRS.map((e) => (
-                          <td key={e} className="settings-matrix-cell">{SETTINGS_MARK[it.status[e]] || "—"}</td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="settings-matrix-desc">
-                {tier.items.map((it, i) => (
-                  <div key={i} className="settings-matrix-desc-item">
-                    <strong>{it.name}</strong> — {it.what}
-                  </div>
-                ))}
-              </div>
+
+        <div className="edit-template-tabsbar">
+          <div className="edit-template-tabs">
+            <div className={"edit-template-tab" + (activeTab === "prompt" ? " edit-template-tab--on" : "")}>
+              <button type="button" className="edit-template-tab-select" onClick={() => setActiveTab("prompt")}>Prompt</button>
             </div>
-          ))}
+            {notes.map(n => (
+              <div key={n.id} className={"edit-template-tab" + (activeTab === n.id ? " edit-template-tab--on" : "")}>
+                <button type="button" className="edit-template-tab-select" onClick={() => setActiveTab(n.id)}>Note {n.number}</button>
+                <button type="button" className="edit-template-tab-close" aria-label={"Delete Note " + n.number}
+                  onClick={() => deleteNote(n.id)}>✕</button>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="btn-teal btn-sm edit-template-generate-btn" onClick={runGenerate} disabled={generating}>
+            {generating ? "Generating…" : "Generate"}
+          </button>
         </div>
-        <div className="modal-foot">
-          <button className="btn-ghost" onClick={onClose}>Close</button>
+
+        <div className="edit-template-body">
+          <div className="edit-template-main">
+            {activeTab === "prompt" ? (
+              enabledFlat.length === 0 ? (
+                <div className="preview-empty">All sections are disabled — enable at least one to see output.</div>
+              ) : (
+                <div className="ql-column-scroll edit-template-doc">
+                  {sections.filter(s => s.enabled).map(s => (
+                    <div key={s.id} className="preview-section">
+                      <div className="preview-section-name">{s.name}</div>
+                      {renderPromptField(s)}
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (() => {
+              const note = notes.find(n => n.id === activeTab);
+              if (!note) return null;
+              if (note.sections === null) {
+                return <div className="preview-empty">Generating note…</div>;
+              }
+              return (
+                <>
+                  <div className="edit-template-note-actions">
+                    <button type="button" className="btn-ghost btn-sm" onClick={() => restorePrompts(note)}>Use this note's prompts</button>
+                  </div>
+                  <div className="ql-column-scroll edit-template-doc">
+                    {note.sections.map(sec => (
+                      <div key={sec.id} className="preview-section">
+                        <div className="preview-section-name">{sec.name}</div>
+                        <div className="preview-section-text">
+                          {sec.text || "(no content — Skip empty subsections is off)"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
         </div>
       </div>
     </div>
@@ -1124,6 +1203,8 @@ function SettingsModal({ onClose }) {
 // ── Template Settings Modal — per-template, opened via the gear icon next to a template name ──
 function TemplateSettingsModal({ template, onUpdate, onClose }) {
   const I = window.Icons;
+  const CT = window.COPY.templateSettings;
+  const CTM = window.COPY.templateSettingsModal;
   useEffectM(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -1131,6 +1212,9 @@ function TemplateSettingsModal({ template, onUpdate, onClose }) {
   }, []);
 
   const ehrSystem = (template && template.ehrSystem) || "";
+  const ehrCat = (window.EHR_CATEGORY || {})[ehrSystem];
+  // See CreateTemplateModal's pushSubsectionsApplies — same reasoning, same scope.
+  const pushSubsectionsApplies = !!(ehrCat && ehrCat.autoRoutedPerSection);
   const ts = (template && template.templateSettings) || window.DEFAULT_TEMPLATE_SETTINGS;
   const set = (fields) => template && onUpdate && onUpdate(template.id, fields);
 
@@ -1138,51 +1222,57 @@ function TemplateSettingsModal({ template, onUpdate, onClose }) {
     <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal modal--request" role="dialog" aria-modal="true">
         <div className="modal-head">
-          <h2>Template settings</h2>
-          <span className="modal-sub">{template ? template.name : "Template"} — applies to the whole template, not per section</span>
+          <h2>{CTM.title}</h2>
+          <span className="modal-sub">{CTM.subtitle(template ? template.name : "Template")}</span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
         <div className="modal-body">
           <div className="req-field">
-            <label>Separator</label>
+            <div className="field-label-row">
+              <label>{CT.separator.label}</label>
+              <window.InfoTip text={CT.separator.info} />
+            </div>
             <input className="req-input" value={ts.separator}
               onChange={e => set({ separator: e.target.value })}
-              placeholder="e.g. \n" />
-            <div className="adv-field-hint">Joins text when multiple sections map to one EHR field.</div>
+              placeholder={CT.separator.placeholder} />
           </div>
           <div className="req-field">
-            <label>Character limit</label>
+            <div className="field-label-row">
+              <label>{CT.charLimit.label}</label>
+              <window.InfoTip text={CT.charLimit.info} />
+            </div>
             <input className="req-input" type="number" min="0" value={ts.charLimit || ""}
               onChange={e => set({ charLimit: e.target.value })}
-              placeholder="No limit" />
-            <div className="adv-field-hint">Truncates a section's text to this length before pushing, to avoid the EHR rejecting an over-length push. Leave blank for no limit. (Not the same as AMD's own field limit, which is fetched from AMD and shown read-only in each section's output settings.)</div>
+              placeholder={CT.charLimit.placeholder} />
           </div>
-          <div className="tpl-setting-toggle-row">
-            <div>
-              <div className="tpl-setting-toggle-name">Push subsections</div>
-              <div className="adv-field-hint">Include subsection content when pushing the parent section.</div>
+          {pushSubsectionsApplies && (
+            <div className="tpl-setting-toggle-row">
+              <div className="tpl-setting-toggle-name">
+                {CT.pushSubsections.label}
+                <window.InfoTip text={CT.pushSubsections.info((ehrCat && ehrCat.label) || ehrSystem)} />
+              </div>
+              <window.Toggle on={ts.pushSubsections} onChange={(v) => set({ pushSubsections: v })} />
             </div>
-            <window.Toggle on={ts.pushSubsections} onChange={(v) => set({ pushSubsections: v })} />
-          </div>
+          )}
           <div className="tpl-setting-toggle-row">
-            <div>
-              <div className="tpl-setting-toggle-name">Retain headings</div>
-              <div className="adv-field-hint">Keep section/subsection headings in the pushed content.</div>
+            <div className="tpl-setting-toggle-name">
+              {CT.retainHeadings.label}
+              <window.InfoTip text={CT.retainHeadings.info} />
             </div>
             <window.Toggle on={ts.retainHeadings} onChange={(v) => set({ retainHeadings: v })} />
           </div>
           <div className="tpl-setting-toggle-row">
-            <div>
-              <div className="tpl-setting-toggle-name">Skip empty subsections</div>
-              <div className="adv-field-hint">Omit subsections with no generated content instead of pushing an empty heading.</div>
+            <div className="tpl-setting-toggle-name">
+              {CT.skipEmptySubsections.label}
+              <window.InfoTip text={CT.skipEmptySubsections.info} />
             </div>
             <window.Toggle on={ts.skipEmptySubsections} onChange={(v) => set({ skipEmptySubsections: v })} />
           </div>
           {ehrSystem === "AthenaOne" && (
             <div className="tpl-setting-toggle-row">
-              <div>
-                <div className="tpl-setting-toggle-name">Keep bullet points</div>
-                <div className="adv-field-hint">AthenaOne-only — preserve bullet formatting on push to Assessment/Plan.</div>
+              <div className="tpl-setting-toggle-name">
+                {CT.keepBulletPoints.label}
+                <window.InfoTip text={CT.keepBulletPoints.info} />
               </div>
               <window.Toggle on={ts.keepBulletPoints} onChange={(v) => set({ keepBulletPoints: v })} />
             </div>
@@ -1196,4 +1286,4 @@ function TemplateSettingsModal({ template, onUpdate, onClose }) {
   );
 }
 
-Object.assign(window, { ConnectionsModal, ConfirmModal, VersionHistoryModal, DisableConfirmModal, RequestNewSectionModal, CreateTemplateModal, AddSectionModal, PreviewModal, SettingsModal, TemplateSettingsModal, OTHER_DERIVATIVE_OPTIONS });
+Object.assign(window, { ConfirmModal, VersionHistoryModal, RequestNewSectionModal, CreateTemplateModal, AddSectionModal, PreviewModal, TemplateSettingsModal, OTHER_DERIVATIVE_OPTIONS });
