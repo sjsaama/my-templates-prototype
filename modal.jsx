@@ -618,15 +618,13 @@ function CreateTemplateModal({ ehr, doctorSpecialty, onClose, onCreate }) {
                 </div>
                 <window.Toggle on={skipEmptySubsections} onChange={setSkipEmptySubsections} />
               </div>
-              {ehr === "AthenaOne" && (
-                <div className="tpl-setting-toggle-row">
-                  <div className="tpl-setting-toggle-name">
-                    {CT.keepBulletPoints.label}
-                    <window.InfoTip text={CT.keepBulletPoints.info} />
-                  </div>
-                  <window.Toggle on={keepBulletPoints} onChange={setKeepBulletPoints} />
+              <div className="tpl-setting-toggle-row">
+                <div className="tpl-setting-toggle-name">
+                  {CT.keepBulletPoints.label}
+                  <window.InfoTip text={CT.keepBulletPoints.info} />
                 </div>
-              )}
+                <window.Toggle on={keepBulletPoints} onChange={setKeepBulletPoints} />
+              </div>
             </div>
           )}
 
@@ -942,7 +940,7 @@ function PreviewModal({ sections, tpl, ehr, templateSettings, onUpdateSection, c
     const skipEmpty = resolveSetting(s, "skipEmptySubsections");
     const separator = String(resolveSetting(s, "separator") ?? "\\n").replace(/\\n/g, "\n");
     const charLimit = resolveSetting(s, "charLimit");
-    const keepBullets = ehr === "AthenaOne" ? resolveSetting(s, "keepBulletPoints") : true;
+    const keepBullets = resolveSetting(s, "keepBulletPoints");
 
     let own = SAMPLE[s.id] || s.defaultNegative || "";
     if (!keepBullets) own = own.split("\n").map(l => l.replace(/^[-•]\s*/, "")).join(" ").trim();
@@ -1213,15 +1211,13 @@ function TemplateSettingsModal({ template, onUpdate, onClose }) {
             </div>
             <window.Toggle on={ts.skipEmptySubsections} onChange={(v) => set({ skipEmptySubsections: v })} />
           </div>
-          {ehrSystem === "AthenaOne" && (
-            <div className="tpl-setting-toggle-row">
-              <div className="tpl-setting-toggle-name">
-                {CT.keepBulletPoints.label}
-                <window.InfoTip text={CT.keepBulletPoints.info} />
-              </div>
-              <window.Toggle on={ts.keepBulletPoints} onChange={(v) => set({ keepBulletPoints: v })} />
+          <div className="tpl-setting-toggle-row">
+            <div className="tpl-setting-toggle-name">
+              {CT.keepBulletPoints.label}
+              <window.InfoTip text={CT.keepBulletPoints.info} />
             </div>
-          )}
+            <window.Toggle on={ts.keepBulletPoints} onChange={(v) => set({ keepBulletPoints: v })} />
+          </div>
         </div>
         <div className="modal-foot">
           <button className="btn-ghost" onClick={onClose}>Close</button>

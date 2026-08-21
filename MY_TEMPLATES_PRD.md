@@ -90,7 +90,7 @@ Same fields either way, saves immediately:
 - **During creation** — flow 1 step 5
 - **Anytime after** — **Template settings** button, template header
 
-Fields: Separator, Character limit, Push subsections, Retain headings, Skip empty subsections, Keep bullet points (AthenaOne only).
+Fields: Separator, Character limit, Push subsections, Retain headings, Skip empty subsections, Keep bullet points.
 
 ### 5. Configuring mapping-level settings
 
@@ -250,7 +250,7 @@ Whole-template, not per section/row. Doctor-settable.
 | Retain headings | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | — |
 | Skip empty subsections | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | — |
 | Character limit | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| Keep bullet points | ✅ | — | — | — | — | — | — | — | — | — | — |
+| Keep bullet points | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | — |
 | Document type | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Selective Copy enabled | — | ✅ | — | — | — | — | — | — | — | — | — |
 | AMD field limit (reference) | — | — | — | — | — | ✅ | — | — | — | — | — |
@@ -261,7 +261,7 @@ Whole-template, not per section/row. Doctor-settable.
 - **Retain headings** — includes the section's own first-line heading. Doesn't affect subsection `key_name:` prefixes (always shown). Hardcoded on for Nereg.
 - **Skip empty subsections** — omit empty subsections instead of an empty heading. Hardcoded off for Nereg.
 - **Character limit** — Marvix truncates outgoing text before push, to avoid EHR rejection. Currently per-mapping-row, promoted template-wide. For AMD, should be capped at/reconciled with AMD field limit (below), not independent.
-- **Keep bullet points** — preserve bullets on push to Assessment/Plan; stripped by default otherwise.
+- **Keep bullet points** — preserve bullets on push to Assessment/Plan; stripped by default otherwise. No longer AthenaOne-only — same EHRs as the other template-level settings above.
 - **Document type** — Note vs. Letter, set at creation. Only setting truly universal (no push-mechanics tie).
 - **Selective Copy enabled** — per-template flag (`extra_settings["selective_copy"]`) turning on the Scribe-it UI, independent of whether a mapping is configured.
 - **AMD field limit** — AMD's real `max_character_length`, fetched from its API. Auto-populated, reference-only (editing it doesn't change AMD's enforcement). In code this is a policy not a hard block — a stale manual value can survive if the fetch fails after a field rename; worth tightening later.

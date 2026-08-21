@@ -165,7 +165,7 @@ Opened via the row's toolbox icon, tooltip "Section settings" (renamed from "Out
 - **Push subsections** (only shown where the EHR auto-routes per section with no "As one"/"Each separately" choice, Centricity today): *"Include subsection content when pushing the parent section. Only relevant here, since {ehrLabel} has no "As one"/"Each separately" choice."*
 - **Retain headings**: *"Keep section/subsection headings in the pushed content."*
 - **Skip empty subsections**: *"Omit subsections with no generated content instead of pushing an empty heading."*
-- **Keep bullet points** (AthenaOne only): *"Preserve bullet formatting on push to Assessment/Plan."*
+- **Keep bullet points**: *"Preserve bullet formatting on push to Assessment/Plan."*
 
 Modal chrome: "Template settings" / "{templateName}, applies to the whole template, not per section" / "Close"
 

@@ -444,10 +444,8 @@ function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, sh
 }
 
 // Template-level settings a section can override. `type: "bool"` renders a toggle,
-// everything else a text/number input. `keepBulletPoints` is appended conditionally
-// (AthenaOne only) where this list is used, matching Template Settings' own gating.
-// Labels/info pulled from window.COPY.templateSettings — the single source shared with the
-// Create Template wizard and the Template Settings modal.
+// everything else a text/number input. Labels/info pulled from window.COPY.templateSettings —
+// the single source shared with the Create Template wizard and the Template Settings modal.
 function getTemplateOverrideFields(ehrLabel) {
   const C = window.COPY.templateSettings;
   return [
@@ -456,6 +454,7 @@ function getTemplateOverrideFields(ehrLabel) {
     { key: "pushSubsections", type: "bool", label: C.pushSubsections.label, info: C.pushSubsections.info(ehrLabel) },
     { key: "retainHeadings", type: "bool", label: C.retainHeadings.label, info: C.retainHeadings.info },
     { key: "skipEmptySubsections", type: "bool", label: C.skipEmptySubsections.label, info: C.skipEmptySubsections.info },
+    { key: "keepBulletPoints", type: "bool", label: C.keepBulletPoints.label, info: C.keepBulletPoints.info },
   ];
 }
 
@@ -505,12 +504,9 @@ function InlineAdvPanel({ s, onUpdate, onDeleteSection, ehr, templateSettings, c
   const allOverrideFields = getTemplateOverrideFields((ehrCatForOverrides && ehrCatForOverrides.label) || ehr);
   // Push subsections only means anything where there's no "As one" / "Each separately" choice
   // to begin with (Centricity today) — see CreateTemplateModal's pushSubsectionsApplies.
-  const baseOverrideFields = (ehrCatForOverrides && ehrCatForOverrides.autoRoutedPerSection)
+  const overrideFields = (ehrCatForOverrides && ehrCatForOverrides.autoRoutedPerSection)
     ? allOverrideFields
     : allOverrideFields.filter(f => f.key !== "pushSubsections");
-  const overrideFields = ehr === "AthenaOne"
-    ? [...baseOverrideFields, { key: "keepBulletPoints", type: "bool", label: window.COPY.templateSettings.keepBulletPoints.label, info: window.COPY.templateSettings.keepBulletPoints.info }]
-    : baseOverrideFields;
   const overrideCount = Object.keys(overrides).length;
   const setOverride = (key, value) => {
     const next = { ...overrides };
