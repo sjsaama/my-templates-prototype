@@ -14,9 +14,19 @@ const COPY = {
   // TEMPLATE_OVERRIDE_FIELDS (per-section overrides) — the one set of fields that used to require
   // editing in three places for a single wording change.
   templateSettings: {
-    separator: {
-      label: "Separator",
-      info: "Joins text when multiple sections map to one EHR field.",
+    paragraphSeparator: {
+      label: "Paragraph separator",
+      info: "Gap between two paragraphs in one EHR field.",
+      placeholder: "e.g. \\n\\n",
+    },
+    sectionSeparator: {
+      label: "Section separator",
+      info: "Gap between two sections mapped to one EHR field.",
+      placeholder: "e.g. \\n",
+    },
+    subsectionSeparator: {
+      label: "Subsection separator",
+      info: "Gap between two subsections mapped to one EHR field.",
       placeholder: "e.g. \\n",
     },
     charLimit: {
@@ -32,13 +42,9 @@ const COPY = {
       label: "Retain headings",
       info: "Keep section/subsection headings in the pushed content.",
     },
-    skipEmptySubsections: {
-      label: "Skip empty subsections",
-      info: "Omit subsections with no generated content instead of pushing an empty heading.",
-    },
-    keepBulletPoints: {
-      label: "Keep bullet points",
-      info: "Preserve bullet formatting on push to Assessment/Plan.",
+    removeBulletPoints: {
+      label: "Remove bullet points",
+      info: "Strip bullet formatting on push.",
     },
     wizardIntro: "These apply once, to the whole template, not per section. You can change them later from the Template settings button in the header.",
   },
@@ -47,18 +53,18 @@ const COPY = {
   // "Section-level settings" collapsible (modal.jsx) — same three fields, two call sites.
   contentFields: {
     preLiteral: {
-      label: "Pre-literal",
+      label: "Pre-section text",
       info: "Fixed text added before the section's generated content every time it pushes.",
       placeholder: "Fixed text added before section content on push…",
     },
     postLiteral: {
-      label: "Post-literal",
+      label: "Post-section text",
       info: "Fixed text added after the section's generated content every time it pushes.",
       placeholder: "Fixed text added after section content on push…",
     },
     defaultText: {
       label: "Default value",
-      info: "Shown instead of the section's usual content when nothing relevant was found in the transcript.",
+      info: "Shown when nothing relevant was found in the transcript.",
       placeholder: 'e.g. "Not reported" or "None"',
     },
   },
@@ -97,18 +103,23 @@ const COPY = {
     title: "Create a template",
     subtitle: "You'll configure sections and EHR mapping after creation",
     ehrTemplateStepHint: (ehrLabel) => `You can only map to templates ops has already set up in ${ehrLabel}. Picking one fetches its field list for the next step.`,
+    kindStep: {
+      title: "Create a template",
+      selfServe: { label: "Self-serve template", desc: "You set this up and manage it yourself." },
+      managed: { label: "Managed template", desc: "We set this up and maintain it for you." },
+    },
+    managedTitle: "Managed template",
+    managedMessage: "Managed templates are set up and maintained by ops. Contact support to request one.",
   },
 
   // Template Settings modal, opened from the header button (modal.jsx)
   templateSettingsModal: {
-    title: "Template settings",
-    subtitle: (templateName) => `${templateName}, applies to the whole template, not per section`,
+    title: "Template EHR mapping settings",
   },
 
   // Version History modal (modal.jsx, app.jsx)
   versionHistory: {
     title: "Version history",
-    subtitle: (templateName) => `${templateName}, restore to any saved version`,
     restoreConfirmBody: "Your unsaved changes will be replaced. No version is ever deleted, save first if you want to keep this one.",
     restoreWarnings: ["EHR mappings will match this version", "Section order will match this version", "Section settings will match this version"],
   },

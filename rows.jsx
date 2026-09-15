@@ -150,7 +150,6 @@ function fieldHint(f) {
 }
 
 function MappingPickerPanel({ sectionId, sectionName, currentEhr, ehr, ehrTemplateName, onSelect, onClose }) {
-  const [query, setQuery] = useStateR("");
   const [pendingEhr, setPendingEhr] = useStateR(currentEhr);
   const I = window.Icons;
   const isEcw = ehr === "eCW";
@@ -171,43 +170,28 @@ function MappingPickerPanel({ sectionId, sectionName, currentEhr, ehr, ehrTempla
           <div className="mapping-picker-sub">Section: <strong>{sectionName}</strong></div>
         </div>
 
-        <div className="mapping-picker-search">
-          <input className="mapping-picker-input" placeholder="Search EHR fields…"
-            value={query} onChange={e => setQuery(e.target.value)} autoFocus />
-        </div>
         <div className="mapping-picker-body">
           {(() => {
             const groups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [];
-            const filtered = groups.map(g => ({
-              ...g,
-              fields: g.fields.filter(f => {
-                const label = f.split(" > ").pop();
-                return label.toLowerCase().includes(query.toLowerCase()) || g.group.toLowerCase().includes(query.toLowerCase());
-              }),
-            })).filter(g => g.fields.length > 0);
-            return filtered.length === 0
-              ? <div className="mapping-picker-empty">No fields match "{query}"</div>
-              : filtered.map(g => (
-                <div key={g.group}>
-                  <div className="mapping-picker-group-label">{g.group}</div>
-                  {g.fields.map(f => {
-                    const isSelected = f === pendingEhr;
-                    const hint = fieldHint(f);
-                    return (
-                      <div key={f}>
-                        <button
-                          className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
-                          onClick={() => setPendingEhr(f)}
-                        >
-                          <span>{fieldLabel(f)}</span>
-                          {isSelected && <span className="mapping-picker-check"><I.check /></span>}
-                        </button>
-                        {hint && <div className="mapping-picker-field-hint">{hint}</div>}
-                      </div>
-                    );
-                  })}
-                </div>
-              ));
+            const fields = groups.flatMap(g => g.fields);
+            return fields.length === 0
+              ? <div className="mapping-picker-empty">No fields available</div>
+              : fields.map(f => {
+                const isSelected = f === pendingEhr;
+                const hint = fieldHint(f);
+                return (
+                  <div key={f}>
+                    <button
+                      className={"mapping-picker-field" + (isSelected ? " mapping-picker-field--selected" : "")}
+                      onClick={() => setPendingEhr(f)}
+                    >
+                      <span>{fieldLabel(f)}</span>
+                      {isSelected && <span className="mapping-picker-check"><I.check /></span>}
+                    </button>
+                    {hint && <div className="mapping-picker-field-hint">{hint}</div>}
+                  </div>
+                );
+              });
           })()}
         </div>
         <div className="mapping-picker-foot">
@@ -316,9 +300,8 @@ function ScribeItPickerPanel({ sectionId, sectionName, primaryField, currentScri
 }
 
 // ── Editable mapping chip (leaf sections) ─────────────────────────────────
-function EditableMappingCell({ s, onOpenMapping, isDuplicate, sharedGroup, onReorderShared, ehr, demoOverride }) {
+function EditableMappingCell({ s, onOpenMapping, isDuplicate, ehr, demoOverride }) {
   const I = window.Icons;
-  const [orderOpen, setOrderOpen] = useStateR(false);
 
   const chipBase = {
     display:"flex", alignItems:"center", gap:6, alignSelf:"flex-start",
@@ -382,48 +365,26 @@ function EditableMappingCell({ s, onOpenMapping, isDuplicate, sharedGroup, onReo
         <span className="mapping-edit-ico"><I.pencil /></span>
       </button>
       {isDuplicate && (
-        <div className="mapping-shared-wrap">
-          <button
-            type="button"
-            className={"mapping-shared" + (orderOpen ? " mapping-shared--open" : "")}
-            onClick={() => setOrderOpen(o => !o)}
-            title="Multiple sections push to this field — click to set push order"
-          >
-            Shared · order {(sharedGroup || []).findIndex(g => g.id === s.id) + 1}/{(sharedGroup || []).length}
-          </button>
-          {orderOpen && (
-            <div className="row-popover mapping-order-popover">
-              <div className="row-popover-title">Push order into this field</div>
-              <div className="mapping-order-hint">
-                {window.COPY.sharedMapping.orderExplanation(fieldLabel(s.ehr))}
-              </div>
-              {(sharedGroup || []).map((g, i) => (
-                <div key={g.id} className={"mapping-order-item" + (g.id === s.id ? " mapping-order-item--self" : "")}>
-                  <span className="mapping-order-num">{i + 1}</span>
-                  <span className="mapping-order-name">{g.name}</span>
-                  <div className="mapping-order-btns">
-                    <button type="button" disabled={i === 0} onClick={() => onReorderShared(s.ehr, g.id, -1)} aria-label={"Move " + g.name + " up"}>▲</button>
-                    <button type="button" disabled={i === sharedGroup.length - 1} onClick={() => onReorderShared(s.ehr, g.id, 1)} aria-label={"Move " + g.name + " down"}>▼</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <span
+          className="mapping-shared"
+          title="Multiple sections push to this field — switch to EHR mapping view to set push order"
+        >
+          Shared
+        </span>
       )}
     </div>
   );
 }
 
 // ── Parent mapping cell (mode toggle + chip or label) ─────────────────────
-function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, sharedGroup, onReorderShared, ehr }) {
+function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, ehr }) {
   const I = window.Icons;
   const mode = s.mappingMode || 'whole';
   const isIndividual = mode === 'individual';
   return (
     <div className="mapping-mode-inline">
       {mode === 'whole' ? (
-        <EditableMappingCell s={s} onOpenMapping={onOpenMapping} isDuplicate={isDuplicate} sharedGroup={sharedGroup} onReorderShared={onReorderShared} ehr={ehr} />
+        <EditableMappingCell s={s} onOpenMapping={onOpenMapping} isDuplicate={isDuplicate} ehr={ehr} />
       ) : (
         <span className="mapping-individual-note">Subsections mapped individually</span>
       )}
@@ -446,15 +407,19 @@ function ParentMappingCell({ s, onOpenMapping, onSetMappingMode, isDuplicate, sh
 // Template-level settings a section can override. `type: "bool"` renders a toggle,
 // everything else a text/number input. Labels/info pulled from window.COPY.templateSettings —
 // the single source shared with the Create Template wizard and the Template Settings modal.
+// Section separator is template-level only — joining sections that share one EHR field only
+// makes sense consistently across the whole template, not toggled per section. Paragraph and
+// subsection separators don't have that constraint (they only affect content within one
+// section's own subtree), so they're overridable here too.
 function getTemplateOverrideFields(ehrLabel) {
   const C = window.COPY.templateSettings;
   return [
-    { key: "separator", type: "text", label: C.separator.label, placeholder: C.separator.placeholder, info: C.separator.info },
+    { key: "paragraphSeparator", label: C.paragraphSeparator.label, placeholder: C.paragraphSeparator.placeholder, info: C.paragraphSeparator.info },
+    { key: "subsectionSeparator", label: C.subsectionSeparator.label, placeholder: C.subsectionSeparator.placeholder, info: C.subsectionSeparator.info },
     { key: "charLimit", type: "number", label: C.charLimit.label, placeholder: C.charLimit.placeholder, info: C.charLimit.info },
     { key: "pushSubsections", type: "bool", label: C.pushSubsections.label, info: C.pushSubsections.info(ehrLabel) },
     { key: "retainHeadings", type: "bool", label: C.retainHeadings.label, info: C.retainHeadings.info },
-    { key: "skipEmptySubsections", type: "bool", label: C.skipEmptySubsections.label, info: C.skipEmptySubsections.info },
-    { key: "keepBulletPoints", type: "bool", label: C.keepBulletPoints.label, info: C.keepBulletPoints.info },
+    { key: "removeBulletPoints", type: "bool", label: C.removeBulletPoints.label, info: C.removeBulletPoints.info },
   ];
 }
 
@@ -713,7 +678,7 @@ function SectionRow({
   onToggle, onExpand, onToggleDetails, onDeleteSection,
   onOpenMapping, onOpenScribeMapping, onSetMappingMode, onUpdate,
   onDragStart, onDragEnd, onDragOver, onDrop,
-  isDragging, dropBefore, dropAfter, isDuplicate, sharedGroup, onReorderShared,
+  isDragging, dropBefore, dropAfter, isDuplicate,
   parentMappingMode, ehr, templateSettings, onNavigateToMacro, pushIssue, canEditPrompt, dualMappingDemo,
 }) {
   const I = window.Icons;
@@ -816,11 +781,11 @@ function SectionRow({
               {/* Macros popover */}
               {popover === "macros" && (
                 <div className="row-popover">
-                  <div className="row-popover-title">Macros</div>
+                  <div className="row-popover-title">Macros in this Section</div>
                   {(s.macros || []).length === 0
                     ? <div className="row-popover-empty">No macros connected</div>
                     : (s.macros || []).map((m, i) => (
-                      <div key={i} className="row-popover-item">
+                      <div key={i} className="row-popover-item row-popover-item--stacked">
                         {onNavigateToMacro ? (
                           <button type="button" className="row-popover-link"
                             onClick={() => { setPopover(null); onNavigateToMacro(m.name); }}>
@@ -829,6 +794,12 @@ function SectionRow({
                         ) : (
                           <span>{m.name}</span>
                         )}
+                        <span className="row-popover-tags">
+                          <span className={"mode-tag " + modeTagClass(m.insertMode)}>{m.insertMode}</span>
+                          <span className={"mode-tag " + (m.aiInference ? "tag--teal" : "tag--slate")}>
+                            {m.aiInference ? "AI inference: On" : "AI inference: Off"}
+                          </span>
+                        </span>
                       </div>
                     ))}
                 </div>
@@ -836,7 +807,7 @@ function SectionRow({
               {/* Summarizers popover */}
               {popover === "sums" && (
                 <div className="row-popover">
-                  <div className="row-popover-title">Summarizers</div>
+                  <div className="row-popover-title">Summarizers in this Section</div>
                   {(s.summarizers || []).length === 0
                     ? <div className="row-popover-empty">No summarizers connected</div>
                     : (s.summarizers || []).map((m, i) => (
@@ -871,12 +842,10 @@ function SectionRow({
                 onOpenMapping={onOpenMapping}
                 onSetMappingMode={onSetMappingMode}
                 isDuplicate={isDuplicate}
-                sharedGroup={sharedGroup}
-                onReorderShared={onReorderShared}
                 ehr={ehr}
               />
             ) : (
-              <EditableMappingCell s={s} onOpenMapping={onOpenMapping} isDuplicate={isDuplicate} sharedGroup={sharedGroup} onReorderShared={onReorderShared} ehr={ehr} demoOverride={demoOverride} />
+              <EditableMappingCell s={s} onOpenMapping={onOpenMapping} isDuplicate={isDuplicate} ehr={ehr} demoOverride={demoOverride} />
             );
           })()}
         </div>
@@ -961,7 +930,7 @@ function SectionRow({
 
 // ── Render tree recursively ────────────────────────────────────────────────
 function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
-  const { handlers, dragId, dropTarget, ehrCounts, ehrGroups, reorderPushGroup, ehr, templateSettings, onNavigateToMacro, pushIssuesByName, canEditPrompt, dualMappingDemo } = ctx;
+  const { handlers, dragId, dropTarget, ehrCounts, ehr, templateSettings, onNavigateToMacro, pushIssuesByName, canEditPrompt, dualMappingDemo } = ctx;
   const isDragging = dragId === s.id;
   const dropBefore = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'before');
   const dropAfter = !!(dropTarget && dropTarget.id === s.id && dropTarget.pos === 'after');
@@ -978,8 +947,6 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
       dropBefore={dropBefore}
       dropAfter={dropAfter}
       isDuplicate={isDuplicate}
-      sharedGroup={isDuplicate ? (ehrGroups[s.ehr] || []) : null}
-      onReorderShared={reorderPushGroup}
       parentMappingMode={parentMappingMode}
       ehr={ehr}
       templateSettings={templateSettings}
@@ -996,6 +963,150 @@ function renderSectionTree(s, depth, index, siblings, ctx, parentMappingMode) {
     });
   }
   return nodes;
+}
+
+// Groups every mapped section by its EHR field value. A field with 2+ sections mapped to it
+// needs an explicit push order (which section's text comes first when combined into that one
+// EHR field) — ehrGroups holds every section mapped to each field, in their *current* push
+// order, independent of (and not necessarily matching) their order in this note. Shared by
+// SectionTable (which only needs ehrCounts, to flag a row as "Shared") and EhrMappingView
+// (which needs the full ordered groups to render and let the doctor reorder them).
+function computeEhrGroups(sections) {
+  const ehrCounts = {};
+  const ehrGroups = {};
+  const walkEhr = (list) => {
+    for (const s of list) {
+      if (!s.ghost && s.ehr) {
+        ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
+        (ehrGroups[s.ehr] = ehrGroups[s.ehr] || []).push(s);
+      }
+      if (s.children) walkEhr(s.children);
+    }
+  };
+  walkEhr(sections);
+  Object.keys(ehrGroups).forEach((k) => {
+    ehrGroups[k] = ehrGroups[k].slice().sort((a, b) => {
+      if (a.pushOrder == null && b.pushOrder == null) return 0;
+      if (a.pushOrder == null) return 1;
+      if (b.pushOrder == null) return -1;
+      return a.pushOrder - b.pushOrder;
+    });
+  });
+  return { ehrCounts, ehrGroups };
+}
+
+// ── EHR mapping view — read-only alternative to SectionTable, organized by EHR field instead
+// of by note structure. Everything here is a static label except reordering within a field that
+// has multiple sections mapped to it (drag to set push order) — that's the one thing that's a
+// per-section decision but doesn't belong to any single section's own row, so it gets its own
+// view instead of a popover buried in the template view (see EditableMappingCell's plain
+// "Shared" badge, which now just points here instead of opening an order picker itself).
+function EhrMappingView({ sections, ehr, onUpdate }) {
+  const I = window.Icons;
+  const [dragState, setDragState] = useStateR(null);   // { fieldVal, id }
+  const [dropTarget, setDropTarget] = useStateR(null); // { fieldVal, id, pos }
+
+  const ehrCat = (window.EHR_CATEGORY || {})[ehr] || {};
+
+  if (ehrCat.cat === 3) {
+    return (
+      <div className="ehr-mapping-view">
+        <div className="ehr-mapping-view-empty">
+          {ehrCat.label} pushes the whole note automatically ({ehrCat.autoMsg || "no per-field mapping"}) — there's no field-level mapping to show here.
+        </div>
+      </div>
+    );
+  }
+  if (ehrCat.cat === 4) {
+    return (
+      <div className="ehr-mapping-view">
+        <div className="ehr-mapping-view-empty">
+          <strong>{ehrCat.label}</strong> {window.COPY.banners.noPushSuffix}
+        </div>
+      </div>
+    );
+  }
+
+  const { ehrGroups } = computeEhrGroups(sections);
+  // Same field order the mapping picker popup lists them in (EHR_FIELDS_BY_SYSTEM's own order,
+  // which mirrors the EHR's actual note layout) — not alphabetical — so this view reads in the
+  // same order as the note itself. Any mapped value that isn't in that canonical list (shouldn't
+  // normally happen) still shows, just appended after the known fields.
+  const fieldGroups = (window.EHR_FIELDS_BY_SYSTEM && (window.EHR_FIELDS_BY_SYSTEM[ehr] || window.EHR_FIELDS_BY_SYSTEM.default)) || window.EHR_FIELDS || [];
+  const canonicalOrder = fieldGroups.flatMap((g) => g.fields);
+  const fields = [
+    ...canonicalOrder.filter((f) => ehrGroups[f]),
+    ...Object.keys(ehrGroups).filter((f) => !canonicalOrder.includes(f)),
+  ];
+
+  const reorderGroup = (fieldVal, draggedId, targetId, pos) => {
+    const group = ehrGroups[fieldVal] || [];
+    if (draggedId === targetId) return;
+    const dragged = group.find((s) => s.id === draggedId);
+    if (!dragged) return;
+    const without = group.filter((s) => s.id !== draggedId);
+    const targetIdx = without.findIndex((s) => s.id === targetId);
+    const insertAt = pos === 'before' ? targetIdx : targetIdx + 1;
+    without.splice(insertAt, 0, dragged);
+    without.forEach((s, i) => onUpdate(s.id, { pushOrder: i }));
+  };
+
+  const getPos = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+  };
+
+  return (
+    <div className="ehr-mapping-view">
+      {fields.length === 0 ? (
+        <div className="ehr-mapping-view-empty">No sections are mapped to an EHR field yet.</div>
+      ) : fields.map((fieldVal) => {
+        const group = ehrGroups[fieldVal];
+        const isShared = group.length > 1;
+        return (
+          <div key={fieldVal} className="ehr-field-group">
+            <div className="ehr-field-group-title">{fieldLabel(fieldVal)}</div>
+            {!isShared ? (
+              <div className="ehr-field-group-item ehr-field-group-item--single">{group[0].name}</div>
+            ) : (
+              <>
+                <div className="mapping-order-hint">{window.COPY.sharedMapping.orderExplanation(fieldLabel(fieldVal))}</div>
+                {group.map((s, i) => {
+                  const isDragging = !!(dragState && dragState.fieldVal === fieldVal && dragState.id === s.id);
+                  const dropBefore = !!(dropTarget && dropTarget.fieldVal === fieldVal && dropTarget.id === s.id && dropTarget.pos === 'before');
+                  const dropAfter = !!(dropTarget && dropTarget.fieldVal === fieldVal && dropTarget.id === s.id && dropTarget.pos === 'after');
+                  return (
+                    <div
+                      key={s.id}
+                      className={"mapping-order-item" + (isDragging ? " row--dragging" : "") + (dropBefore ? " row--drop-before" : "") + (dropAfter ? " row--drop-after" : "")}
+                      draggable
+                      onDragStart={() => setTimeout(() => setDragState({ fieldVal, id: s.id }), 0)}
+                      onDragEnd={() => { setDragState(null); setDropTarget(null); }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (!dragState || dragState.fieldVal !== fieldVal || dragState.id === s.id) return;
+                        setDropTarget({ fieldVal, id: s.id, pos: getPos(e) });
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (dragState && dragState.fieldVal === fieldVal) reorderGroup(fieldVal, dragState.id, s.id, getPos(e));
+                        setDragState(null);
+                        setDropTarget(null);
+                      }}
+                    >
+                      <span className="grip" title="Drag to reorder"><I.grip /></span>
+                      <span className="mapping-order-num">{i + 1}</span>
+                      <span className="mapping-order-name">{s.name}</span>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 // ── Section table (manages drag state + mapping panel) ────────────────────
@@ -1025,40 +1136,10 @@ function SectionTable({
     onRemapTargetHandled && onRemapTargetHandled();
   }, [remapTarget]);
 
-  // Compute duplicate EHR destinations across all sections — a field with 2+ sections mapped
-  // to it needs an explicit push order (which section's text comes first when combined into
-  // that one EHR field). ehrGroups holds every section mapped to each field, in their *current*
-  // push order — independent of, and not necessarily matching, their order in this note.
-  const ehrCounts = {};
-  const ehrGroups = {};
-  const walkEhr = (list) => {
-    for (const s of list) {
-      if (!s.ghost && s.ehr) {
-        ehrCounts[s.ehr] = (ehrCounts[s.ehr] || 0) + 1;
-        (ehrGroups[s.ehr] = ehrGroups[s.ehr] || []).push(s);
-      }
-      if (s.children) walkEhr(s.children);
-    }
-  };
-  walkEhr(sections);
-  Object.keys(ehrGroups).forEach((k) => {
-    ehrGroups[k] = ehrGroups[k].slice().sort((a, b) => {
-      if (a.pushOrder == null && b.pushOrder == null) return 0;
-      if (a.pushOrder == null) return 1;
-      if (b.pushOrder == null) return -1;
-      return a.pushOrder - b.pushOrder;
-    });
-  });
-
-  const reorderPushGroup = (fieldVal, id, dir) => {
-    const group = ehrGroups[fieldVal] || [];
-    const idx = group.findIndex((s) => s.id === id);
-    const j = idx + dir;
-    if (idx < 0 || j < 0 || j >= group.length) return;
-    const reordered = group.slice();
-    const tmp = reordered[idx]; reordered[idx] = reordered[j]; reordered[j] = tmp;
-    reordered.forEach((s, i) => onUpdate(s.id, { pushOrder: i }));
-  };
+  // Duplicate EHR destinations (a field with 2+ sections mapped to it) only need a plain "Shared"
+  // flag here — the actual push-order management now lives in EhrMappingView. ehrCounts is the
+  // one piece of that computation still needed on this side.
+  const { ehrCounts } = computeEhrGroups(sections);
 
   const openMapping = (sectionId) => {
     const sec = findSecR(sections, sectionId);
@@ -1113,7 +1194,7 @@ function SectionTable({
 
   const pushIssuesByName = {};
   (pushIssues || []).forEach(pi => { pushIssuesByName[pi.section] = pi; });
-  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehrGroups, reorderPushGroup, ehr, templateSettings, onNavigateToMacro, pushIssuesByName, canEditPrompt, dualMappingDemo };
+  const ctx = { handlers, dragId: dragState ? dragState.id : null, dropTarget, ehrCounts, ehr, templateSettings, onNavigateToMacro, pushIssuesByName, canEditPrompt, dualMappingDemo };
 
   const hideMappingCol = ((window.EHR_CATEGORY || {})[ehr] || {}).cat === 3;
 
@@ -1160,4 +1241,4 @@ function SectionTable({
   );
 }
 
-Object.assign(window, { SectionTable, Toggle, ChipListInput, InfoTip, FillSegmentsEditor, fillSegmentsPreview });
+Object.assign(window, { SectionTable, EhrMappingView, Toggle, ChipListInput, InfoTip, FillSegmentsEditor, fillSegmentsPreview });

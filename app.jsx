@@ -151,6 +151,7 @@ function App() {
   const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
   const [toast, setToast] = useStateA("");
   const [navCollapsed, setNavCollapsed] = useStateA(false);
+  const [templateViewMode, setTemplateViewMode] = useStateA("marvix"); // "marvix" | "ehrMapping"
   const [versionHistoryOpen, setVersionHistoryOpen] = useStateA(false);
   const [restoreTarget, setRestoreTarget] = useStateA(null); // version object pending confirm | null
   const pushIssues = ERROR_SCENARIOS[t.errorScenario] || [];
@@ -184,6 +185,8 @@ function App() {
       templateSettings: JSON.parse(JSON.stringify(tpl.templateSettings || window.DEFAULT_TEMPLATE_SETTINGS)),
       label: "Original",
       changes: [],
+      sectionsChanged: [],
+      author: window.CURRENT_DOCTOR_NAME,
     }];
   }
   const versions = activeTpl ? (versionsByTpl[activeTpl] || []) : [];
@@ -242,6 +245,9 @@ function App() {
     if (urlOverrides.openSettings) {
       const sec = findSectionByName(sections, urlOverrides.openSettings);
       if (sec) setSections((arr) => mapSectionTree(arr, sec.id, (s) => ({ ...s, detailsExpanded: true })));
+    }
+    if (urlOverrides.openTemplateSettings) {
+      setTemplateSettingsFor(activeTpl);
     }
   }, []);
 
@@ -400,6 +406,18 @@ function App() {
               <header className="ed-head">
                 <div className="ed-head-left">
                   <h2 className="ed-title">{tpl.name}</h2>
+                  <div className="view-toggle" role="tablist" aria-label="Template view">
+                    <button type="button" role="tab" aria-selected={templateViewMode === "marvix"}
+                      className={"view-toggle-btn" + (templateViewMode === "marvix" ? " view-toggle-btn--on" : "")}
+                      onClick={() => setTemplateViewMode("marvix")}>
+                      Marvix template view
+                    </button>
+                    <button type="button" role="tab" aria-selected={templateViewMode === "ehrMapping"}
+                      className={"view-toggle-btn" + (templateViewMode === "ehrMapping" ? " view-toggle-btn--on" : "")}
+                      onClick={() => setTemplateViewMode("ehrMapping")}>
+                      EHR mapping view
+                    </button>
+                  </div>
                 </div>
                 <div className="ed-head-right">
                   {tpl.userCreated && (
@@ -441,11 +459,11 @@ function App() {
                       templateSettings: JSON.parse(JSON.stringify(tpl.templateSettings || window.DEFAULT_TEMPLATE_SETTINGS)),
                     };
                     const prevSnapshot = versions[0] || { sections: [], templateSettings: {} };
-                    const changes = window.summarizeVersionChanges(prevSnapshot, nextSnapshot);
+                    const { changes, sectionsChanged } = window.summarizeVersionChanges(prevSnapshot, nextSnapshot);
                     setVersionsByTpl(m => ({
                       ...m,
                       [activeTpl]: [
-                        { id: "v_" + Date.now().toString(36), timestamp: new Date(), ...nextSnapshot, changes },
+                        { id: "v_" + Date.now().toString(36), timestamp: new Date(), ...nextSnapshot, changes, sectionsChanged, author: window.CURRENT_DOCTOR_NAME },
                         ...(m[activeTpl] || []),
                       ],
                     }));
@@ -497,28 +515,36 @@ function App() {
                 </div>
               )}
 
-              <window.SectionTable
-                sections={sections}
-                ehr={currentEhr}
-                templateSettings={tpl.templateSettings || window.DEFAULT_TEMPLATE_SETTINGS}
-                onNavigateToMacro={(name) => { setActiveView("macros"); setMacroDeepLink(name); }}
-                ehrTemplateName={tpl.ehr}
-                pushIssues={pushIssues}
-                dualMappingDemo={t.dualMappingDemo}
-                remapTarget={remapTarget}
-                onRemapTargetHandled={() => setRemapTarget(null)}
-                onToggle={handlers.onToggle}
-                onExpand={handlers.onExpand}
-                onToggleDetails={handlers.onToggleDetails}
-                onDeleteSection={handlers.onDeleteSection}
-                onReorder={handlers.onReorder}
-                onRemap={handlers.onRemap}
-                onSetScribeIt={handlers.onSetScribeIt}
-                onResetScribeItAuto={handlers.onResetScribeItAuto}
-                onSetMappingMode={handlers.onSetMappingMode}
-                onUpdate={handlers.onUpdate}
-                canEditPrompt={!!tpl.userCreated}
-              />
+              {templateViewMode === "ehrMapping" ? (
+                <window.EhrMappingView
+                  sections={sections}
+                  ehr={currentEhr}
+                  onUpdate={handlers.onUpdate}
+                />
+              ) : (
+                <window.SectionTable
+                  sections={sections}
+                  ehr={currentEhr}
+                  templateSettings={tpl.templateSettings || window.DEFAULT_TEMPLATE_SETTINGS}
+                  onNavigateToMacro={(name) => { setActiveView("macros"); setMacroDeepLink(name); }}
+                  ehrTemplateName={tpl.ehr}
+                  pushIssues={pushIssues}
+                  dualMappingDemo={t.dualMappingDemo}
+                  remapTarget={remapTarget}
+                  onRemapTargetHandled={() => setRemapTarget(null)}
+                  onToggle={handlers.onToggle}
+                  onExpand={handlers.onExpand}
+                  onToggleDetails={handlers.onToggleDetails}
+                  onDeleteSection={handlers.onDeleteSection}
+                  onReorder={handlers.onReorder}
+                  onRemap={handlers.onRemap}
+                  onSetScribeIt={handlers.onSetScribeIt}
+                  onResetScribeItAuto={handlers.onResetScribeItAuto}
+                  onSetMappingMode={handlers.onSetMappingMode}
+                  onUpdate={handlers.onUpdate}
+                  canEditPrompt={!!tpl.userCreated}
+                />
+              )}
             </>
           )}
         </div>
@@ -529,7 +555,6 @@ function App() {
       {versionHistoryOpen && (
         <window.VersionHistoryModal
           versions={versions}
-          templateName={tpl ? tpl.name : ""}
           onClose={() => setVersionHistoryOpen(false)}
           onRestore={(v) => { setVersionHistoryOpen(false); setRestoreTarget(v); }}
         />

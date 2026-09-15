@@ -23,6 +23,7 @@ python3 devserver.py 8765 "/Users/shilpi/Downloads/My templates"
 | `dualMapping` | Overrides the Tweaks "Dual field mapping" demo (`one_to_two` \| `amd_checkbox`) | `?dualMapping=amd_checkbox` |
 | `forceSharedMapping` | Forces two sections (by exact name, comma-separated) in the active template onto the same EHR field, so the "Shared · order" push-order popover appears | `?forceSharedMapping=Chief Complaint,History of Present Illness` |
 | `openSettings` | Auto-expands a section's settings panel (by exact name) on load | `?openSettings=History of Present Illness` |
+| `openTemplateSettings` | Auto-opens the Template EHR mapping settings modal (the gear icon) for the active template on load | `?openTemplateSettings=1` |
 
 Params combine — e.g. `?tpl=gen3&openSettings=History of Present Illness&forceSharedMapping=Chief Complaint,History of Present Illness` lands directly on General 3 with both the settings panel open and the shared-mapping badge visible.
 
@@ -38,5 +39,6 @@ already matches, or a template with no fixed `ehrSystem`.
 - **AMD checkbox-push demo**: `?tpl=gen3&dualMapping=amd_checkbox&openSettings=Assessment & Plan`
 - **A push-error banner**: `?tpl=gen3&errorScenario=athena_checkin`
 - **Land straight on a section's settings panel**: `?tpl=<id>&openSettings=<Section Name>`
+- **Land straight on the Template EHR mapping settings modal**: `?tpl=<id>&openTemplateSettings=1`
 
 Add a row here whenever a new repro state is worth reusing.

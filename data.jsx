@@ -36,7 +36,9 @@ function groupsFor(templates) {
 }
 
 // Macro / summarizer connection modes
-// macro modes: "Y/N Logic", "Free Text", "Lorem Ipsum"
+// macro modes: "Y/N Logic", "Free Text", "Lorem Ipsum" — the macro's own answer-generation logic
+// macro insertMode: "Append", "Prepend", "Replace" — how its output combines with section content
+// macro aiInference: true/false — whether AI fills the macro in, vs. a fixed/rule-based answer
 // summarizer modes: "Replace", "Append", "Prepend", "Inform"
 
 const makeSections = () => withDefaultPrompts(withDefaultNegatives([
@@ -46,7 +48,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     ehr: "Office Visit > Chief Complaint",
     config: "Prepend",
     enabled: true,
-    macros: [{ name: "Onset Macro", mode: "Y/N Logic" }],
+    macros: [{ name: "Onset Macro", mode: "Y/N Logic", insertMode: "Append", aiInference: true }],
     summarizers: [],
     staticStart: "",
     staticEnd: "",
@@ -61,8 +63,8 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     config: "Prepend",
     enabled: true,
     macros: [
-      { name: "Pain Assessment Macro", mode: "Y/N Logic" },
-      { name: "Symptom Duration Macro", mode: "Y/N Logic" },
+      { name: "Pain Assessment Macro", mode: "Y/N Logic", insertMode: "Prepend", aiInference: true },
+      { name: "Symptom Duration Macro", mode: "Y/N Logic", insertMode: "Append", aiInference: false },
     ],
     summarizers: [
       { name: "Previous note", mode: "Inform" },
@@ -84,7 +86,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     ehr: "",
     config: "Prepend",
     enabled: true,
-    macros: [{ name: "Example Macro", mode: "Y/N Logic" }],
+    macros: [{ name: "Example Macro", mode: "Y/N Logic", insertMode: "Replace", aiInference: true }],
     summarizers: [{ name: "Lab reports", mode: "Append" }],
     staticStart: "",
     staticEnd: "",
@@ -103,7 +105,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     ehr: "Office Visit > Review of Systems",
     config: "Append",
     enabled: true,
-    macros: [{ name: "ROS Negatives Macro", mode: "Free Text" }],
+    macros: [{ name: "ROS Negatives Macro", mode: "Free Text", insertMode: "Append", aiInference: false }],
     summarizers: [{ name: "Lab reports", mode: "Append" }],
     staticStart: "",
     staticEnd: "",
@@ -208,7 +210,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     ehr: "Office Visit > Physical Exam",
     config: "Replace",
     enabled: true,
-    macros: [{ name: "Normal Exam Macro", mode: "Free Text" }],
+    macros: [{ name: "Normal Exam Macro", mode: "Free Text", insertMode: "Prepend", aiInference: true }],
     summarizers: [],
     staticStart: "",
     staticEnd: "",
@@ -263,7 +265,7 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     ehr: "Office Visit > Assessment & Plan",
     config: "Prepend",
     enabled: true,
-    macros: [{ name: "Follow-up Macro", mode: "Y/N Logic" }],
+    macros: [{ name: "Follow-up Macro", mode: "Y/N Logic", insertMode: "Append", aiInference: true }],
     summarizers: [{ name: "Previous note", mode: "Inform" }],
     staticStart: "",
     staticEnd: "Return to clinic as scheduled or sooner if symptoms worsen.",
@@ -796,14 +798,19 @@ const STARTER_TEMPLATES = [
   },
 ];
 
+// This prototype has no login/auth — every save made from the section editor is attributed to
+// this one mock doctor. A real multi-user backend would replace this with the signed-in user.
+const CURRENT_DOCTOR_NAME = "Dr. Sarah Chen";
+
 // Template-level push settings — set once per template (creation wizard's "Template settings"
 // step, or the gear icon next to a template name in the left nav), not per section.
 const DEFAULT_TEMPLATE_SETTINGS = {
-  separator: "\\n",
+  paragraphSeparator: "\\n\\n",
+  sectionSeparator: "\\n",
+  subsectionSeparator: "\\n",
   pushSubsections: true,
   retainHeadings: true,
-  skipEmptySubsections: false,
-  keepBulletPoints: true,
+  removeBulletPoints: false,
   charLimit: "",
 };
 
@@ -830,12 +837,13 @@ function collectEnabledSections(sections) {
 // Doctor-facing labels for the template-level settings that "Save changes" versions alongside
 // sections — keep in sync with the fields TemplateSettingsModal actually edits.
 const TEMPLATE_SETTING_LABELS = {
-  separator: "Separator",
+  paragraphSeparator: "Paragraph separator",
+  sectionSeparator: "Section separator",
+  subsectionSeparator: "Subsection separator",
   charLimit: "Character limit",
   pushSubsections: "Push subsections",
   retainHeadings: "Retain headings",
-  skipEmptySubsections: "Skip empty subsections",
-  keepBulletPoints: "Keep bullet points",
+  removeBulletPoints: "Remove bullet points",
 };
 
 // Flattens a section tree (including disabled sections, unlike collectEnabledSections) into a
@@ -873,8 +881,13 @@ function sectionOrderChanged(prevList, nextList) {
 // claims about what restoring will actually change. Diffs by section `id`, which is stable within
 // a single prototype session — the real backend equivalent needs `section_uuid` stability before
 // a diff like this is safe to build (see docs/BACKEND.md, Phase 2).
+// Returns { changes, sectionsChanged }: `changes` is the full itemized log (including
+// non-section-scoped entries like reordering and template-setting edits); `sectionsChanged` is
+// just the deduped names of sections that were added/edited/removed, for the version list's
+// at-a-glance summary.
 function summarizeVersionChanges(prev, next) {
   const changes = [];
+  const sectionsChanged = [];
   const prevById = {};
   flattenSections(prev.sections).forEach((s) => { prevById[s.id] = s; });
   const nextFlat = flattenSections(next.sections);
@@ -886,7 +899,7 @@ function summarizeVersionChanges(prev, next) {
   // saves, and reordering aren't tied to one section, so those keep their own descriptive lines.
   nextFlat.forEach((s) => {
     const before = prevById[s.id];
-    if (!before) { changes.push(`Added "${s.name}"`); return; }
+    if (!before) { changes.push(`Added "${s.name}"`); sectionsChanged.push(s.name); return; }
     const edited =
       before.name !== s.name ||
       !!before.enabled !== !!s.enabled ||
@@ -900,11 +913,11 @@ function summarizeVersionChanges(prev, next) {
       (before.defaultNegative || "") !== (s.defaultNegative || "") ||
       JSON.stringify(before.macros || []) !== JSON.stringify(s.macros || []) ||
       JSON.stringify(before.summarizers || []) !== JSON.stringify(s.summarizers || []);
-    if (edited) changes.push(`Edited "${s.name}"`);
+    if (edited) { changes.push(`Edited "${s.name}"`); sectionsChanged.push(s.name); }
   });
 
   Object.keys(prevById).forEach((id) => {
-    if (!nextIds.has(id)) changes.push(`Removed "${prevById[id].name}"`);
+    if (!nextIds.has(id)) { changes.push(`Removed "${prevById[id].name}"`); sectionsChanged.push(prevById[id].name); }
   });
 
   if (sectionOrderChanged(prev.sections, next.sections)) changes.push("Reordered sections");
@@ -917,7 +930,7 @@ function summarizeVersionChanges(prev, next) {
     }
   });
 
-  return changes;
+  return { changes, sectionsChanged };
 }
 
 Object.assign(window, {
@@ -943,4 +956,5 @@ Object.assign(window, {
   summarizeVersionChanges,
   DEFAULT_TEMPLATE_SETTINGS,
   formatVersionDate,
+  CURRENT_DOCTOR_NAME,
 });

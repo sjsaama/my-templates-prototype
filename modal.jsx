@@ -27,7 +27,7 @@ function ConfirmModal({ title, subtitle, children, confirmLabel, onConfirm, onCl
 }
 
 // ── Version History Modal — restore to any saved version, not just an ops default ─────────
-function VersionHistoryModal({ versions, templateName, onClose, onRestore }) {
+function VersionHistoryModal({ versions, onClose, onRestore }) {
   const I = window.Icons;
   const CVH = window.COPY.versionHistory;
   const [expanded, setExpanded] = useStateM({}); // { [versionId]: true } — which rows show all changes
@@ -44,7 +44,6 @@ function VersionHistoryModal({ versions, templateName, onClose, onRestore }) {
       <div className="modal modal--confirm" role="dialog" aria-modal="true">
         <div className="modal-head">
           <h2>{CVH.title}</h2>
-          <span className="modal-sub">{CVH.subtitle(templateName)}</span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
         <div className="modal-body">
@@ -54,6 +53,7 @@ function VersionHistoryModal({ versions, templateName, onClose, onRestore }) {
             <div className="version-list">
               {versions.map((v, i) => {
                 const changes = v.changes || [];
+                const sectionsChanged = v.sectionsChanged || [];
                 const isExpanded = !!expanded[v.id];
                 const shown = isExpanded ? changes : changes.slice(0, CHANGE_PREVIEW_COUNT);
                 const hiddenCount = changes.length - shown.length;
@@ -62,11 +62,19 @@ function VersionHistoryModal({ versions, templateName, onClose, onRestore }) {
                     <div className="version-row-top">
                       <div className="version-row-info">
                         <span className="version-row-date">{window.formatVersionDate(v.timestamp)}</span>
+                        {v.author && <span className="version-row-author">by {v.author}</span>}
                         {v.label && <span className="version-row-tag">{v.label}</span>}
                         {i === 0 && !v.label && <span className="version-row-tag version-row-tag--current">Most recent save</span>}
                       </div>
                       <button className="btn-ghost btn-sm" onClick={() => onRestore(v)}>Restore</button>
                     </div>
+                    {sectionsChanged.length > 0 && (
+                      <div className="version-row-sections">
+                        Sections changed: {sectionsChanged.map((name, ni) => (
+                          <span key={ni} className="version-row-section-chip">{name}</span>
+                        ))}
+                      </div>
+                    )}
                     {v.label === "Original" ? (
                       <div className="version-row-changes-empty">Template created</div>
                     ) : changes.length === 0 ? (
@@ -396,16 +404,18 @@ function CreateTemplateModal({ ehr, doctorSpecialty, onClose, onCreate }) {
   const I = window.Icons;
   const CW = window.COPY.wizard;
   const CT = window.COPY.templateSettings;
+  const [phase, setPhase] = useStateM("chooseType"); // "chooseType" | "managed" | "wizard"
   const [step, setStep] = useStateM(1);
   const [gallerySelection, setGallerySelection] = useStateM("__blank__");
   const [name, setName] = useStateM("");
   const [type, setType] = useStateM("Clinical Note");
   const [ehrTemplateId, setEhrTemplateId] = useStateM("");
-  const [separator, setSeparator] = useStateM("\\n");
+  const [paragraphSeparator, setParagraphSeparator] = useStateM("\\n\\n");
+  const [sectionSeparator, setSectionSeparator] = useStateM("\\n");
+  const [subsectionSeparator, setSubsectionSeparator] = useStateM("\\n");
   const [pushSubsections, setPushSubsections] = useStateM(true);
   const [retainHeadings, setRetainHeadings] = useStateM(true);
-  const [skipEmptySubsections, setSkipEmptySubsections] = useStateM(false);
-  const [keepBulletPoints, setKeepBulletPoints] = useStateM(true);
+  const [removeBulletPoints, setRemoveBulletPoints] = useStateM(false);
   const [charLimit, setCharLimit] = useStateM("");
 
   const [galleryPreviewOpen, setGalleryPreviewOpen] = useStateM(false);
@@ -460,7 +470,7 @@ function CreateTemplateModal({ ehr, doctorSpecialty, onClose, onCreate }) {
       type,
       copyFromId,
       ehrTemplateName: selectedEhrTemplate ? selectedEhrTemplate.name : undefined,
-      templateSettings: { separator, pushSubsections, retainHeadings, skipEmptySubsections, keepBulletPoints, charLimit },
+      templateSettings: { paragraphSeparator, sectionSeparator, subsectionSeparator, pushSubsections, retainHeadings, removeBulletPoints, charLimit },
     });
   };
 
@@ -469,21 +479,53 @@ function CreateTemplateModal({ ehr, doctorSpecialty, onClose, onCreate }) {
       <div className="modal modal--create-tpl" role="dialog" aria-modal="true">
 
         <div className="modal-head">
-          <h2>{CW.title}</h2>
-          <span className="modal-sub">{CW.subtitle}</span>
+          <h2>{phase === "managed" ? CW.managedTitle : phase === "chooseType" ? CW.kindStep.title : CW.title}</h2>
+          <span className="modal-sub">{phase === "wizard" ? CW.subtitle : ""}</span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
 
         {/* Step indicator */}
-        <div className="create-steps">
-          {Array.from({ length: totalSteps }, (_, i) => i + 1).map(n => (
-            <div key={n} className={"create-step" + (n === step ? " create-step--active" : "") + (n < step ? " create-step--done" : "")}>
-              <span className="create-step-num">{n < step ? "✓" : n}</span>
-              <span className="create-step-label">{stepLabel(n)}</span>
-            </div>
-          ))}
-        </div>
+        {phase === "wizard" && (
+          <div className="create-steps">
+            {Array.from({ length: totalSteps }, (_, i) => i + 1).map(n => (
+              <div key={n} className={"create-step" + (n === step ? " create-step--active" : "") + (n < step ? " create-step--done" : "")}>
+                <span className="create-step-num">{n < step ? "✓" : n}</span>
+                <span className="create-step-label">{stepLabel(n)}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
+        {phase === "chooseType" && (
+          <div className="modal-body">
+            <div className="create-step-body">
+              <div className="kind-choice-row">
+                <button type="button" className="kind-choice-card"
+                  onClick={() => { setPhase("wizard"); setStep(1); }}>
+                  <span className="kind-choice-icon"><I.bolt /></span>
+                  <span className="kind-choice-label">{CW.kindStep.selfServe.label}</span>
+                  <span className="kind-choice-desc">{CW.kindStep.selfServe.desc}</span>
+                </button>
+                <button type="button" className="kind-choice-card"
+                  onClick={() => setPhase("managed")}>
+                  <span className="kind-choice-icon"><I.gear /></span>
+                  <span className="kind-choice-label">{CW.kindStep.managed.label}</span>
+                  <span className="kind-choice-desc">{CW.kindStep.managed.desc}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {phase === "managed" && (
+          <div className="modal-body">
+            <div className="create-step-body">
+              <p className="kind-managed-msg">{CW.managedMessage}</p>
+            </div>
+          </div>
+        )}
+
+        {phase === "wizard" && (
         <div className={"modal-body" + (stepKey === "gallery" ? " modal-body--gallery" : "")}>
 
           {/* ── Gallery ── */}
@@ -579,12 +621,30 @@ function CreateTemplateModal({ ehr, doctorSpecialty, onClose, onCreate }) {
               </div>
               <div className="req-field">
                 <div className="field-label-row">
-                  <label>{CT.separator.label}</label>
-                  <window.InfoTip text={CT.separator.info} />
+                  <label>{CT.paragraphSeparator.label}</label>
+                  <window.InfoTip text={CT.paragraphSeparator.info} />
                 </div>
-                <input className="req-input" value={separator}
-                  onChange={e => setSeparator(e.target.value)}
-                  placeholder={CT.separator.placeholder} />
+                <input className="req-input" value={paragraphSeparator}
+                  onChange={e => setParagraphSeparator(e.target.value)}
+                  placeholder={CT.paragraphSeparator.placeholder} />
+              </div>
+              <div className="req-field">
+                <div className="field-label-row">
+                  <label>{CT.sectionSeparator.label}</label>
+                  <window.InfoTip text={CT.sectionSeparator.info} />
+                </div>
+                <input className="req-input" value={sectionSeparator}
+                  onChange={e => setSectionSeparator(e.target.value)}
+                  placeholder={CT.sectionSeparator.placeholder} />
+              </div>
+              <div className="req-field">
+                <div className="field-label-row">
+                  <label>{CT.subsectionSeparator.label}</label>
+                  <window.InfoTip text={CT.subsectionSeparator.info} />
+                </div>
+                <input className="req-input" value={subsectionSeparator}
+                  onChange={e => setSubsectionSeparator(e.target.value)}
+                  placeholder={CT.subsectionSeparator.placeholder} />
               </div>
               <div className="req-field">
                 <div className="field-label-row">
@@ -613,33 +673,40 @@ function CreateTemplateModal({ ehr, doctorSpecialty, onClose, onCreate }) {
               </div>
               <div className="tpl-setting-toggle-row">
                 <div className="tpl-setting-toggle-name">
-                  {CT.skipEmptySubsections.label}
-                  <window.InfoTip text={CT.skipEmptySubsections.info} />
+                  {CT.removeBulletPoints.label}
+                  <window.InfoTip text={CT.removeBulletPoints.info} />
                 </div>
-                <window.Toggle on={skipEmptySubsections} onChange={setSkipEmptySubsections} />
-              </div>
-              <div className="tpl-setting-toggle-row">
-                <div className="tpl-setting-toggle-name">
-                  {CT.keepBulletPoints.label}
-                  <window.InfoTip text={CT.keepBulletPoints.info} />
-                </div>
-                <window.Toggle on={keepBulletPoints} onChange={setKeepBulletPoints} />
+                <window.Toggle on={removeBulletPoints} onChange={setRemoveBulletPoints} />
               </div>
             </div>
           )}
 
         </div>
+        )}
 
         <div className="modal-foot">
-          {step > 1
-            ? <button className="btn-ghost" onClick={() => setStep(s => s - 1)}>Back</button>
-            : <button className="btn-ghost" onClick={onClose}>Cancel</button>}
-          {step < totalSteps
-            ? <button className="btn-teal" onClick={() => setStep(s => s + 1)}
-                disabled={stepKey === "describe" ? !step2Valid : stepKey === "ehrTemplate" ? !ehrTemplateStepValid : false}>
-                Next
-              </button>
-            : <button className="btn-teal" onClick={handleCreate}>Create template</button>}
+          {phase === "chooseType" && (
+            <button className="btn-ghost" onClick={onClose}>Cancel</button>
+          )}
+          {phase === "managed" && (
+            <>
+              <button className="btn-ghost" onClick={() => setPhase("chooseType")}>Back</button>
+              <button className="btn-teal" onClick={onClose}>Close</button>
+            </>
+          )}
+          {phase === "wizard" && (
+            <>
+              {step > 1
+                ? <button className="btn-ghost" onClick={() => setStep(s => s - 1)}>Back</button>
+                : <button className="btn-ghost" onClick={() => setPhase("chooseType")}>Back</button>}
+              {step < totalSteps
+                ? <button className="btn-teal" onClick={() => setStep(s => s + 1)}
+                    disabled={stepKey === "describe" ? !step2Valid : stepKey === "ehrTemplate" ? !ehrTemplateStepValid : false}>
+                    Next
+                  </button>
+                : <button className="btn-teal" onClick={handleCreate}>Create template</button>}
+            </>
+          )}
         </div>
 
       </div>
@@ -929,37 +996,39 @@ function PreviewModal({ sections, tpl, ehr, templateSettings, onUpdateSection, c
   };
 
   // Assembles one top-level section's pushed text from the sample output, applying the
-  // settings that actually change note *content* (Retain headings, Skip empty subsections,
-  // Separator, Character limit, Text before/after, Keep bullet points). isRoot suppresses the
-  // inline heading on the outermost call since the UI already labels it via preview-section-name
-  // — everything below the root still embeds its own heading when Retain headings is on, since
-  // that's genuinely part of the pushed text once subsections are joined into their parent.
+  // settings that actually change note *content* (Retain headings, Subsection separator,
+  // Paragraph separator, Character limit, Text before/after, Remove bullet points). Empty
+  // subsections are always omitted — there's no real case for pushing an empty heading, so
+  // this isn't a configurable setting. isRoot suppresses the inline heading on the outermost
+  // call since the UI already labels it via preview-section-name — everything below the root
+  // still embeds its own heading when Retain headings is on, since that's genuinely part of
+  // the pushed text once subsections are joined into their parent.
   const assembleSectionText = (s, isRoot) => {
     if (!s.enabled) return null;
     const retainHeadings = resolveSetting(s, "retainHeadings");
-    const skipEmpty = resolveSetting(s, "skipEmptySubsections");
-    const separator = String(resolveSetting(s, "separator") ?? "\\n").replace(/\\n/g, "\n");
+    const paragraphSeparator = String(resolveSetting(s, "paragraphSeparator") ?? "\\n\\n").replace(/\\n/g, "\n");
+    const subsectionSeparator = String(resolveSetting(s, "subsectionSeparator") ?? "\\n").replace(/\\n/g, "\n");
     const charLimit = resolveSetting(s, "charLimit");
-    const keepBullets = resolveSetting(s, "keepBulletPoints");
+    const removeBullets = resolveSetting(s, "removeBulletPoints");
 
     let own = SAMPLE[s.id] || s.defaultNegative || "";
-    if (!keepBullets) own = own.split("\n").map(l => l.replace(/^[-•]\s*/, "")).join(" ").trim();
-    if (s.additionalTextBefore) own = s.additionalTextBefore + (own ? "\n" + own : "");
-    if (s.additionalTextAfter) own = (own ? own + "\n" : "") + s.additionalTextAfter;
+    if (removeBullets) own = own.split("\n").map(l => l.replace(/^[-•]\s*/, "")).join(" ").trim();
+    if (s.additionalTextBefore) own = s.additionalTextBefore + (own ? paragraphSeparator + own : "");
+    if (s.additionalTextAfter) own = (own ? own + paragraphSeparator : "") + s.additionalTextAfter;
     own = own.trim();
 
     const pieces = [];
-    if (own || !skipEmpty) {
-      pieces.push(retainHeadings && !isRoot ? s.name.toUpperCase() + (own ? "\n" + own : "") : own);
+    if (own) {
+      pieces.push(retainHeadings && !isRoot ? s.name.toUpperCase() + "\n" + own : own);
     }
     (s.children || []).forEach(c => {
       const childText = assembleSectionText(c, false);
       if (childText !== null) pieces.push(childText);
     });
 
-    let result = pieces.filter(p => p !== "").join(separator);
+    let result = pieces.filter(p => p !== "").join(subsectionSeparator);
     if (charLimit && result.length > Number(charLimit)) result = result.slice(0, Number(charLimit)) + "…";
-    return result || (skipEmpty ? null : "");
+    return result || null;
   };
 
   // Content-source editor for one section's Prompt view — mirrors the row's own Prompt
@@ -1128,7 +1197,7 @@ function PreviewModal({ sections, tpl, ehr, templateSettings, onUpdateSection, c
                       <div key={sec.id} className="preview-section">
                         <div className="preview-section-name">{sec.name}</div>
                         <div className="preview-section-text">
-                          {sec.text || "(no content — Skip empty subsections is off)"}
+                          {sec.text || "(no content)"}
                         </div>
                       </div>
                     ))}
@@ -1166,18 +1235,35 @@ function TemplateSettingsModal({ template, onUpdate, onClose }) {
       <div className="modal modal--request" role="dialog" aria-modal="true">
         <div className="modal-head">
           <h2>{CTM.title}</h2>
-          <span className="modal-sub">{CTM.subtitle(template ? template.name : "Template")}</span>
           <button className="modal-x" onClick={onClose} aria-label="Close"><I.close /></button>
         </div>
         <div className="modal-body">
           <div className="req-field">
             <div className="field-label-row">
-              <label>{CT.separator.label}</label>
-              <window.InfoTip text={CT.separator.info} />
+              <label>{CT.paragraphSeparator.label}</label>
+              <window.InfoTip text={CT.paragraphSeparator.info} />
             </div>
-            <input className="req-input" value={ts.separator}
-              onChange={e => set({ separator: e.target.value })}
-              placeholder={CT.separator.placeholder} />
+            <input className="req-input" value={ts.paragraphSeparator}
+              onChange={e => set({ paragraphSeparator: e.target.value })}
+              placeholder={CT.paragraphSeparator.placeholder} />
+          </div>
+          <div className="req-field">
+            <div className="field-label-row">
+              <label>{CT.sectionSeparator.label}</label>
+              <window.InfoTip text={CT.sectionSeparator.info} />
+            </div>
+            <input className="req-input" value={ts.sectionSeparator}
+              onChange={e => set({ sectionSeparator: e.target.value })}
+              placeholder={CT.sectionSeparator.placeholder} />
+          </div>
+          <div className="req-field">
+            <div className="field-label-row">
+              <label>{CT.subsectionSeparator.label}</label>
+              <window.InfoTip text={CT.subsectionSeparator.info} />
+            </div>
+            <input className="req-input" value={ts.subsectionSeparator}
+              onChange={e => set({ subsectionSeparator: e.target.value })}
+              placeholder={CT.subsectionSeparator.placeholder} />
           </div>
           <div className="req-field">
             <div className="field-label-row">
@@ -1206,17 +1292,10 @@ function TemplateSettingsModal({ template, onUpdate, onClose }) {
           </div>
           <div className="tpl-setting-toggle-row">
             <div className="tpl-setting-toggle-name">
-              {CT.skipEmptySubsections.label}
-              <window.InfoTip text={CT.skipEmptySubsections.info} />
+              {CT.removeBulletPoints.label}
+              <window.InfoTip text={CT.removeBulletPoints.info} />
             </div>
-            <window.Toggle on={ts.skipEmptySubsections} onChange={(v) => set({ skipEmptySubsections: v })} />
-          </div>
-          <div className="tpl-setting-toggle-row">
-            <div className="tpl-setting-toggle-name">
-              {CT.keepBulletPoints.label}
-              <window.InfoTip text={CT.keepBulletPoints.info} />
-            </div>
-            <window.Toggle on={ts.keepBulletPoints} onChange={(v) => set({ keepBulletPoints: v })} />
+            <window.Toggle on={ts.removeBulletPoints} onChange={(v) => set({ removeBulletPoints: v })} />
           </div>
         </div>
         <div className="modal-foot">

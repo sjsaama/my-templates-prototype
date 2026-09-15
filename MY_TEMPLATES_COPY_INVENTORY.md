@@ -19,8 +19,8 @@ One canonical name per concept, so future copy edits check against this instead 
 | Panel card: the section's content source (prompt / instruction / derivative) | "Prompt" | Inside the Section settings panel, self-serve only |
 | Panel card: per-section override of template-wide settings | "Override template settings for this section" | Inside the Section settings panel |
 | Panel card: EHR-specific push behavior | "Mapping settings" | Inside the Section settings panel |
-| Whole-template push settings (Separator, Retain headings, etc.) | "Template settings" | Gear icon modal, wizard step 4 |
-| Fixed text placed before/after a section's generated content | "Pre-literal" / "Post-literal" | Content settings card |
+| Whole-template push settings (Paragraph/Section/Subsection separator, Retain headings, etc.) | "Template EHR mapping settings" | Gear icon modal, wizard step 4 |
+| Fixed text placed before/after a section's generated content | "Pre-section text" / "Post-section text" | Content settings card |
 | Fallback text when a section generates nothing | "Default" | Content settings card |
 | Internal EHR categorization (Cat 1/2/3/4) | Never shown as "Cat X". Name the EHR(s) or describe the behavior instead | Doc annotations, code comments only |
 
@@ -41,6 +41,7 @@ One canonical name per concept, so future copy edits check against this instead 
 ## 2. Section editor, main table
 
 **Header** — one toolbar for every template-level action, all direct buttons, no overflow menu
+- "Marvix template view" / "EHR mapping view": segmented toggle next to the template name — switches the table below between the two views (see Section 3). Header buttons (Add section, Template settings, Version history, etc.) stay the same in both views.
 - "+ Add section": button (self-serve templates only)
   - "{ehrLabel}'s field list isn't confirmed yet, check with ops": disabled tooltip
   - "All available {ehrLabel} fields are already used": disabled tooltip
@@ -79,8 +80,8 @@ One canonical name per concept, so future copy edits check against this instead 
 - "Edit Scribe-it mapping" (eCW)
 
 **Macro/Summarizer popovers** (shown on self-serve and managed templates alike, view-only — no add/request action here)
-- "Macros" / "No macros connected"
-- "Summarizers" / "No summarizers connected"
+- "Macros in this Section" / "No macros connected" — each macro row shows two tags: insert mode ("Append" / "Prepend" / "Replace") and "AI inference: On" / "AI inference: Off"
+- "Summarizers in this Section" / "No summarizers connected" — each shows its mode tag ("Replace" / "Append" / "Prepend" / "Inform")
 
 **EHR mapping cell states**, by case
 - Not yet mapped: "Not mapped" / "Click to assign an EHR field"
@@ -94,24 +95,33 @@ One canonical name per concept, so future copy edits check against this instead 
   - "As one": "Push entire section (with all subsections) to one EHR field"
   - "Each separately": "Each subsection maps to its own EHR field independently"
 
-**Shared/duplicate field mapping**
-- "Shared · order {n}/{total}"
-- "Multiple sections push to this field, click to set push order"
-- "Push order into this field"
-- "Order these sections combine in when pushed to {fieldLabel}, independent of their order in this note."
+**Shared/duplicate field mapping** (in the Marvix template view — see Section 3 for where push order is actually set)
+- "Shared": a plain, non-interactive badge — no click, no popover here. Tooltip: "Multiple sections push to this field — switch to EHR mapping view to set push order"
 
 Per-section push-error messages: see **Errors** at the end of this doc.
 
 ---
 
-## 3. Section row inline settings panel
+## 3. EHR mapping view (toggle)
+
+A second, read-only view of the same template, toggled from a segmented control next to the template name ("Marvix template view" / "EHR mapping view"). Everything here is a static label — renaming, enabling/disabling, prompts, macros, mapping destination, etc. all move back to editable only in Marvix template view — **except** push order for a field with 2+ sections mapped to it, which lives here now instead of a popover on the row.
+
+- Field groups, one per EHR field that has at least one section mapped, in the same order the Mapping Picker panel lists fields in (Section 9) — the EHR's own field order, matching how the actual note is laid out, not alphabetical: field name as the group heading, then either a single plain row (one section mapped, nothing to reorder) or, for a shared field, the reorderable list.
+- Shared-field group: "{orderExplanation text — same copy as the old per-row popover, see Section 2}", then one row per section carrying a drag handle, an order number (1-based), and the section name. Drag to reorder; dropping updates every section in that group's push order immediately (no separate save/confirm step here — same as every other section edit, it's covered by the header's "Save changes").
+- Auto-routed/whole-note EHRs (Centricity, Cerner, ModMed): "{ehrLabel} pushes the whole note automatically ({autoMsg}) — there's no field-level mapping to show here."
+- No-push EHR (Tebra): "{ehrLabel} doesn't push automatically. Notes are copied manually after each visit." (same copy as the Marvix-view banner, Section 2)
+- No sections mapped yet: "No sections are mapped to an EHR field yet."
+
+---
+
+## 4. Section row inline settings panel
 
 Opened via the row's toolbox icon, tooltip "Section settings" (renamed from "Output settings" to match the Template/Mapping/Section settings hierarchy). Four cards: **Content settings**, **Prompt** (self-serve only), **Override template settings**, **Mapping settings**.
 
 **Content settings** (renamed from "Section settings" to avoid clashing with the icon's own new name)
-- Pre-literal: *"Fixed text added before the section's generated content every time it pushes."* Placeholder: "Fixed text added before section content on push…"
-- Post-literal: *"Fixed text added after the section's generated content every time it pushes."* Placeholder: "Fixed text added after section content on push…"
-- Default: *"Shown instead of the section's usual content when nothing relevant was found in the transcript."* Placeholder: `e.g. "Not reported" or "None"`
+- Pre-section text: *"Fixed text added before the section's generated content every time it pushes."* Placeholder: "Fixed text added before section content on push…"
+- Post-section text: *"Fixed text added after the section's generated content every time it pushes."* Placeholder: "Fixed text added after section content on push…"
+- Default: *"Shown when nothing relevant was found in the transcript."* Placeholder: `e.g. "Not reported" or "None"`
 
 **Prompt** (self-serve templates only)
 - Derivative to pull from: *"Pushes straight to the mapped field, as-is. No prompt, no merging."*
@@ -120,7 +130,7 @@ Opened via the row's toolbox icon, tooltip "Section settings" (renamed from "Out
 - Allowed output values: *"At least two values. The AI's output for this section will always be exactly one of these."* Placeholder: "Type a value and press Enter"
 
 **Override template settings for this section** (collapsible, count badge)
-- Same six fields/InfoTips as Template Settings (see Section 5). Shows "Template default: {value}" per field until overridden. Segmented control: "On / Off" (starts on whichever matches the template default; clicking either sets an explicit override)
+- Six of the seven Template Settings fields (see Section 6) — all except Section separator, which stays template-wide only. Shows "Template default: {value}" per field until overridden. Segmented control: "On / Off" for the boolean fields (Push subsections, Retain headings, Remove bullet points), a plain text input for Paragraph separator, Subsection separator, and Character limit — starts on/at whichever matches the template default; changing it sets an explicit override.
 
 **Mapping settings**
 - EHR value mapping: *"This section's output is always one of {allowed values}. Set what gets pushed to {fieldLabel} for each."* Per-value placeholder: "e.g. 1"
@@ -128,11 +138,17 @@ Opened via the row's toolbox icon, tooltip "Section settings" (renamed from "Out
 
 ---
 
-## 4. Create Template wizard
+## 5. Create Template wizard
 
 - "Create a template": title
 - "You'll configure sections and EHR mapping after creation": subtitle
 - Step labels: "Starting point", "Describe", "EHR template" (AMD, DrChrono, CharmHealth only), "Template settings" — last step, its Next button reads "Create template" (no separate Review step)
+
+**Step 0: Template type** (shown before the numbered wizard, not part of the step indicator; no subtitle, just the title and the two cards)
+- "Create a template": title
+- "Self-serve template" / "You set this up and manage it yourself.": option
+- "Managed template" / "We set this up and maintain it for you.": option
+- Picking "Self-serve" opens the numbered wizard below (Step 1). Picking "Managed" shows a message instead: "Managed template" (title) / "Managed templates are set up and maintained by ops. Contact support to request one." (body) — no wizard, just a Close button.
 
 **Step 1: Starting point**
 - "Start blank"
@@ -153,28 +169,29 @@ Opened via the row's toolbox icon, tooltip "Section settings" (renamed from "Out
 
 **Step 4: Template settings** (last step)
 - "These apply once, to the whole template, not per section. You can change them later from the Template settings button in the header."
-- Same six fields as Section 5 below.
+- Same seven fields as Section 6 below.
 - "Create template": final button (replaces "Next" on the last step)
 
 ---
 
-## 5. Template Settings modal (header button), the 6 fields reused across Sections 3, 4, and here
+## 6. Template Settings modal (header button), the 7 fields reused across Sections 4, 5, and here
 
-- **Separator**: *"Joins text when multiple sections map to one EHR field."* Placeholder: "e.g. \n"
+- **Paragraph separator**: *"Gap between two paragraphs in one EHR field."* Placeholder: "e.g. \n\n"
+- **Section separator**: *"Gap between two sections mapped to one EHR field."* Placeholder: "e.g. \n"
+- **Subsection separator**: *"Gap between two subsections mapped to one EHR field."* Placeholder: "e.g. \n"
 - **Character limit**: *"Shortens a section if it runs longer than this, so the push isn't rejected — leave blank for no limit."* Placeholder: "No limit"
 - **Push subsections** (only shown where the EHR auto-routes per section with no "As one"/"Each separately" choice, Centricity today): *"Include subsection content when pushing the parent section. Only relevant here, since {ehrLabel} has no "As one"/"Each separately" choice."*
 - **Retain headings**: *"Keep section/subsection headings in the pushed content."*
-- **Skip empty subsections**: *"Omit subsections with no generated content instead of pushing an empty heading."*
-- **Keep bullet points**: *"Preserve bullet formatting on push to Assessment/Plan."*
+- **Remove bullet points**: *"Strip bullet formatting on push."* (default off — bullets are kept unless this is turned on)
 
-Modal chrome: "Template settings" / "{templateName}, applies to the whole template, not per section" / "Close"
+Modal chrome: "Template EHR mapping settings" / "Close"
 
 ---
 
-## 6. Add Section modal
+## 7. Add Section modal
 
 - "Add section": title
-- Two grouped cards, "Content" and "Position" (same bordered-card style as Section 3's settings panel)
+- Two grouped cards, "Content" and "Position" (same bordered-card style as Section 4's settings panel)
 
 **Content**
 - "Section name": placeholder "e.g. Allergy History"
@@ -183,7 +200,7 @@ Modal chrome: "Template settings" / "{templateName}, applies to the whole templa
   - "Restricted list": "AI picks one of a few fixed answers you define, like Y / N / NA."
   - "Pull from another derivative": "Copies content straight from another note type, no AI writing."
 - Derivative to pull from: *"A direct pass-through. Whatever this derivative generates is pushed straight to wherever this section is mapped, as-is. No prompt, no merging."* Options: "ICD-10 Codes", "E/M Coding"
-- Prompt/Instruction + Allowed output values: same copy as Section 3's Prompt card
+- Prompt/Instruction + Allowed output values: same copy as Section 4's Prompt card
 
 **Position**
 - "Add as", two-option toggle: "New section" / "Subsection" (Subsection disabled with tooltip "No existing sections to nest under yet." if none exist)
@@ -191,12 +208,12 @@ Modal chrome: "Template settings" / "{templateName}, applies to the whole templa
   - Top-level: "Placement", options "First section" / "After "{siblingName}""
   - Subsection: "Placement within "{parentName}"", options "First child" / "After "{siblingName}""
 
-- "▾ Section-level settings" (collapsible, "optional, can skip and add later"): same Pre-literal/Post-literal/Default as Section 3, Pre-literal and Post-literal paired side by side
+- "▾ Section-level settings" (collapsible, "optional, can skip and add later"): same Pre-section text/Post-section text/Default as Section 4, Pre-section text and Post-section text paired side by side
 - "Cancel" / "Add section"
 
 ---
 
-## 7. Request New Section modal
+## 8. Request New Section modal
 
 - "Request a new section": title
 - "Ops team will review and add it to your template": subtitle
@@ -213,23 +230,24 @@ Modal chrome: "Template settings" / "{templateName}, applies to the whole templa
 
 ---
 
-## 8. Mapping Picker panel
+## 9. Mapping Picker panel
 
 - "EHR Field Mapping": title
 - "Section: {sectionName}"
-- "Search EHR fields…" / "No fields match "{query}""
+- Flat list of field names, no search box and no group-label headers (e.g. AMD's "Office Visit"/"Vitals"/"Administrative" groupings from `EHR_FIELDS_BY_SYSTEM` aren't shown — every field for the EHR lists directly)
+- "No fields available": empty state (EHR has no fields configured at all — not reachable with current seed data)
 - "Primary: {value}"
 - "Clear mapping. Remove EHR destination"
 - "Cancel" / "Save mapping"
 
 ---
 
-## 9. Version History modal
+## 10. Version History modal
 
 - "Version history": title
-- "{templateName}, restore to any saved version": subtitle
 - "No versions saved yet."
-- "Most recent save" / "Original": tags
+- Each row: date/time, "by {authorName}" (mock signed-in doctor — no login/multi-user model in this prototype), "Most recent save" / "Original" tag
+- "Sections changed: {name}, {name}, …" — deduped list of sections added/edited/removed in that save, shown as chips; omitted when nothing section-level changed
 - "Restore": button
 - "Template created" / "No changes detected since the previous save"
 - "+{n} more" / "Show less"
@@ -243,7 +261,7 @@ Modal chrome: "Template settings" / "{templateName}, applies to the whole templa
 
 ---
 
-## 10. Edit Template (live prompt testing view)
+## 11. Edit Template (live prompt testing view)
 
 No guide panel and no separate section-view/full-note toggle — the tab bar and the Generate button are the whole interface, and the note is always shown fully assembled.
 
@@ -254,12 +272,12 @@ No guide panel and no separate section-view/full-note toggle — the tab bar and
 - "Generating note…": placeholder shown in a new note tab until its 700ms generation completes
 - "Use this note's prompts": button shown above a note's content — copies that note's prompt snapshot back onto the Prompt tab and switches to it
 - "All sections are disabled, enable at least one to see output.": Prompt tab empty state
-- "(no content, Skip empty subsections is off)": per-section fallback in a note
-- Prompt fields (Prompt tab only) mirror Section 3's Prompt card, with fallback text "No instruction written yet…" / "None set" / "No prompt written yet…"
+- "(no content)": per-section fallback in a note
+- Prompt fields (Prompt tab only) mirror Section 4's Prompt card, with fallback text "No instruction written yet…" / "None set" / "No prompt written yet…"
 
 ---
 
-## 11. Macros page
+## 12. Macros page
 
 - "Macros": title
 - "Connected across {templateName}" / "Connected across the current template"
@@ -267,7 +285,7 @@ No guide panel and no separate section-view/full-note toggle — the tab bar and
 
 ---
 
-## 12. Toasts
+## 13. Toasts
 
 - "Section deleted"
 - "Template created, configure your sections and EHR mapping below"

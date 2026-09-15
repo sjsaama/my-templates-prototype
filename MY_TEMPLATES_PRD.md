@@ -38,7 +38,7 @@ Doctors on Marvix who push notes to an EHR. Experience varies by EHR — see **E
 |---|---|
 | All sections in their template | Hierarchical — parent sections with child subsections |
 | EHR field each section maps to | Varies by EHR |
-| Macros / summarizers attached | M / S icon buttons per row, each carrying a small count badge (e.g. "M 2") for how many are connected — no badge, no connections. Same on self-serve and managed templates. Popover lists connections, view-only — macro names link to the Macros page; summarizers show mode (Replace/Append/etc.) inline, no dedicated page yet. Adding a macro or requesting a summarizer isn't part of this popover — handled elsewhere |
+| Macros / summarizers attached | M / S icon buttons per row, each carrying a small count badge (e.g. "M 2") for how many are connected — no badge, no connections. Same on self-serve and managed templates. Popover lists connections, view-only — macro names link to the Macros page and each shows its insert mode (Append/Prepend/Replace) and whether AI inference is on; summarizers show mode (Replace/Append/etc.) inline, no dedicated page yet. Adding a macro or requesting a summarizer isn't part of this popover — handled elsewhere |
 
 - View template + EHR mapping
 - Remap a section on push failure
@@ -54,11 +54,11 @@ Left nav's template list is searchable by name and EHR system.
 
 ### 1. Creating a new template (self-serve)
 
-1. **"+ Create template"**
+1. **"+ Create template"** → **choose template type**: Self-serve (build it yourself now) or Managed (ops sets it up). Managed shows a short message directing the doctor to contact support — no further screen; it does not open the self-serve wizard.
 2. **Pick a starting point** — blank or a stencil (e.g. Cardiology Follow-up). Stencils have a **Preview** — just the assembled sample note, read-only, nothing else — and pre-fill sections/prompts.
 3. **Describe it** — name, purpose note (ops-only), document type (Note/Letter).
 4. **Pick EHR template** — Cat 2 only (AMD, DrChrono, CharmHealth). Others skip — fixed field list.
-5. **Template-level settings** — separator, character limit, push subsections, retain headings, skip empty subsections, keep bullet points (AthenaOne). Optional, defaults pre-filled, editable later.
+5. **Template-level settings** — separator, character limit, push subsections, retain headings, remove bullet points. Optional, defaults pre-filled, editable later.
 6. **Create template** → lands in editor with sections in place, no separate review step. Mapping/section settings happen after, not in this wizard.
 
 ### 2. Adding a new section
@@ -79,7 +79,7 @@ Section type is fixed forever. Editable after creation, from the sliders icon's 
 ### 3. Mapping a section to an EHR field
 
 1. Click **EHR Mapping** cell (pencil if already mapped).
-2. Pick a field — grouped, human-readable, no raw API IDs.
+2. Pick a field from a flat list — human-readable, no raw API IDs, no group headers, no search box.
 3. Save.
 
 Centricity, Cerner, ModMed: no **EHR Mapping** column at all — the whole note auto-pushes, so there's nothing for a doctor to pick, not even a read-only label. Cat 4 (Tebra) still shows the column with a "No push" label.
@@ -90,7 +90,7 @@ Same fields either way, saves immediately:
 - **During creation** — flow 1 step 5
 - **Anytime after** — **Template settings** button, template header
 
-Fields: Separator, Character limit, Push subsections, Retain headings, Skip empty subsections, Keep bullet points.
+Fields: Separator, Character limit, Push subsections, Retain headings, Remove bullet points.
 
 ### 5. Configuring mapping-level settings
 
@@ -103,7 +103,7 @@ Content-source fields always show (a section needs a prompt before it has anywhe
 
 1. Same **sliders icon**, any row — mapped or not.
 2. **Content settings** — text before content, text after content (independent), Default negative.
-3. Optional: **Override template settings for this section** — override any of the six template settings just for this section. Text/number fields show "Template default: X" until you type a value; boolean fields are an On/Off toggle that starts on the template default and commits to an explicit override the moment you click either side. Whatever's set wins.
+3. Optional: **Override template settings for this section** — override any of the template settings that make sense per section (Paragraph separator, Subsection separator, Character limit, Push subsections, Retain headings, Remove bullet points) just for this section. Section separator stays template-wide only — joining sections that share one EHR field isn't a per-section decision. Text/number fields show "Template default: X" until you type a value; boolean fields are an On/Off toggle that starts on the template default and commits to an explicit override the moment you click either side. Whatever's set wins.
 
 Always available, unlike Mapping settings.
 
@@ -111,32 +111,42 @@ Always available, unlike Mapping settings.
 
 1. **Version history** button, template header.
 2. A version is recorded on **Save changes**, not per keystroke — everything since the last save (sections, mapping, template settings) lands in one version.
-3. List shows newest first, with a **what changed** summary (e.g. *Added "Follow-up Plan", Edited "Assessment", Changed Separator*). Newest = **Most recent save**; first entry = **Original** (no separate "revert to default" — same restore flow).
+3. List shows newest first. Each entry shows the date/time, who saved it, and which sections changed, plus a **what changed** summary (e.g. *Added "Follow-up Plan", Edited "Assessment", Changed Separator*). Newest = **Most recent save**; first entry = **Original** (no separate "revert to default" — same restore flow).
 4. **Restore** any version — confirm step lists what changes; unsaved edits are discarded. Restoring never deletes other versions.
 5. Restore sets the new draft — nothing auto-pushes to the EHR.
 
 **What counts as a change** (diff vs. previous version):
 - **Section-level edits** — rename, enable/disable, remap/unmap, write mode, mapping mode, content source (prompt/instruction/values/derivative/fill-in-the-blank), additional text, default negative, macro/summarizer connections. Any of these collapses to one line naming the section — `Edited "Section Name"` — not one line per field, and not repeated if several of these change on the same section in the same save.
 - **Section structure** — added/removed sections, reordering. Each keeps its own line: `Added "X"`, `Removed "X"`, `Reordered sections`.
-- **Template identity & settings** — template name, EHR template selection (Cat 2), document type, and the six template-level settings each get their own descriptive line (e.g. `Changed Separator`) since they aren't tied to one section.
+- **Template identity & settings** — template name, EHR template selection (Cat 2), document type, and the five template-level settings each get their own descriptive line (e.g. `Changed Separator`) since they aren't tied to one section.
 
-Not tracked: who made the change (no author identity needed yet — single-doctor scope).
+**Author**: every save is attributed to the doctor who made it. This prototype has no login/multi-user model, so it's always the same mock name — a real backend would use the signed-in user.
+
+**Sections changed**: alongside the full changelog, each version also surfaces a deduped, at-a-glance list of just the section names that were added/edited/removed (not reordering or template-setting changes, which aren't tied to one section) — so it's obvious which sections to check without reading every line.
 
 **Example.** Four unrelated edits (disable a section, remap a different field, connect a macro to a third section, flip a template setting), one **Save changes** → one version with all four listed:
 
-> **Aug 18, 2026, 6:42 PM · Most recent save**
+> **Aug 18, 2026, 6:42 PM · by Dr. Sarah Chen · Most recent save**
+> Sections changed: Chief Complaint, Assessment & Plan, History of Present Illness
 > - Edited "Chief Complaint"
 > - Edited "Assessment & Plan"
 > - Edited "History of Present Illness"
-> - Changed Skip empty subsections
+> - Changed Retain headings
 
 Restoring undoes all four at once — no partial restore. Version boundary = the save action.
+
+### 8. Switching between Marvix template view and EHR mapping view
+
+1. Segmented toggle next to the template name, header: **Marvix template view** (default) / **EHR mapping view**. Both show the same underlying template — the toggle doesn't create a second copy of anything.
+2. **Marvix template view** — today's full editable table, organized by note structure (section order, subsections). A field with 2+ sections mapped to it shows a plain "Shared" badge — informational only, no longer clickable.
+3. **EHR mapping view** — read-only, organized by EHR field instead: one group per field that has a section mapped to it, field label as the heading, section name(s) listed under it. Everything here is a static label — **except** a field with 2+ sections mapped to it, where the doctor can drag to reorder which section's content comes first when they're combined into that one field. That's the only mutation possible in this view; it's the same push-order concept, just moved out of the template view's per-row popover into its own dedicated screen instead of a popup a doctor could easily miss.
+4. Auto-routed/whole-note EHRs (Centricity, Cerner, ModMed) and no-push EHRs (Tebra) show an explanatory message instead of field groups, matching the notices already shown in Marvix template view for those cases — there's no field-level mapping to display.
+5. Reordering is captured the same way as any other section edit — it's included in the next **Save changes** / version, not a separate save step.
 
 ### Other flows
 
 - **Remap a section** — push failure shows an inline error strip with "Remap" (Cat 1/2) or "Contact support" (Cat 3).
 - **Reorder sections** — drag by the grip handle.
-- **Push order for a shared field** — "Shared · order N/M" badge when 2+ sections map to one field; click to reorder.
 - **Request a new section** — **Managed templates only**, via the **Request new section** button in the template header (not the left nav's unrelated "Request from ops" stub). Self-serve doctors just add sections themselves. Request: name, description, EHR field hint, subsection Y/N, which templates (searchable multi-select, chips). Doctor notified in-app when actioned.
 - **Edit template (live prompt testing)** — **Self-serve only.** A "Prompt" tab lists every enabled section with its prompt editable inline — no separate guide panel; the tabs and the **Generate** button are the whole interface. **Generate** runs the current prompts + settings against a fixed sample transcript and opens the result as a new "Note N" tab (Note 1, Note 2, …) — one continuous assembled document, not split into section-view vs. full-note modes. Each note tab can be closed (✕), or its prompts restored back into the Prompt tab via **"Use this note's prompts"**, so a doctor can generate a few variations and settle on whichever one reads best. See Nuanced flows for why it's excluded from managed templates.
 - **Enable / disable a section** — row toggle, instant, no confirm.
@@ -248,9 +258,8 @@ Whole-template, not per section/row. Doctor-settable.
 | Separator | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | — |
 | Push subsections | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | — |
 | Retain headings | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| Skip empty subsections | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | — |
 | Character limit | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| Keep bullet points | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | — |
+| Remove bullet points | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | — | — |
 | Document type | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Selective Copy enabled | — | ✅ | — | — | — | — | — | — | — | — | — |
 | AMD field limit (reference) | — | — | — | — | — | ✅ | — | — | — | — | — |
@@ -259,9 +268,9 @@ Whole-template, not per section/row. Doctor-settable.
 - **Separator** — joins text when 2+ sections map to one field. Per-mapping-row today, being promoted template-wide. Nereg hardcodes it (no override).
 - **Push subsections** — include subsection content when pushing the parent. Redundant with the section's own "Combined"/"Split" toggle everywhere that exists; only load-bearing for Centricity (auto-routes under the hood, no per-section choice). Hidden from self-serve UI elsewhere. Hardcoded on for Nereg.
 - **Retain headings** — includes the section's own first-line heading. Doesn't affect subsection `key_name:` prefixes (always shown). Hardcoded on for Nereg.
-- **Skip empty subsections** — omit empty subsections instead of an empty heading. Hardcoded off for Nereg.
+- ~~Skip empty subsections~~ — removed as a configurable setting. There's no realistic case for a doctor wanting an empty subsection heading pushed, so empty subsections are now always omitted by default, everywhere — not something to toggle.
 - **Character limit** — Marvix truncates outgoing text before push, to avoid EHR rejection. Currently per-mapping-row, promoted template-wide. For AMD, should be capped at/reconciled with AMD field limit (below), not independent.
-- **Keep bullet points** — preserve bullets on push to Assessment/Plan; stripped by default otherwise. No longer AthenaOne-only — same EHRs as the other template-level settings above.
+- **Remove bullet points** — strips bullets on push everywhere except Assessment/Plan, where they're preserved by default. No longer AthenaOne-only — same EHRs as the other template-level settings above.
 - **Document type** — Note vs. Letter, set at creation. Only setting truly universal (no push-mechanics tie).
 - **Selective Copy enabled** — per-template flag (`extra_settings["selective_copy"]`) turning on the Scribe-it UI, independent of whether a mapping is configured.
 - **AMD field limit** — AMD's real `max_character_length`, fetched from its API. Auto-populated, reference-only (editing it doesn't change AMD's enforcement). In code this is a policy not a hard block — a stale manual value can survive if the fetch fails after a field rename; worth tightening later.
@@ -294,7 +303,7 @@ Per EHR-field mapping row — destination push behavior, not section content. Ex
   **On managed templates**: doctor can change EHR mapping, write mode, EHR value mapping, push order — same as self-serve. Cannot edit the instruction/question, allowed values, prompt, fill-in-the-blank text/blanks, or which derivative — those stay as ops set them.
 - **Write mode** — real only where the EHR fetches existing content first. AthenaOne (⚠️) works for HPI/Physical Exam/ROS only (Assessment/Chief Complaint are append/replace-only). ECW, Centricity, Nereg (◻️) accept the setting but never fetch existing content — no-op.
 - **EHR value mapping** — shown only for Restricted-list sections. One row per allowed value → destination representation (e.g. `Y→1`). Replaces the old AMD-only `extract_boolean_value` dual-row mechanism; works for any EHR.
-- **Push order for shared fields** — order of combination when 2+ sections map to one field, independent of note order. UI: "Shared · order N/M" badge.
+- **Push order for shared fields** — order of combination when 2+ sections map to one field, independent of note order. Set from **EHR mapping view** (UI Flows → 8), not the template view — drag to reorder the sections listed under that field.
 - **Selective Copy shortcut command** — exact `ehr_field_name` string (with colon) the Scribe-it destination matches — separate row from the main HL7 push, no server formatting.
 
 ### Automatic behaviors (not configurable)
@@ -332,7 +341,7 @@ Section's own content, independent of EHR mapping. Universal — every EHR gets 
 - **Enable / disable** — whether the section's included at all.
 - **Additional text** — fixed text before/and or after generated content, independent fields.
 - **Default negative** — text pushed when there's no generated content.
-- **Template setting overrides** — override any of the six template-wide settings just for this section. Text/number fields default to "Template default: X" until typed into; booleans are an On/Off toggle, starting on the template default, that becomes an explicit override on the first click — there's no way back to "inherit" for that field afterward. Collapsed by default so a fully-inheriting section stays uncluttered.
+- **Template setting overrides** — override Paragraph separator, Subsection separator, Character limit, Push subsections, Retain headings, or Remove bullet points just for this section (not Section separator — see Template-level above). Text/number fields default to "Template default: X" until typed into; booleans are an On/Off toggle, starting on the template default, that becomes an explicit override on the first click — there's no way back to "inherit" for that field afterward. Collapsed by default so a fully-inheriting section stays uncluttered.
 
 ---
 
