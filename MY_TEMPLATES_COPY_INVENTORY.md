@@ -148,7 +148,7 @@ Opened via the row's toolbox icon, tooltip "Section settings" (renamed from "Out
 - "Create a template": title
 - "Self-serve template" / "You set this up and manage it yourself.": option
 - "Managed template" / "We set this up and maintain it for you.": option
-- Picking "Self-serve" opens the numbered wizard below (Step 1). Picking "Managed" shows a message instead: "Managed template" (title) / "Managed templates are set up and maintained by ops. Contact support to request one." (body) — no wizard, just a Close button.
+- Picking "Self-serve" opens the numbered wizard below (Step 1). Picking "Managed" shows a message instead: "Managed template" (title) / "You'll be redirected to style transfer." (body) — no wizard, just a Close button.
 
 **Step 1: Starting point**
 - "Start blank"

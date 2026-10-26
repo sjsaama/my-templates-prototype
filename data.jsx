@@ -41,7 +41,9 @@ function groupsFor(templates) {
 // macro aiInference: true/false — whether AI fills the macro in, vs. a fixed/rule-based answer
 // summarizer modes: "Replace", "Append", "Prepend", "Inform"
 
-const makeSections = () => withDefaultPrompts(withDefaultNegatives([
+// `managed`: ops-managed templates additionally get billing-code sections that self-serve
+// templates don't — self-serve doctors code their own visits outside Marvix.
+const makeSections = (managed) => withDefaultPrompts(withDefaultNegatives([
   {
     id: "s_cc",
     name: "Chief Complaint",
@@ -272,6 +274,34 @@ const makeSections = () => withDefaultPrompts(withDefaultNegatives([
     expanded: false,
     defaultNegative: "Patient understands diagnosis, plan, and when to seek urgent care.",
   },
+  ...(managed ? [
+    {
+      id: "s_emcode",
+      name: "E/M Code",
+      ehr: "",
+      config: "Prepend",
+      enabled: true,
+      macros: [],
+      summarizers: [],
+      staticStart: "",
+      staticEnd: "",
+      expanded: false,
+      defaultNegative: "",
+    },
+    {
+      id: "s_icdcode",
+      name: "ICD Codes",
+      ehr: "",
+      config: "Prepend",
+      enabled: true,
+      macros: [],
+      summarizers: [],
+      staticStart: "",
+      staticEnd: "",
+      expanded: false,
+      defaultNegative: "",
+    },
+  ] : []),
 ]));
 
 // Ensure every template section has a defaultNegative field (ghost sections excluded).
@@ -305,6 +335,8 @@ const DEFAULT_PROMPTS = {
   s_exam_c2: "Respiratory exam findings: breath sounds, effort, use of accessory muscles.",
   s_labs: "List any labs or imaging reviewed at this visit, with relevant values or findings.",
   s_ap: "State the assessment (diagnosis or clinical impression) and the plan (treatment, follow-up, referrals).",
+  s_emcode: "State the appropriate Evaluation & Management (E/M) code for this visit based on complexity and time.",
+  s_icdcode: "List the ICD-10 diagnosis codes supporting today's assessment.",
 };
 
 function withDefaultPrompts(sections) {

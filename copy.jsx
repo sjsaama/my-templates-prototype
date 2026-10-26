@@ -109,7 +109,7 @@ const COPY = {
       managed: { label: "Managed template", desc: "We set this up and maintain it for you." },
     },
     managedTitle: "Managed template",
-    managedMessage: "Managed templates are set up and maintained by ops. Contact support to request one.",
+    managedMessage: "You'll be redirected to style transfer.",
   },
 
   // Template Settings modal, opened from the header button (modal.jsx)

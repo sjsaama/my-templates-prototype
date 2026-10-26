@@ -146,7 +146,7 @@ function App() {
   const [pendingRequests, setPendingRequests] = useStateA(() =>
     window.INITIAL_PENDING_REQUESTS.map((r) => ({ ...r }))
   );
-  const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections() }));
+  const [sectionsByTpl, setSectionsByTpl] = useStateA(() => ({ gen3: window.makeSections(true) }));
   const [versionsByTpl, setVersionsByTpl] = useStateA({}); // { [tplId]: [{id, timestamp, sections, label?}] }, newest first
   const [subsectionSpacing, setSubsectionSpacing] = useStateA("\n");
   const [toast, setToast] = useStateA("");
